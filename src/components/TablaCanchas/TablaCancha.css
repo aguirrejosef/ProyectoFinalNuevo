@@ -1,0 +1,52 @@
+/* Estilos para la tabla */
+.table-container {
+  margin: 20px auto;
+  width: 80%;
+  text-align: center;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+table, th, td {
+  border: 1px solid #ddd;
+}
+
+th, td {
+  padding: 8px;
+  text-align: center; /* Alineación de texto centrada en las celdas */
+}
+
+/* Estilos para los botones */
+.button-cell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.green-button {
+  width: 100%;
+  height: 100%;
+  background-color: #4CAF50; /* Verde */
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  cursor: pointer;
+}
+
+.red-button {
+  width: 100%;
+  height: 100%;
+  background-color: #f44336; /* Rojo */
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  cursor: pointer;
+}
+
+  

@@ -1,0 +1,515 @@
+.contenedor-perfil {
+    max-width: 600px;
+    margin: 0 auto 40px;
+}
+
+.encabezado-perfil {
+    background: linear-gradient(135deg, #0d3b66 0%, #1565c0 100%);
+    color: white;
+    text-align: center;
+    padding: 35px 20px 25px;
+    border-radius: 0 0 24px 24px;
+    margin-bottom: 30px;
+}
+
+.foto-perfil-header,
+.avatar-perfil-header {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.foto-perfil-header {
+    object-fit: cover;
+}
+
+.avatar-perfil-header {
+    background: linear-gradient(135deg, #cfe4fb 0%, #e3f0fd 100%);
+    color: #0d3b66;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    font-weight: bold;
+}
+
+.nombre-perfil-header {
+    margin: 4px 0 2px;
+    font-size: 1.3rem;
+}
+
+.correo-perfil-header {
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+.tarjeta-perfil {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    padding: 30px;
+    margin: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.campo {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 6px 14px 12px;
+    transition: border-color 0.2s ease;
+}
+
+.campo legend {
+    padding: 0 6px;
+    font-size: 0.8rem;
+    color: #1a3fa0;
+}
+
+.campo input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 1rem;
+    background: transparent;
+    color: #222;
+}
+
+.campo textarea {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 1rem;
+    background: transparent;
+    color: #222;
+    resize: vertical;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.campo input:disabled,
+.campo textarea:disabled {
+    color: #444;
+    cursor: default;
+}
+
+.campo:focus-within {
+    border-color: #1565c0;
+}
+
+.select-perfil {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 1rem;
+    background: transparent;
+    color: #222;
+    padding: 2px 0;
+}
+
+.mensaje-perfil {
+    text-align: center;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.acciones-perfil {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-editar,
+.btn-guardar {
+    flex: 1;
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-cancelar {
+    flex: 1;
+    background-color: #ddd;
+    color: #333;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-editar:hover,
+.btn-guardar:hover {
+    background-color: #0d47a1;
+    opacity: 1;
+}
+
+.btn-mis-turnos {
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+}
+
+.btn-mis-turnos:hover {
+    background-color: #0d47a1;
+    opacity: 1;
+}
+
+/* ------------------ Seguridad: cambiar contraseña ------------------ */
+
+.tarjeta-seguridad {
+    margin-top: 20px;
+}
+
+.titulo-seguridad {
+    color: #0d3b66;
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.btn-cambiar-password {
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #f5f7fa;
+    color: #0d3b66;
+    border: 1px solid #d5dbe4;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.btn-cambiar-password:hover {
+    background-color: #e3f0fd;
+    border-color: #1565c0;
+}
+
+/* ------------------ Layout del perfil de club (2 columnas) ------------------ */
+
+.contenedor-perfil-club {
+    max-width: 1150px;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+.perfil-club-fila {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.perfil-club-columna {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.perfil-club-columna .tarjeta-perfil,
+.contenedor-perfil-club .tarjeta-donde-estamos {
+    margin: 0;
+}
+
+.contenedor-perfil-club .tarjeta-donde-estamos {
+    margin-bottom: 40px;
+}
+
+.titulo-seccion-club {
+    color: #0d3b66;
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+/* ------------------ Carrusel de fotos ------------------ */
+
+.tarjeta-carrusel {
+    padding-bottom: 20px;
+}
+
+.carrusel-fotos {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #eef1f5;
+}
+
+.carrusel-imagen {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.carrusel-vacio {
+    height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 0.9rem;
+    background: #f5f7fa;
+    border-radius: 10px;
+    text-align: center;
+    padding: 0 20px;
+}
+
+.carrusel-flecha {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(13, 59, 102, 0.55);
+    color: white;
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 150ms ease;
+}
+
+.carrusel-flecha:hover {
+    background: rgba(13, 59, 102, 0.85);
+}
+
+.carrusel-flecha-izq {
+    left: 10px;
+}
+
+.carrusel-flecha-der {
+    right: 10px;
+}
+
+.carrusel-btn-eliminar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.carrusel-puntos {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+}
+
+.carrusel-punto {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+}
+
+.carrusel-punto-activo {
+    background: #fff;
+}
+
+.btn-agregar-foto-carrusel {
+    display: block;
+    text-align: center;
+    margin-top: 14px;
+    background-color: #f5f7fa;
+    color: #0d3b66;
+    border: 1px solid #d5dbe4;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.btn-agregar-foto-carrusel:hover {
+    background-color: #e3f0fd;
+    border-color: #1565c0;
+}
+
+/* ------------------ Donde estamos: mapa + paneles colapsables ------------------ */
+
+.tarjeta-donde-estamos {
+    padding-bottom: 24px;
+}
+
+.donde-estamos-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+    align-items: stretch;
+}
+
+.donde-estamos-mapa {
+    min-height: 320px;
+}
+
+.mapa-club-iframe-grande {
+    width: 100%;
+    height: 100%;
+    min-height: 320px;
+    border: none;
+    border-radius: 10px;
+}
+
+.donde-estamos-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.panel-colapsable {
+    background: #f8fafc;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.panel-colapsable-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    font-weight: 700;
+    color: #0d3b66;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.panel-colapsable-flecha {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.panel-colapsable-body {
+    padding: 0 16px 14px;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.panel-colapsable-body p {
+    margin: 0;
+}
+
+.texto-horarios {
+    white-space: pre-line;
+}
+
+/* ------------------ Servicios (dentro del panel colapsable) ------------------ */
+
+.grid-servicios-iconos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+    margin-bottom: 12px;
+}
+
+.item-servicio-icono {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #333;
+}
+
+.icono-servicio {
+    font-size: 1rem;
+}
+
+.btn-quitar-servicio-icono {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: #bbb;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+.btn-quitar-servicio-icono:hover {
+    color: #c62828;
+}
+
+.agregar-servicio {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.agregar-servicio input {
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.agregar-servicio input:focus {
+    border-color: #1565c0;
+}
+
+.btn-agregar-servicio {
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.btn-agregar-servicio:hover {
+    background-color: #0d47a1;
+}
+
+.btn-agregar-servicio:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* ------------------ Responsive ------------------ */
+
+@media (max-width: 900px) {
+    .perfil-club-fila {
+        grid-template-columns: 1fr;
+    }
+
+    .donde-estamos-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .grid-servicios-iconos {
+        grid-template-columns: 1fr;
+    }
+}

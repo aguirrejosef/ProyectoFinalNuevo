@@ -1,0 +1,279 @@
+.contenedor {
+    display: flex;
+    width: 100%;
+    height: 150px;
+    background-color: #004AAD;
+    border-bottom: 4px solid #CBE825;
+}
+
+.contenedor-grid {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.contenedor-grid > * {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* Estilos del botón de "Iniciar Sesión" */
+
+.btn-iniciarSesion {
+    background-color: #004AAD;
+    width: 150px;
+    height: 50px;
+    left: 100px;
+    border: 2px solid white;
+    border-radius: 25px;
+    font-size: 18px;
+    color: white;
+}
+
+#btn-navbar:hover {
+    cursor: pointer;
+    background-color: white;
+    color: #004AAD;
+    scale: 1.1;
+    border: 2px solid white;
+    box-shadow: 0 0 5px 5px rgba(203, 232, 37, 1);
+    transition: all 300ms ease;
+}
+
+
+/* Logo */
+
+.grid-item1 {
+    justify-content: flex-start;
+    display: flex;
+    align-items: center;
+}
+
+
+/* Botones de navegación */
+
+.grid-item2 {
+     justify-content: center;
+    width: 100%;
+}
+
+
+/* Botón de iniciar sesión */
+
+.grid-item4 {
+    grid-column: 3;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    box-sizing: border-box;
+}
+
+
+/* Contenedor del logo */
+
+.contenedor-img-nav {
+    width: 200px;
+    height: 100px;
+}
+
+
+/* Estilos para los botones de navegación */
+
+.nav-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    flex-wrap: nowrap;
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    color: #004AAD;
+    border: 2px solid white;
+    box-sizing: border-box;
+    padding: 12px 26px;
+    min-width: 130px;
+    height: 52px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 250ms ease;
+}
+.nav-btn:focus {
+    outline: none;
+}
+
+.nav-btn:focus-visible {
+    outline: 2px solid #f2f3ef;
+    outline-offset: 2px;
+}
+
+.nav-btn:hover {
+    background-color: #fafaf8;
+    color: #ffffff;
+    border-color: #ffffff;
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+
+/* USUARIO DE GOOGLE - PARTE DERECHA*/
+
+.usuario-navbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    width: 100%;
+}
+
+
+/* Envuelve la foto/avatar para poder ubicar el punto de aviso encima */
+
+.avatar-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Punto de aviso de turno próximo */
+
+.badge-turno-proximo {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #ff7a30;
+    border: 2px solid #004AAD;
+}
+
+
+/* Foto de perfil de Google */
+
+.foto-usuario-navbar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid white;
+    display: block;
+}
+
+
+/* Nombre del usuario de Google */
+
+
+
+.avatar-default-navbar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background-color: #2e7d32; /* elegí el color que quieras */
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+.usuario-navbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.nombre-usuario-navbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    color: #004AAD;
+    border: 2px solid white;
+    box-sizing: border-box;
+    padding: 12px 26px;
+    height: 52px;
+    width: auto;
+    max-width: 220px;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 250ms ease;
+}
+
+.nombre-usuario-navbar:hover {
+    background-color: #CBE825;
+    color: #fdfeff;
+    border-color: #CBE825;
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.menu-desplegable-usuario {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 10px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 220px;
+    z-index: 10;
+}
+
+.menu-desplegable-usuario button {
+    background: none;
+    border: none;
+    padding: 16px 20px;
+    text-align: center;
+    cursor: pointer;
+    color: #333;
+    font-size: 16px;
+    font-weight: 500;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.menu-desplegable-usuario button:hover {
+    background-color: #f0f0f0;
+}
+
+/* Aviso de turno próximo, arriba del todo en el menú desplegable */
+
+.proximo-turno-aviso {
+    padding: 14px 18px;
+    background-color: #e3f0fd;
+    color: #004AAD;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 1px solid #d5e6f8;
+    line-height: 1.4;
+}

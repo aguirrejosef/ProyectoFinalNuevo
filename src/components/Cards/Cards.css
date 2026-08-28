@@ -1,0 +1,24 @@
+.contenedor-grid-cards {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 80px;
+}
+
+.grid-item-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.cards-cargando,
+.cards-vacio {
+    text-align: center;
+    color: #666;
+    padding: 60px 20px;
+    font-size: 15px;
+}

@@ -1,0 +1,197 @@
+.panel-club-cargando {
+  text-align: center;
+  padding: 60px;
+  color: #666;
+}
+
+.panel-club-contenedor {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 32px 40px 60px;
+  box-sizing: border-box;
+}
+
+/* ------------------ Header ------------------ */
+
+.panel-club-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.panel-club-header h1 {
+  color: #0d3b66;
+  font-size: 32px;
+  margin: 0 0 4px 0;
+}
+
+.panel-club-header p {
+  color: #666;
+  font-size: 17px;
+  margin: 0;
+}
+
+.panel-club-header p strong {
+  color: #1565c0;
+}
+
+.panel-club-badge-plan {
+  background: #e3f0fd;
+  color: #1565c0;
+  font-weight: 700;
+  font-size: 14.5px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  white-space: nowrap;
+  text-transform: capitalize;
+  height: fit-content;
+}
+
+/* ------------------ KPIs ------------------ */
+
+.panel-club-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+.kpi-card {
+  background: #fff;
+  border: 2px solid #c3d3e8;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(21, 101, 192, 0.12);
+}
+
+.kpi-icono {
+  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 12px;
+  background: #e3f0fd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kpi-textos {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-textos strong {
+  color: #0d3b66;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.kpi-textos span {
+  color: #888;
+  font-size: 15px;
+}
+
+/* ------------------ Turnos de hoy ------------------ */
+
+.panel-club-turnos-hoy {
+  background: #fff;
+  border: 2px solid #c3d3e8;
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.panel-club-turnos-hoy h2 {
+  color: #0d3b66;
+  font-size: 19px;
+  margin: 0 0 16px 0;
+}
+
+.panel-club-vacio {
+  color: #777;
+  font-size: 15.5px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.lista-turnos-hoy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-turno-hoy {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px 18px;
+  flex-wrap: wrap;
+}
+
+.item-turno-hora {
+  font-weight: 700;
+  color: #1565c0;
+  font-size: 16.5px;
+  min-width: 135px;
+}
+
+.item-turno-cliente {
+  color: #0d3b66;
+  font-size: 16.5px;
+  flex: 1;
+}
+
+.item-turno-cancha {
+  color: #777;
+  font-size: 16px;
+}
+
+.btn-cancelar-turno-hoy {
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+}
+
+.btn-cancelar-turno-hoy:hover {
+  background: #0d47a1;
+}
+
+.btn-cancelar-turno-hoy:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ------------------ Responsive ------------------ */
+
+@media (max-width: 500px) {
+  .panel-club-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-club-contenedor {
+    padding: 24px 16px 40px;
+  }
+}

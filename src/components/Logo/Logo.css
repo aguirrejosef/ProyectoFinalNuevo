@@ -1,0 +1,13 @@
+.contenedor-img-logo {
+    background-image: url('../../imagenes/logo.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    width: 200px;
+    height: 100px;
+    border: 2px solid white;
+    border-radius: 15px;
+}
+
+.contenedor-img-logo:hover {
+    cursor: pointer;
+}

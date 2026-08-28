@@ -1,0 +1,101 @@
+.contenedor-turnos-cancha {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 24px 60px;
+}
+ 
+.btn-volver-canchas {
+  background: none;
+  border: none;
+  color: #1565c0;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  padding: 0;
+}
+ 
+.titulo-turnos-cancha {
+  color: #0d3b66;
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+ 
+.mensaje-turnos-cancha {
+  text-align: center;
+  color: #555;
+  padding: 30px 0;
+}
+ 
+.error-turnos-cancha {
+  color: #c62828;
+}
+ 
+.tabla-turnos-cancha {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+ 
+.fila-turnos-cancha {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 1.6fr 1.2fr 1fr;
+  gap: 10px;
+  padding: 14px 20px;
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+ 
+.fila-turnos-cancha:last-child {
+  border-bottom: none;
+}
+ 
+.fila-header {
+  background: #f5f7fa;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #666;
+  letter-spacing: 0.5px;
+}
+ 
+.estado-turno-cancha {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: capitalize;
+  width: fit-content;
+}
+ 
+.estado-reservado {
+  background: #e3f0fd;
+  color: #1565c0;
+}
+ 
+.estado-completado {
+  background: #e6f4ea;
+  color: #2e7d32;
+}
+ 
+.estado-cancelado {
+  background: #fdecea;
+  color: #c62828;
+}
+ 
+@media (max-width: 700px) {
+  .fila-turnos-cancha {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+ 
+  .fila-header {
+    display: none;
+  }
+ 
+  .fila-turnos-cancha {
+    padding: 16px 20px;
+  }
+}

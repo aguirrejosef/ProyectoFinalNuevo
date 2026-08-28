@@ -1,0 +1,10 @@
+
+.usuario-pagina {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.usuario-contenido {
+  flex: 1 0 auto;
+}

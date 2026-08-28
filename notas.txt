@@ -1,0 +1,6 @@
+LIBRERIAS QUE INSTALE
+
+npm install react-router-dom
+
+-ICONOS
+npm i --save @fortawesome/fontawesome-svg-core  @fortawesome/free-solid-svg-icons @fortawesome/react-fontawesome @fortawesome/free-brands-svg-icons

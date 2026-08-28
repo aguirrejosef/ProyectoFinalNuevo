@@ -1,0 +1,443 @@
+.novedades-pagina {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+ 
+.novedades-pagina section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 70px 20px;
+}
+ 
+.nov-eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #004AAD;
+  margin-bottom: 16px;
+}
+ 
+.nov-resaltado {
+  color: #004AAD;
+  font-style: italic;
+}
+ 
+/* ------------------ Hero ------------------ */
+ 
+.nov-hero {
+  text-align: left;
+  padding-bottom: 40px !important;
+}
+ 
+.nov-hero-titulo {
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 16px;
+  max-width: 700px;
+  color: #0d3b66;
+}
+ 
+.nov-hero-subtitulo {
+  font-size: 16px;
+  color: #666;
+  max-width: 520px;
+}
+ 
+/* ------------------ Tarjetas destacadas ------------------ */
+ 
+.nov-highlights {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  padding-top: 0 !important;
+  padding-bottom: 50px !important;
+}
+ 
+.nov-highlight-card {
+  display: block;
+  background: #f5f8fc;
+  border: 1px solid #e0e6ee;
+  border-radius: 14px;
+  padding: 22px 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+}
+ 
+.nov-highlight-card:hover {
+  border-color: #004AAD;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 74, 173, 0.12);
+}
+ 
+.nov-highlight-card h3 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #0d3b66;
+}
+ 
+.nov-highlight-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #7a8ba3;
+  margin-bottom: 10px;
+}
+ 
+.nov-highlight-card p {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+ 
+/* ------------------ Secciones por categoría ------------------ */
+ 
+.nov-seccion {
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+  border-top: 1px solid #eef1f5;
+}
+ 
+.nov-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 10px;
+}
+ 
+.nov-card {
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  border-radius: 14px;
+  padding: 22px;
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+ 
+.nov-card:hover {
+  transform: translateY(-3px);
+  border-color: #004AAD;
+  box-shadow: 0 8px 20px rgba(0, 74, 173, 0.12);
+}
+ 
+.nov-card-fecha {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+}
+ 
+.nov-card h4 {
+  font-size: 17px;
+  margin-bottom: 8px;
+  color: #0d3b66;
+}
+ 
+.nov-card p {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+}
+ 
+/* ------------------ Secciones feature (Ranking / Falta Uno) ------------------ */
+ 
+.nov-feature {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 50px;
+  align-items: center;
+  border-top: 1px solid #eef1f5;
+}
+ 
+.nov-feature-invertido {
+  direction: rtl;
+}
+ 
+.nov-feature-invertido > * {
+  direction: ltr;
+}
+ 
+.nov-badge-proximamente {
+  display: inline-block;
+  background: #e3f0fd;
+  color: #004AAD;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+}
+ 
+.nov-feature-texto h2 {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-bottom: 16px;
+  color: #0d3b66;
+}
+ 
+.nov-feature-texto p {
+  font-size: 15px;
+  color: #666;
+  line-height: 1.6;
+  max-width: 440px;
+}
+ 
+.nov-feature-visual {
+  background: #f5f8fc;
+  border: 1px solid #e5e9f0;
+  border-radius: 16px;
+  padding: 20px;
+}
+ 
+.nov-mock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #7a8ba3;
+  margin-bottom: 16px;
+}
+ 
+.nov-mock-tag {
+  background: #e3f0fd;
+  color: #004AAD;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+ 
+.nov-mock-fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #e5e9f0;
+}
+ 
+.nov-mock-pos {
+  font-weight: 800;
+  color: #004AAD;
+  width: 18px;
+}
+ 
+.nov-mock-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e3f0fd;
+  color: #004AAD;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+ 
+.nov-mock-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+ 
+.nov-mock-info strong {
+  font-size: 14px;
+  color: #222;
+}
+ 
+.nov-mock-info small {
+  font-size: 12px;
+  color: #999;
+}
+ 
+.nov-mock-score {
+  font-size: 13px;
+  font-weight: 700;
+  color: #004AAD;
+  white-space: nowrap;
+}
+ 
+.nov-mock-partido {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-top: 14px;
+  border-top: 1px solid #e5e9f0;
+}
+ 
+.nov-mock-partido-info strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #222;
+}
+ 
+.nov-mock-partido-info small {
+  font-size: 12px;
+  color: #999;
+}
+ 
+.nov-mock-hora {
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  color: #222;
+}
+ 
+.nov-mock-hora small {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #999;
+}
+ 
+.nov-mock-partido-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+}
+ 
+.nov-mock-partido-footer span {
+  font-size: 13px;
+  color: #666;
+}
+ 
+.nov-mock-btn {
+  background: #e3f0fd;
+  color: #004AAD;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: not-allowed;
+}
+ 
+/* ------------------ CTA para clubes ------------------ */
+ 
+.nov-cta-clubes {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 50px;
+  align-items: center;
+  border-top: 1px solid #eef1f5;
+  padding-bottom: 90px !important;
+}
+ 
+.nov-cta-texto h2 {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-bottom: 16px;
+  color: #0d3b66;
+}
+ 
+.nov-cta-texto p {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 28px;
+  max-width: 440px;
+}
+ 
+.nov-cta-botones {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+ 
+.nov-btn-primario {
+  background: #004AAD;
+  color: #fff;
+  border: none;
+  border-radius: 30px;
+  padding: 14px 26px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 200ms ease, background-color 200ms ease;
+}
+ 
+.nov-btn-primario:hover {
+  transform: scale(1.04);
+  background: #003a8a;
+}
+ 
+.nov-btn-secundario {
+  background: transparent;
+  color: #333;
+  border: 2px solid #d5dbe4;
+  border-radius: 30px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+ 
+.nov-btn-secundario:hover {
+  border-color: #004AAD;
+  color: #004AAD;
+}
+ 
+.nov-cta-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+ 
+.nov-cta-lista li {
+  font-size: 14px;
+  color: #666;
+  border-top: 1px solid #eef1f5;
+  padding-top: 14px;
+}
+ 
+.nov-cta-lista li strong {
+  display: block;
+  color: #0d3b66;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+ 
+/* ------------------ Responsive ------------------ */
+ 
+@media (max-width: 900px) {
+  .nov-highlights {
+    grid-template-columns: repeat(2, 1fr);
+  }
+ 
+  .nov-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+ 
+  .nov-feature,
+  .nov-feature-invertido,
+  .nov-cta-clubes {
+    grid-template-columns: 1fr;
+    direction: ltr;
+  }
+}
+ 
+@media (max-width: 600px) {
+  .nov-highlights,
+  .nov-grid {
+    grid-template-columns: 1fr;
+  }
+ 
+  .nov-hero-titulo {
+    font-size: 32px;
+  }
+}

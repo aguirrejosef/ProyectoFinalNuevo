@@ -1,0 +1,65 @@
+.club-card {
+    width: 90%;
+    margin: 20px auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    background-color: #fff;
+    transition: transform 0.2s;
+  }
+  
+  .grid-info-card-negocio{
+    display: grid;
+    grid-template-columns: repeat(2,1fr);
+  }
+  
+  .card-header {
+    font-size: 35px;
+    text-align: center;
+    color: teal
+  }
+  
+  .club-card{
+    font-size: 1em;
+    line-height: 1.6;
+  }
+ 
+  
+  .card-footer {
+    margin-right: 40px;
+    font-size: 25px;
+    text-align: right;
+  }
+
+  .card-negocio-admin>*{
+    font-size: 25px;
+    padding: 0 50px;
+  }
+  
+  .club-card:hover {
+    transform: scale(1.02);
+  }
+
+  .grid-btn-card-negocio{
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    justify-items: center;
+    padding-top: 10px;
+    padding-bottom: 30px;
+  }
+
+  .grid-btn-card-negocio>*{
+    width: max-content;
+    padding: 15px;
+    font-size: 18px;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  #btn-negocio-baja{
+    background-color: red;
+  }
+
+  #btn-negocio-editar{
+    background-color: green;
+  }

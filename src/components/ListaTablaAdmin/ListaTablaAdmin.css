@@ -1,0 +1,28 @@
+.titulo-tabla-admin{
+    color: #0056b3;
+    font-size: 50px;
+    text-align: center;
+}
+
+.grid-listaTablaAdmin {
+    display: grid;
+    grid-template-columns: repeat(2,1fr);
+}
+
+.botones-alternancia {
+    margin: 20px;
+    text-align: center;
+  }
+  
+  .botones-alternancia button {
+    margin: 0 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  .botones-alternancia button:hover {
+    box-shadow: 0 0 3px 3px rgb(0,0,0,0.3);
+    transition: all 300ms ease;
+  }
+  

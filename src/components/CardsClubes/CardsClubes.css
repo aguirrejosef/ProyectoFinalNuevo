@@ -1,0 +1,15 @@
+.club-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    row-gap: 40px;
+    column-gap: 100px;
+    justify-items: center; /* Centra los items horizontalmente dentro de cada celda */
+    margin: 70px 70px;
+    grid-auto-columns: 400px
+  }
+  
+  .card {
+    width: calc(100% - 20px); /* Ancho del 100% del ancho de la celda menos el espacio entre tarjetas */
+    margin-bottom: 20px; /* Espacio inferior entre filas */
+    text-align: center; /* Centra el contenido dentro de la tarjeta */
+  }

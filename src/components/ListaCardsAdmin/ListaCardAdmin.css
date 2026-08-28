@@ -1,0 +1,63 @@
+.lista-cards-admin {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 4 columnas por fila */
+    gap: 16px; /* Espacio entre tarjetas */
+    row-gap: 30px;
+    padding: 0 70px;
+    justify-items: center;
+    margin: 70px 0;
+  }
+  
+  .card-admin {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.2s;
+  }
+  
+  .card-admin:hover {
+    transform: scale(1.05);
+  }
+  
+  .card-img-top {
+    width: 100%;
+    height: 150px; /* Ajusta la altura según tu necesidad */
+    object-fit: cover;
+  }
+  
+  .card-body {
+    padding: 16px;
+    text-align: center;
+  }
+  
+  .card-title {
+    font-size: 1.25em;
+    margin-bottom: 8px;
+  }
+  
+  .card-text {
+    color: #666;
+    margin-bottom: 16px;
+  }
+  
+  .card-admin-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+  
+  .card-admin-btn:hover {
+    background-color: #0056b3;
+  }
+ 
+.titulo-card-admin{
+    color: #0056b3;
+    font-size: 50px;
+    text-align: center;
+}

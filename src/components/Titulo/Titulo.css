@@ -1,0 +1,16 @@
+.contenedor-titulo{
+    width: 100%;
+    height: 100px;
+    background-color: #004AAD;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 4px solid #CBE825 ;
+    border-top: 4px solid #CBE825 ;
+    margin: 20px 0;
+}
+
+.titulo {
+    color: white;
+    font-size: 50px;
+}
