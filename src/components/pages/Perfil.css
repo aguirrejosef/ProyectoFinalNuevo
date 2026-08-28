@@ -498,6 +498,180 @@
     cursor: default;
 }
 
+/* ------------------ Encabezado dentro de la columna del club ------------------ */
+
+.encabezado-perfil-club {
+    border-radius: 16px;
+    margin: 0;
+}
+
+/* ------------------ Filas de datos personales (icono + etiqueta + valor) ------------------ */
+
+.fila-campo-perfil {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eef1f5;
+}
+
+.fila-campo-perfil:last-of-type {
+    border-bottom: none;
+}
+
+.fila-campo-icono-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #667085;
+    font-size: 0.9rem;
+}
+
+.icono-campo-perfil {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #e3f0fd;
+    color: #1565c0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.valor-campo-perfil {
+    font-weight: 600;
+    color: #1a1a1a;
+    text-align: right;
+}
+
+.input-campo-perfil {
+    border: none;
+    border-bottom: 1px solid #ccc;
+    outline: none;
+    background: transparent;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    text-align: right;
+    padding: 2px 0;
+    max-width: 60%;
+}
+
+.input-campo-perfil:focus {
+    border-color: #1565c0;
+}
+
+/* ------------------ Título con línea de acento ------------------ */
+
+.titulo-con-linea {
+    position: relative;
+    padding-bottom: 12px;
+}
+
+.titulo-con-linea::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 40px;
+    height: 3px;
+    background: #1565c0;
+    border-radius: 2px;
+}
+
+/* ------------------ Miniaturas del carrusel ------------------ */
+
+.carrusel-miniaturas {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.carrusel-miniatura {
+    width: 64px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0.7;
+    border: 2px solid transparent;
+    flex-shrink: 0;
+    transition: opacity 150ms ease, border-color 150ms ease;
+}
+
+.carrusel-miniatura:hover {
+    opacity: 0.9;
+}
+
+.carrusel-miniatura-activa {
+    opacity: 1;
+    border-color: #1565c0;
+}
+
+/* ------------------ Seguridad como panel colapsable ------------------ */
+
+.tarjeta-seguridad.panel-colapsable {
+    background: white;
+    padding: 0;
+}
+
+.tarjeta-seguridad .panel-colapsable-header {
+    padding: 0;
+    font-size: 1.05rem;
+}
+
+.tarjeta-seguridad .panel-colapsable-header svg:first-child {
+    color: #1565c0;
+    margin-right: 6px;
+}
+
+.panel-colapsable-body-seguridad {
+    padding: 18px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* ------------------ Encabezado de "Donde estamos" con boton de editar ------------------ */
+
+.donde-estamos-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.btn-editar-club {
+    background: #e3f0fd;
+    color: #1565c0;
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 150ms ease;
+}
+
+.btn-editar-club:hover {
+    background: #cfe4fb;
+}
+
+.form-editar-club {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.panel-colapsable-header span svg {
+    margin-right: 6px;
+    color: #1565c0;
+}
+
 /* ------------------ Responsive ------------------ */
 
 @media (max-width: 900px) {

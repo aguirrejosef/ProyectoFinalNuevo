@@ -3,6 +3,43 @@ import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import './Perfil.css';
 import { apiFetch } from '../../api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faUser,
+    faIdCard,
+    faEnvelope,
+    faPhone,
+    faShieldHalved,
+    faLocationDot,
+    faClock,
+    faStar,
+    faChevronUp,
+    faChevronDown,
+    faPenToSquare
+} from '@fortawesome/free-solid-svg-icons';
+
+// Fila de solo-lectura (icono + etiqueta + valor) o de edición (icono + etiqueta + input)
+function CampoPerfil({ icon, label, name, value, editando, onChange, type = 'text' }) {
+    return (
+        <div className="fila-campo-perfil">
+            <div className="fila-campo-icono-label">
+                <span className="icono-campo-perfil"><FontAwesomeIcon icon={icon} /></span>
+                <span className="label-campo-perfil">{label}</span>
+            </div>
+            {editando ? (
+                <input
+                    type={type}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    className="input-campo-perfil"
+                />
+            ) : (
+                <span className="valor-campo-perfil">{value || '-'}</span>
+            )}
+        </div>
+    );
+}
 
 function Perfil() {
     const navigate = useNavigate();
@@ -32,8 +69,12 @@ function Perfil() {
         telefono: '',
         horarios_atencion: ''
     });
+    const [editandoClub, setEditandoClub] = useState(false);
+    const [guardandoClub, setGuardandoClub] = useState(false);
+    const [mensajeClub, setMensajeClub] = useState('');
 
     // ------------------ Seguridad: cambiar contraseña ------------------
+    const [abiertoSeguridad, setAbiertoSeguridad] = useState(false);
     const [editandoPassword, setEditandoPassword] = useState(false);
     const [guardandoPassword, setGuardandoPassword] = useState(false);
     const [mensajePassword, setMensajePassword] = useState('');
@@ -128,32 +169,19 @@ function Perfil() {
         setMensaje('');
 
         try {
-            if (Number(rol) === 2) {
-                // ------ Guardar datos del club ------
-                const res = await apiFetch(`/club/${clubId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(formClub)
-                });
+            const res = await apiFetch(`/usuarios/${usuarioId}`, {
+                method: 'PUT',
+                body: JSON.stringify(form)
+            });
 
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Error al actualizar');
+            if (!res.ok) throw new Error('Error al actualizar');
 
-            } else {
-                // ------ Guardar datos del usuario/cliente ------
-                const res = await apiFetch(`/usuarios/${usuarioId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(form)
-                });
-
-                if (!res.ok) throw new Error('Error al actualizar');
-
-                // Sincronizamos localStorage con los nuevos datos
-                localStorage.setItem('nombre', form.nombre);
-                localStorage.setItem('apellido', form.apellido);
-                localStorage.setItem('dni', form.dni);
-                localStorage.setItem('correo', form.correo);
-                localStorage.setItem('telefono', form.telefono);
-            }
+            // Sincronizamos localStorage con los nuevos datos
+            localStorage.setItem('nombre', form.nombre);
+            localStorage.setItem('apellido', form.apellido);
+            localStorage.setItem('dni', form.dni);
+            localStorage.setItem('correo', form.correo);
+            localStorage.setItem('telefono', form.telefono);
 
             setEditando(false);
             setMensaje('Perfil actualizado correctamente ✅');
@@ -167,19 +195,46 @@ function Perfil() {
     };
 
     const handleCancelar = () => {
-        if (Number(rol) === 2) {
-            cargarClub();
-        } else {
-            setForm({
-                nombre: localStorage.getItem('nombre') || '',
-                apellido: localStorage.getItem('apellido') || '',
-                dni: localStorage.getItem('dni') || '',
-                correo: localStorage.getItem('correo') || '',
-                telefono: localStorage.getItem('telefono') || ''
-            });
-        }
+        setForm({
+            nombre: localStorage.getItem('nombre') || '',
+            apellido: localStorage.getItem('apellido') || '',
+            dni: localStorage.getItem('dni') || '',
+            correo: localStorage.getItem('correo') || '',
+            telefono: localStorage.getItem('telefono') || ''
+        });
         setEditando(false);
         setMensaje('');
+    };
+
+    // ------------------ Datos del club (ubicación / horarios) ------------------
+    const handleGuardarClub = async () => {
+        setGuardandoClub(true);
+        setMensajeClub('');
+
+        try {
+            const res = await apiFetch(`/club/${clubId}`, {
+                method: 'PUT',
+                body: JSON.stringify(formClub)
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Error al actualizar');
+
+            setEditandoClub(false);
+            setMensajeClub('Datos del club actualizados correctamente ✅');
+
+        } catch (err) {
+            console.error(err);
+            setMensajeClub('Ocurrió un error al guardar los cambios ❌');
+        } finally {
+            setGuardandoClub(false);
+        }
+    };
+
+    const handleCancelarClub = () => {
+        cargarClub();
+        setEditandoClub(false);
+        setMensajeClub('');
     };
 
     // ------------------ Seguridad: cambiar contraseña ------------------
@@ -399,78 +454,11 @@ function Perfil() {
     const bloqueFormulario = (
         <div className="tarjeta-perfil">
 
-            {esClub ? (
-                <>
-                    {cargandoClub && <p className="mensaje-perfil">Cargando datos del club...</p>}
-
-                    <fieldset className="campo">
-                        <legend>Nombre del club</legend>
-                        <input type="text" name="nombre" value={formClub.nombre} onChange={handleChangeClub} disabled={!editando} />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Dirección</legend>
-                        <input type="text" name="direccion" value={formClub.direccion} onChange={handleChangeClub} disabled={!editando} />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Localidad</legend>
-                        {editando ? (
-                            <select name="localidad" value={formClub.localidad} onChange={handleChangeClub} className="select-perfil">
-                                <option value="San Miguel de Tucumán">San Miguel de Tucumán</option>
-                                <option value="Yerba Buena">Yerba Buena</option>
-                                <option value="Tafí Viejo">Tafí Viejo</option>
-                            </select>
-                        ) : (
-                            <input type="text" value={formClub.localidad} disabled />
-                        )}
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Teléfono del club</legend>
-                        <input type="tel" name="telefono" value={formClub.telefono} onChange={handleChangeClub} disabled={!editando} />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Horarios de atención</legend>
-                        <textarea
-                            name="horarios_atencion"
-                            value={formClub.horarios_atencion}
-                            onChange={handleChangeClub}
-                            disabled={!editando}
-                            rows={4}
-                            placeholder={'Ej:\nLunes a Viernes: 7:00 a 23:00\nSábados: 8:00 a 20:00\nDomingos: 9:00 a 22:00'}
-                        />
-                    </fieldset>
-                </>
-            ) : (
-                <>
-                    <fieldset className="campo">
-                        <legend>Nombre(s)</legend>
-                        <input type="text" name="nombre" value={form.nombre} onChange={handleChange} disabled={!editando} />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Apellido(s)</legend>
-                        <input type="text" name="apellido" value={form.apellido} onChange={handleChange} disabled={!editando} />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>DNI</legend>
-                        <input type="text" name="dni" value={form.dni} onChange={handleChange} disabled={!editando} />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Correo</legend>
-                        <input type="email" name="correo" value={form.correo} onChange={handleChange} disabled={!editando} />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Teléfono</legend>
-                        <input type="tel" name="telefono" value={form.telefono} onChange={handleChange} disabled={!editando} />
-                    </fieldset>
-                </>
-            )}
+            <CampoPerfil icon={faUser} label="Nombre" name="nombre" value={form.nombre} editando={editando} onChange={handleChange} />
+            <CampoPerfil icon={faUser} label="Apellido" name="apellido" value={form.apellido} editando={editando} onChange={handleChange} />
+            <CampoPerfil icon={faIdCard} label="DNI" name="dni" value={form.dni} editando={editando} onChange={handleChange} />
+            <CampoPerfil icon={faEnvelope} label="Correo" name="correo" value={form.correo} editando={editando} onChange={handleChange} type="email" />
+            <CampoPerfil icon={faPhone} label="Teléfono" name="telefono" value={form.telefono} editando={editando} onChange={handleChange} type="tel" />
 
             {mensaje && <p className="mensaje-perfil">{mensaje}</p>}
 
@@ -501,60 +489,71 @@ function Perfil() {
     );
 
     const bloqueSeguridad = (
-        <div className="tarjeta-perfil tarjeta-seguridad">
-            <h3 className="titulo-seguridad">Seguridad</h3>
+        <div className="tarjeta-perfil tarjeta-seguridad panel-colapsable">
+            <button
+                type="button"
+                className="panel-colapsable-header titulo-seguridad"
+                onClick={() => setAbiertoSeguridad(!abiertoSeguridad)}
+            >
+                <span><FontAwesomeIcon icon={faShieldHalved} /> Seguridad</span>
+                <FontAwesomeIcon icon={abiertoSeguridad ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
+            </button>
 
-            {!editandoPassword ? (
-                <button className="btn-cambiar-password" onClick={() => setEditandoPassword(true)}>
-                    Cambiar contraseña
-                </button>
-            ) : (
-                <>
-                    <fieldset className="campo">
-                        <legend>Contraseña actual</legend>
-                        <input
-                            type="password"
-                            name="passwordActual"
-                            value={formPassword.passwordActual}
-                            onChange={handleChangePassword}
-                        />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Nueva contraseña</legend>
-                        <input
-                            type="password"
-                            name="passwordNueva"
-                            value={formPassword.passwordNueva}
-                            onChange={handleChangePassword}
-                        />
-                    </fieldset>
-
-                    <fieldset className="campo">
-                        <legend>Confirmar nueva contraseña</legend>
-                        <input
-                            type="password"
-                            name="passwordConfirmar"
-                            value={formPassword.passwordConfirmar}
-                            onChange={handleChangePassword}
-                        />
-                    </fieldset>
-
-                    {mensajePassword && <p className="mensaje-perfil">{mensajePassword}</p>}
-
-                    <div className="acciones-perfil">
-                        <button className="btn-guardar" onClick={handleGuardarPassword} disabled={guardandoPassword}>
-                            {guardandoPassword ? 'Guardando...' : 'Guardar nueva contraseña'}
+            {abiertoSeguridad && (
+                <div className="panel-colapsable-body panel-colapsable-body-seguridad">
+                    {!editandoPassword ? (
+                        <button className="btn-cambiar-password" onClick={() => setEditandoPassword(true)}>
+                            Cambiar contraseña
                         </button>
-                        <button className="btn-cancelar" onClick={handleCancelarPassword}>
-                            Cancelar
-                        </button>
-                    </div>
-                </>
-            )}
+                    ) : (
+                        <>
+                            <fieldset className="campo">
+                                <legend>Contraseña actual</legend>
+                                <input
+                                    type="password"
+                                    name="passwordActual"
+                                    value={formPassword.passwordActual}
+                                    onChange={handleChangePassword}
+                                />
+                            </fieldset>
 
-            {mensajePassword && !editandoPassword && (
-                <p className="mensaje-perfil">{mensajePassword}</p>
+                            <fieldset className="campo">
+                                <legend>Nueva contraseña</legend>
+                                <input
+                                    type="password"
+                                    name="passwordNueva"
+                                    value={formPassword.passwordNueva}
+                                    onChange={handleChangePassword}
+                                />
+                            </fieldset>
+
+                            <fieldset className="campo">
+                                <legend>Confirmar nueva contraseña</legend>
+                                <input
+                                    type="password"
+                                    name="passwordConfirmar"
+                                    value={formPassword.passwordConfirmar}
+                                    onChange={handleChangePassword}
+                                />
+                            </fieldset>
+
+                            {mensajePassword && <p className="mensaje-perfil">{mensajePassword}</p>}
+
+                            <div className="acciones-perfil">
+                                <button className="btn-guardar" onClick={handleGuardarPassword} disabled={guardandoPassword}>
+                                    {guardandoPassword ? 'Guardando...' : 'Guardar nueva contraseña'}
+                                </button>
+                                <button className="btn-cancelar" onClick={handleCancelarPassword}>
+                                    Cancelar
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {mensajePassword && !editandoPassword && (
+                        <p className="mensaje-perfil">{mensajePassword}</p>
+                    )}
+                </div>
             )}
         </div>
     );
@@ -565,20 +564,19 @@ function Perfil() {
 
             <div className={`contenedor-perfil ${esClub ? 'contenedor-perfil-club' : ''}`}>
 
-                <div className="encabezado-perfil">
-                    {foto ? (
-                        <img src={foto} alt="Foto de perfil" className="foto-perfil-header" />
-                    ) : (
-                        <div className="avatar-perfil-header">
-                            {form.nombre ? form.nombre.charAt(0).toUpperCase() : '?'}
-                        </div>
-                    )}
-                    <h2 className="nombre-perfil-header">{form.nombre} {form.apellido}</h2>
-                    <span className="correo-perfil-header">{form.correo}</span>
-                </div>
-
                 {!esClub && (
                     <>
+                        <div className="encabezado-perfil">
+                            {foto ? (
+                                <img src={foto} alt="Foto de perfil" className="foto-perfil-header" />
+                            ) : (
+                                <div className="avatar-perfil-header">
+                                    {form.nombre ? form.nombre.charAt(0).toUpperCase() : '?'}
+                                </div>
+                            )}
+                            <h2 className="nombre-perfil-header">{form.nombre} {form.apellido}</h2>
+                            <span className="correo-perfil-header">{form.correo}</span>
+                        </div>
                         {bloqueFormulario}
                         {bloqueSeguridad}
                     </>
@@ -589,13 +587,24 @@ function Perfil() {
                         {/* ------------------ Fila 1: perfil + carrusel ------------------ */}
                         <div className="perfil-club-fila">
                             <div className="perfil-club-columna">
+                                <div className="encabezado-perfil encabezado-perfil-club">
+                                    {foto ? (
+                                        <img src={foto} alt="Foto de perfil" className="foto-perfil-header" />
+                                    ) : (
+                                        <div className="avatar-perfil-header">
+                                            {form.nombre ? form.nombre.charAt(0).toUpperCase() : '?'}
+                                        </div>
+                                    )}
+                                    <h2 className="nombre-perfil-header">{form.nombre} {form.apellido}</h2>
+                                    <span className="correo-perfil-header">{form.correo}</span>
+                                </div>
                                 {bloqueFormulario}
                                 {bloqueSeguridad}
                             </div>
 
                             <div className="perfil-club-columna">
                                 <div className="tarjeta-perfil tarjeta-carrusel">
-                                    <h3 className="titulo-seccion-club">Fotos del club</h3>
+                                    <h3 className="titulo-seccion-club titulo-con-linea">Carrusel de fotos</h3>
 
                                     {fotos.length > 0 ? (
                                         <div className="carrusel-fotos">
@@ -636,6 +645,20 @@ function Perfil() {
                                         <div className="carrusel-vacio">Todavía no cargaste fotos del club</div>
                                     )}
 
+                                    {fotos.length > 1 && (
+                                        <div className="carrusel-miniaturas">
+                                            {fotos.map((f, i) => (
+                                                <img
+                                                    key={f.id_foto}
+                                                    src={f.url}
+                                                    alt={`Miniatura ${i + 1}`}
+                                                    className={`carrusel-miniatura ${i === fotoIndex ? 'carrusel-miniatura-activa' : ''}`}
+                                                    onClick={() => setFotoIndex(i)}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+
                                     <label className="btn-agregar-foto-carrusel">
                                         {subiendoFotoClub ? 'Subiendo...' : '+ Agregar foto'}
                                         <input
@@ -652,8 +675,73 @@ function Perfil() {
 
                         {/* ------------------ Donde estamos: mapa + paneles colapsables ------------------ */}
                         <div className="tarjeta-perfil tarjeta-donde-estamos">
-                            <h3 className="titulo-seccion-club">Donde estamos</h3>
+                            <div className="donde-estamos-header">
+                                <h3 className="titulo-seccion-club">Donde estamos</h3>
+                                {!editandoClub && (
+                                    <button
+                                        type="button"
+                                        className="btn-editar-club"
+                                        onClick={() => setEditandoClub(true)}
+                                        aria-label="Editar información del club"
+                                        title="Editar información del club"
+                                    >
+                                        <FontAwesomeIcon icon={faPenToSquare} />
+                                    </button>
+                                )}
+                            </div>
 
+                            {cargandoClub && <p className="mensaje-perfil">Cargando datos del club...</p>}
+
+                            {editandoClub ? (
+                                <div className="form-editar-club">
+                                    <fieldset className="campo">
+                                        <legend>Nombre del club</legend>
+                                        <input type="text" name="nombre" value={formClub.nombre} onChange={handleChangeClub} />
+                                    </fieldset>
+
+                                    <fieldset className="campo">
+                                        <legend>Dirección</legend>
+                                        <input type="text" name="direccion" value={formClub.direccion} onChange={handleChangeClub} />
+                                    </fieldset>
+
+                                    <fieldset className="campo">
+                                        <legend>Localidad</legend>
+                                        <select name="localidad" value={formClub.localidad} onChange={handleChangeClub} className="select-perfil">
+                                            <option value="">Seleccioná una localidad</option>
+                                            <option value="San Miguel de Tucumán">San Miguel de Tucumán</option>
+                                            <option value="Yerba Buena">Yerba Buena</option>
+                                            <option value="Tafí Viejo">Tafí Viejo</option>
+                                        </select>
+                                    </fieldset>
+
+                                    <fieldset className="campo">
+                                        <legend>Teléfono del club</legend>
+                                        <input type="tel" name="telefono" value={formClub.telefono} onChange={handleChangeClub} />
+                                    </fieldset>
+
+                                    <fieldset className="campo">
+                                        <legend>Horarios de atención</legend>
+                                        <textarea
+                                            name="horarios_atencion"
+                                            value={formClub.horarios_atencion}
+                                            onChange={handleChangeClub}
+                                            rows={4}
+                                            placeholder={'Ej:\nLunes a Viernes: 7:00 a 23:00\nSábados: 8:00 a 20:00\nDomingos: 9:00 a 22:00'}
+                                        />
+                                    </fieldset>
+
+                                    {mensajeClub && <p className="mensaje-perfil">{mensajeClub}</p>}
+
+                                    <div className="acciones-perfil">
+                                        <button className="btn-guardar" onClick={handleGuardarClub} disabled={guardandoClub}>
+                                            {guardandoClub ? 'Guardando...' : 'Guardar cambios'}
+                                        </button>
+                                        <button className="btn-cancelar" onClick={handleCancelarClub}>
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
                             <div className="donde-estamos-grid">
 
                                 <div className="donde-estamos-mapa">
@@ -677,8 +765,8 @@ function Perfil() {
                                             className="panel-colapsable-header"
                                             onClick={() => setAbiertoUbicacion(!abiertoUbicacion)}
                                         >
-                                            Ubicación
-                                            <span className="panel-colapsable-flecha">{abiertoUbicacion ? '▴' : '▾'}</span>
+                                            <span><FontAwesomeIcon icon={faLocationDot} /> Ubicación</span>
+                                            <FontAwesomeIcon icon={abiertoUbicacion ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
                                         </button>
                                         {abiertoUbicacion && (
                                             <div className="panel-colapsable-body">
@@ -697,8 +785,8 @@ function Perfil() {
                                             className="panel-colapsable-header"
                                             onClick={() => setAbiertoHorarios(!abiertoHorarios)}
                                         >
-                                            Horarios del Club
-                                            <span className="panel-colapsable-flecha">{abiertoHorarios ? '▴' : '▾'}</span>
+                                            <span><FontAwesomeIcon icon={faClock} /> Horarios del Club</span>
+                                            <FontAwesomeIcon icon={abiertoHorarios ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
                                         </button>
                                         {abiertoHorarios && (
                                             <div className="panel-colapsable-body">
@@ -717,8 +805,8 @@ function Perfil() {
                                             className="panel-colapsable-header"
                                             onClick={() => setAbiertoServicios(!abiertoServicios)}
                                         >
-                                            Servicios del Club
-                                            <span className="panel-colapsable-flecha">{abiertoServicios ? '▴' : '▾'}</span>
+                                            <span><FontAwesomeIcon icon={faStar} /> Servicios del Club</span>
+                                            <FontAwesomeIcon icon={abiertoServicios ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
                                         </button>
                                         {abiertoServicios && (
                                             <div className="panel-colapsable-body">
@@ -765,6 +853,7 @@ function Perfil() {
 
                                 </div>
                             </div>
+                            )}
                         </div>
                     </>
                 )}
