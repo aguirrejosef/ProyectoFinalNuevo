@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import './MisTurnos.css';
+import { apiFetch } from '../../api';
  
 const TABS = [
     { key: 'reservado', label: 'Reservadas' },
@@ -58,8 +59,8 @@ function MisTurnos() {
  
         const cargarTurnos = async () => {
             try {
-                const res = await fetch(
-                    `http://localhost:3000/turnos?id_usuario=${idUsuario}`
+                const res = await apiFetch(
+                    `/turnos?id_usuario=${idUsuario}`
                 );
  
                 if (!res.ok) {

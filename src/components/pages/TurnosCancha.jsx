@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
 import './TurnosCancha.css';
+import { apiFetch } from '../../api';
  
 function TurnosCancha() {
     const { idCancha } = useParams();
@@ -15,7 +16,7 @@ function TurnosCancha() {
     useEffect(() => {
         const cargarTurnos = async () => {
             try {
-                const res = await fetch(`http://localhost:3000/club/turnos-cancha?id_cancha=${idCancha}`);
+                const res = await apiFetch(`/club/turnos-cancha?id_cancha=${idCancha}`);
                 const data = await res.json();
  
                 if (!res.ok) {

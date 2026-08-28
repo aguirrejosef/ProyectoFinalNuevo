@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './CardsClubes.css';
 import Card from '../Card/Card';
+import { apiFetch } from '../../api';
 
 const ClubList = () => {
   const [clubes, setClubes] = useState([]);
@@ -10,7 +11,7 @@ const ClubList = () => {
   useEffect(() => {
     const fetchClubes = async () => {
       try {
-        const response = await fetch('http://localhost:3000/clubes');
+        const response = await apiFetch('/clubes');
         if (!response.ok) {
           throw new Error('Error en la respuesta de la red');
         }

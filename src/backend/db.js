@@ -12,6 +12,10 @@ const port = 3000;
 const multer = require('multer');
 const path = require('path');
  
+if (!process.env.JWT_SECRET) {
+  throw new Error('Falta JWT_SECRET en el archivo .env');
+}
+
 app.use(cors());
 app.use(express.json());
 const storageCanchas = multer.diskStorage({
@@ -30,14 +34,58 @@ const storageCanchas = multer.diskStorage({
 
 // Pool de MySQL
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'padel',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'padel',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
+
+// ------------------ Autenticación / Autorización ------------------
+function verificarToken(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ message: 'Falta el token de autenticación' });
+  }
+
+  try {
+    req.usuario = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Token inválido o expirado' });
+  }
+}
+
+function requireRol(...rolesPermitidos) {
+  return (req, res, next) => {
+    if (!rolesPermitidos.includes(Number(req.usuario.rol))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+    next();
+  };
+}
+
+// Verifica que el club :id (o el club dueño de :id_club recibido en query/body)
+// pertenezca al usuario autenticado, salvo que sea admin.
+async function verificarDuenoDeClub(req, idClub) {
+  if (Number(req.usuario.rol) === 1) return true; // admin
+  const [rows] = await pool.execute('SELECT id_dueno FROM club WHERE id_club = ?', [idClub]);
+  return rows.length > 0 && rows[0].id_dueno === req.usuario.id;
+}
+
+// Igual que verificarDuenoDeClub, pero a partir del id de una cancha.
+async function verificarDuenoDeCancha(req, idCancha) {
+  if (Number(req.usuario.rol) === 1) return true; // admin
+  const [rows] = await pool.execute(
+    'SELECT cl.id_dueno FROM canchas c INNER JOIN club cl ON c.id_club = cl.id_club WHERE c.id_cancha = ?',
+    [idCancha]
+  );
+  return rows.length > 0 && rows[0].id_dueno === req.usuario.id;
+}
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -201,14 +249,33 @@ app.post('/FormUsuarios', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await conn.execute(
+    const [insertResult] = await conn.execute(
       `INSERT INTO usuarios (nombre, apellido, dni, usuario, correo, telefono, password, metodo_registro, id_rol)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [nombre, apellido, dni, usuario, correo, telefono, hashedPassword, 'manual', 3]
     );
 
     conn.release();
-    res.status(201).json({ message: 'Usuario registrado correctamente' });
+
+    const token = jwt.sign(
+      { id: insertResult.insertId, usuario, rol: 3 },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+
+    res.status(201).json({
+      message: 'Usuario registrado correctamente',
+      token,
+      id: insertResult.insertId,
+      usuario,
+      nombre,
+      apellido,
+      dni,
+      correo,
+      telefono,
+      foto: null,
+      rol: 3
+    });
 
   } catch (error) {
   console.error('Error en registro usuario:', error);
@@ -255,7 +322,7 @@ app.post('/login', async (req, res) => {
         usuario: rows[0].usuario,
         rol: rows[0].id_rol
       },
-      'tu_secreto_jwt',
+      process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
 
@@ -344,8 +411,8 @@ app.post('/usuarios/login-google', async (req, res) => {
     conn.release();
 
     const token = jwt.sign(
-      { correo, usuario, rol },
-      'tu_secreto_jwt',
+      { id: idUsuarioFinal, correo, usuario, rol },
+      process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
 
@@ -502,8 +569,9 @@ app.post('/usuarios/reset-password', async (req, res) => {
 });
  
 // ------------------ Obtener Usuarios según rol ------------------
-app.get('/usuarios', async (req, res) => {
-  const { rol, id_usuario } = req.query;
+app.get('/usuarios', verificarToken, requireRol(1, 2), async (req, res) => {
+  const rol = req.usuario.rol;
+  const id_usuario = req.usuario.id;
 
   try {
     const conn = await pool.getConnection();
@@ -626,19 +694,41 @@ app.get('/clubes', async (req, res) => {
     res.status(500).json({ message: 'Error al obtener clubes' });
   }
 
-});app.get('/club/mi-club', async (req, res) => {
-  const { id_usuario } = req.query;
- 
-  if (!id_usuario) {
-    return res.status(400).json({ message: 'Falta id_usuario' });
+});
+
+// ------------------ Dar de baja un club (solo admin) ------------------
+app.delete('/clubes/:id', verificarToken, requireRol(1), async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [result] = await pool.execute('DELETE FROM club WHERE id_club = ?', [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Club no encontrado' });
+    }
+
+    res.json({ message: 'Club eliminado correctamente' });
+
+  } catch (error) {
+    console.error('Error al eliminar club:', error);
+
+    if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
+      return res.status(400).json({
+        message: 'No se puede eliminar: este club tiene canchas, turnos u otros datos asociados.'
+      });
+    }
+
+    res.status(500).json({ message: 'Error en el servidor' });
   }
- 
+});
+
+app.get('/club/mi-club', verificarToken, requireRol(2), async (req, res) => {
   try {
     const conn = await pool.getConnection();
- 
+
     const [rows] = await conn.execute(
       'SELECT * FROM club WHERE id_dueno = ?',
-      [id_usuario]
+      [req.usuario.id]
     );
  
     conn.release();
@@ -655,40 +745,48 @@ app.get('/clubes', async (req, res) => {
   }
 });
  
-app.put('/club/:id', async (req, res) => {
+app.put('/club/:id', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   const { nombre, direccion, localidad, telefono, horarios_atencion } = req.body;
- 
+
   if (!nombre || !direccion || !localidad || !telefono) {
     return res.status(400).json({ message: 'Todos los campos son obligatorios' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeClub(req, id))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
- 
+
     await conn.execute(
-      'UPDATE club SET nombre = ?, direccion = ?, localidad = ?, telefono = ?, horarios_atencion = ? WHERE id_club = ?'
-      [nombre, direccion, localidad, telefono, id]
+      'UPDATE club SET nombre = ?, direccion = ?, localidad = ?, telefono = ?, horarios_atencion = ? WHERE id_club = ?',
+      [nombre, direccion, localidad, telefono, horarios_atencion || null, id]
     );
- 
+
     conn.release();
     res.json({ message: 'Datos del club actualizados correctamente' });
- 
+
   } catch (error) {
     console.error('Error al actualizar club:', error);
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
 
-app.put('/club/:id/plan', async (req, res) => {
+app.put('/club/:id/plan', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   const { plan } = req.body;
- 
+
   if (!plan) {
     return res.status(400).json({ message: 'Falta el plan' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeClub(req, id))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
  
     await conn.execute(
@@ -704,7 +802,7 @@ app.put('/club/:id/plan', async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
-app.post('/canchas/upload-foto', uploadCancha.single('foto'), (req, res) => {
+app.post('/canchas/upload-foto', verificarToken, requireRol(1, 2), uploadCancha.single('foto'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No se recibió ninguna imagen' });
   }
@@ -741,17 +839,21 @@ app.post('/canchas/upload-foto', uploadCancha.single('foto'), (req, res) => {
   }
 });
  
-app.post('/club/fotos/upload', uploadClubFoto.single('foto'), async (req, res) => {
+app.post('/club/fotos/upload', verificarToken, requireRol(1, 2), uploadClubFoto.single('foto'), async (req, res) => {
   const { id_club } = req.body;
- 
+
   if (!req.file) {
     return res.status(400).json({ message: 'No se recibió ninguna imagen' });
   }
   if (!id_club) {
     return res.status(400).json({ message: 'Falta id_club' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeClub(req, id_club))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const url = `http://localhost:3000/uploads/club/${req.file.filename}`;
  
     const conn = await pool.getConnection();
@@ -769,10 +871,21 @@ app.post('/club/fotos/upload', uploadClubFoto.single('foto'), async (req, res) =
   }
 });
  
-app.delete('/club/fotos/:id', async (req, res) => {
+app.delete('/club/fotos/:id', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   try {
     const conn = await pool.getConnection();
+
+    const [fotoRows] = await conn.execute('SELECT id_club FROM club_fotos WHERE id_foto = ?', [id]);
+    if (fotoRows.length === 0) {
+      conn.release();
+      return res.status(404).json({ message: 'Foto no encontrada' });
+    }
+    if (!(await verificarDuenoDeClub(req, fotoRows[0].id_club))) {
+      conn.release();
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     await conn.execute('DELETE FROM club_fotos WHERE id_foto = ?', [id]);
     conn.release();
     res.json({ message: 'Foto eliminada correctamente' });
@@ -803,14 +916,18 @@ app.get('/club/servicios', async (req, res) => {
   }
 });
  
-app.post('/club/servicios', async (req, res) => {
+app.post('/club/servicios', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id_club, nombre } = req.body;
- 
+
   if (!id_club || !nombre) {
     return res.status(400).json({ message: 'Faltan datos' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeClub(req, id_club))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
     const [result] = await conn.execute(
       'INSERT INTO club_servicios (id_club, nombre) VALUES (?, ?)',
@@ -826,10 +943,21 @@ app.post('/club/servicios', async (req, res) => {
   }
 });
  
-app.delete('/club/servicios/:id', async (req, res) => {
+app.delete('/club/servicios/:id', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   try {
     const conn = await pool.getConnection();
+
+    const [servicioRows] = await conn.execute('SELECT id_club FROM club_servicios WHERE id_servicio = ?', [id]);
+    if (servicioRows.length === 0) {
+      conn.release();
+      return res.status(404).json({ message: 'Servicio no encontrado' });
+    }
+    if (!(await verificarDuenoDeClub(req, servicioRows[0].id_club))) {
+      conn.release();
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     await conn.execute('DELETE FROM club_servicios WHERE id_servicio = ?', [id]);
     conn.release();
     res.json({ message: 'Servicio eliminado correctamente' });
@@ -839,16 +967,20 @@ app.delete('/club/servicios/:id', async (req, res) => {
   }
 });
  // ------------------ Agregar una cancha nueva al club ------------------
-app.post('/club/canchas', async (req, res) => {
+app.post('/club/canchas', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id_club, nombre, tipo, foto, precio } = req.body;
- 
+
   if (!id_club || !nombre) {
     return res.status(400).json({ message: 'Faltan datos obligatorios' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeClub(req, id_club))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
- 
+
     const [result] = await conn.execute(
       'INSERT INTO canchas (nombre, estado, id_club, tipo, foto, precio) VALUES (?, ?, ?, ?, ?, ?)',
       [nombre, 'disponible', id_club, tipo || null, foto || null, precio || null]
@@ -910,17 +1042,21 @@ app.get('/club/canchas', async (req, res) => {
  
  
 // ------------------ Editar cancha ------------------
-app.put('/canchas/:id', async (req, res) => {
+app.put('/canchas/:id', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   const { nombre, tipo, foto, precio } = req.body;
- 
+
   if (!nombre) {
     return res.status(400).json({ message: 'El nombre es obligatorio' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeCancha(req, id))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
- 
+
     await conn.execute(
       'UPDATE canchas SET nombre = ?, tipo = ?, foto = ?, precio = ? WHERE id_cancha = ?',
       [nombre, tipo || null, foto || null, precio || null, id]
@@ -937,17 +1073,21 @@ app.put('/canchas/:id', async (req, res) => {
  
  
 // ------------------ Activar / Desactivar cancha ------------------
-app.put('/canchas/:id/estado', async (req, res) => {
+app.put('/canchas/:id/estado', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   const { estado } = req.body;
- 
+
   if (!estado) {
     return res.status(400).json({ message: 'Falta el estado' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeCancha(req, id))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
- 
+
     await conn.execute(
       'UPDATE canchas SET estado = ? WHERE id_cancha = ?',
       [estado, id]
@@ -964,12 +1104,16 @@ app.put('/canchas/:id/estado', async (req, res) => {
  
  
 // ------------------ Eliminar cancha ------------------
-app.delete('/canchas/:id', async (req, res) => {
+app.delete('/canchas/:id', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
- 
+
   try {
+    if (!(await verificarDuenoDeCancha(req, id))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
- 
+
     await conn.execute('DELETE FROM canchas WHERE id_cancha = ?', [id]);
  
     conn.release();
@@ -992,16 +1136,20 @@ app.delete('/canchas/:id', async (req, res) => {
  
  
 // ------------------ Turnos de una cancha específica (vista del club) ------------------
-app.get('/club/turnos-cancha', async (req, res) => {
+app.get('/club/turnos-cancha', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id_cancha } = req.query;
- 
+
   if (!id_cancha) {
     return res.status(400).json({ message: 'Falta id_cancha' });
   }
- 
+
   try {
+    if (!(await verificarDuenoDeCancha(req, id_cancha))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const conn = await pool.getConnection();
- 
+
     const [rows] = await conn.execute(
       `SELECT
           t.id_turno,
@@ -1030,16 +1178,17 @@ app.get('/club/turnos-cancha', async (req, res) => {
   }
 });
 
-app.get('/club/turnos-cliente', async (req, res) => {
-  const { id_usuario, id_dueno } = req.query;
- 
-  if (!id_usuario || !id_dueno) {
+app.get('/club/turnos-cliente', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id_usuario } = req.query;
+  const idDueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+
+  if (!id_usuario || !idDueno) {
     return res.status(400).json({ message: 'Faltan datos' });
   }
- 
+
   try {
     const conn = await pool.getConnection();
- 
+
     const [rows] = await conn.execute(
       `SELECT
           t.id_turno,
@@ -1055,7 +1204,7 @@ app.get('/club/turnos-cliente', async (req, res) => {
        INNER JOIN estados_turno e ON t.id_estado = e.id_estado
        WHERE t.id_usuario = ? AND cl.id_dueno = ?
        ORDER BY t.fecha DESC, h.hora_inicio ASC`,
-      [id_usuario, id_dueno]
+      [id_usuario, idDueno]
     );
  
     conn.release();
@@ -1067,13 +1216,13 @@ app.get('/club/turnos-cliente', async (req, res) => {
   }
 });
 
-app.get('/club/resumen', async (req, res) => {
-  const { id_dueno } = req.query;
- 
+app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+
   if (!id_dueno) {
     return res.status(400).json({ error: 'Falta id_dueno' });
   }
- 
+
   try {
     // Datos del club
     const [clubRows] = await pool.query(
@@ -1164,9 +1313,13 @@ app.get('/club/resumen', async (req, res) => {
   }
 });
 // ------------------ Actualizar Perfil de Usuario ------------------
-app.put('/usuarios/:id', async (req, res) => {
+app.put('/usuarios/:id', verificarToken, async (req, res) => {
   const { id } = req.params;
   const { nombre, apellido, dni, correo, telefono } = req.body;
+
+  if (Number(req.usuario.rol) !== 1 && req.usuario.id !== Number(id)) {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
 
   if (!nombre || !apellido || !correo) {
     return res.status(400).json({ message: 'Nombre, apellido y correo son obligatorios' });
@@ -1227,10 +1380,14 @@ app.put('/usuarios/:id', async (req, res) => {
   }
 });
 
-app.put('/usuarios/:id/password', async (req, res) => {
+app.put('/usuarios/:id/password', verificarToken, async (req, res) => {
   const { id } = req.params;
   const { passwordActual, passwordNueva } = req.body;
- 
+
+  if (req.usuario.id !== Number(id)) {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+
   if (!passwordActual || !passwordNueva) {
     return res.status(400).json({ message: 'Faltan datos' });
   }
@@ -1279,10 +1436,32 @@ app.put('/usuarios/:id/password', async (req, res) => {
 });
 
 
-app.put('/turnos/:id/cancelar', async (req, res) => {
+app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
   const { id } = req.params;
- 
+
   try {
+    const [turnoRows] = await pool.query(
+      `SELECT t.id_usuario, cl.id_dueno
+       FROM turnos t
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN club cl ON c.id_club = cl.id_club
+       WHERE t.id_turno = ?`,
+      [id]
+    );
+
+    if (turnoRows.length === 0) {
+      return res.status(404).json({ message: 'Turno no encontrado' });
+    }
+
+    const { id_usuario: idUsuarioTurno, id_dueno: idDuenoClub } = turnoRows[0];
+    const esDueno = Number(req.usuario.rol) === 1
+      || req.usuario.id === idUsuarioTurno
+      || req.usuario.id === idDuenoClub;
+
+    if (!esDueno) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const [result] = await pool.query(
       `UPDATE turnos
        SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado')
@@ -1302,13 +1481,13 @@ app.put('/turnos/:id/cancelar', async (req, res) => {
   }
 });
 // ------------------ Obtener Turnos de un Usuario ------------------
-app.get('/turnos/proximos-count', async (req, res) => {
-  const { id_usuario } = req.query;
- 
+app.get('/turnos/proximos-count', verificarToken, async (req, res) => {
+  const id_usuario = Number(req.usuario.rol) === 1 ? req.query.id_usuario : req.usuario.id;
+
   if (!id_usuario) {
     return res.status(400).json({ message: 'Falta id_usuario' });
   }
- 
+
   try {
     const conn = await pool.getConnection();
  
@@ -1341,13 +1520,13 @@ app.get('/turnos/proximos-count', async (req, res) => {
     res.status(500).json({ message: 'Error al obtener turnos próximos' });
   }
 });
-app.get('/turnos', async (req, res) => {
-  const { id_usuario } = req.query;
- 
+app.get('/turnos', verificarToken, async (req, res) => {
+  const id_usuario = Number(req.usuario.rol) === 1 ? req.query.id_usuario : req.usuario.id;
+
   if (!id_usuario) {
     return res.status(400).json({ message: 'Falta id_usuario' });
   }
- 
+
   try {
     const conn = await pool.getConnection();
  

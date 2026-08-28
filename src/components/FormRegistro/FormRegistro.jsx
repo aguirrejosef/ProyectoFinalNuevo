@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import './FormRegistro.css';
 import Modal from '../Modal/Modal';
+import { apiFetch } from '../../api';
  
 const PLANES = [
   { id: 'basico', label: 'Básico' },
@@ -73,9 +74,8 @@ function FormRegistro() {
     };
  
     try {
-      const response = await fetch('http://localhost:3000/usuarios/registro-club', {
+      const response = await apiFetch('/usuarios/registro-club', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(clubData)
       });
  

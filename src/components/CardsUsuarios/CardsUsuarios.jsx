@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './CardsUsuarios.css';
+import { apiFetch } from '../../api';
 
 const UMBRAL_CLIENTE_FRECUENTE = 5;
 
@@ -18,14 +19,11 @@ const Usuarios = () => {
   const [cargandoTurnos, setCargandoTurnos] = useState(false);
 
   const rol = localStorage.getItem('rol');
-  const idUsuario = localStorage.getItem('id');
 
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:3000/usuarios?rol=${rol}&id_usuario=${idUsuario}`
-        );
+        const response = await apiFetch('/usuarios');
 
         const data = await response.json();
         setUsuarios(data);
@@ -38,7 +36,7 @@ const Usuarios = () => {
     };
 
     fetchUsuarios();
-  }, [rol, idUsuario]);
+  }, []);
 
   const getRol = (idRol) => {
     if (idRol === 1) return 'Admin';
@@ -90,8 +88,8 @@ const Usuarios = () => {
     setTurnosCliente([]);
 
     try {
-      const res = await fetch(
-        `http://localhost:3000/club/turnos-cliente?id_usuario=${user.id_usuario}&id_dueno=${idUsuario}`
+      const res = await apiFetch(
+        `/club/turnos-cliente?id_usuario=${user.id_usuario}`
       );
       const data = await res.json();
       setTurnosCliente(Array.isArray(data) ? data : []);

@@ -1,21 +1,21 @@
-/*import React, { useState } from 'react';
-import ListaCardsAdmin from '../ListaCardsAdmin/ListaCardAdmin';
+import React, { useState } from 'react';
+import ListaTablaAdmin from '../ListaTablaAdmin/ListaTablaAdmin';
+import CardsUsuarios from '../CardsUsuarios/CardsUsuarios';
 import BtnFlotanteWp from '../Button/BtnFlotanteWp/BtnFlotanteWp';
 import Footer from '../Footer/Footer';
-import ListaTablaAdmin from '../ListaTablaAdmin/ListaTablaAdmin';
-import NavBarAdmin from '../NavBar/NavBarAdmin'
+import NavBar from '../NavBar/NavBar';
 
 function PanelAdmin() {
   const [mostrarTabla, setMostrarTabla] = useState(true);
 
   return (
     <div>
-        <NavBarAdmin/>
+        <NavBar/>
       <div className="botones-alternancia">
         <button onClick={() => setMostrarTabla(true)}>Mostrar Clubes</button>
         <button onClick={() => setMostrarTabla(false)}>Mostrar Usuarios</button>
         </div>
-        {mostrarTabla ? <ListaTablaAdmin /> : <ListaCardsAdmin />}
+        {mostrarTabla ? <ListaTablaAdmin /> : <CardsUsuarios />}
         <Footer />
         <div className="contenedor-btnFlotanteWsp">
             <BtnFlotanteWp
@@ -27,6 +27,3 @@ function PanelAdmin() {
 }
 
 export default PanelAdmin;
-
-
-*/

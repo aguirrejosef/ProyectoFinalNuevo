@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './FormUsuarios.css';
 import Modal from '../Modal/Modal';
+import { apiFetch } from '../../api';
  
 function FormUsuarios() {
   const navigate = useNavigate();
@@ -67,22 +68,28 @@ const handleSubmit = async (e) => {
     };
  
     try {
-      const response = await fetch('http://localhost:3000/FormUsuarios', {
+      const response = await apiFetch('/FormUsuarios', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(usuarioData)
       });
- 
+
       const data = await response.json();
- 
+
       if (response.ok) {
         setMensaje(data.message || 'Registro exitoso');
- 
+
         // Guardar sesión (auto-login)
         localStorage.setItem('token', data.token);
+        localStorage.setItem('id', data.id);
         localStorage.setItem('usuario', data.usuario);
+        localStorage.setItem('nombre', data.nombre || '');
+        localStorage.setItem('apellido', data.apellido || '');
+        localStorage.setItem('dni', data.dni || '');
+        localStorage.setItem('correo', data.correo || '');
+        localStorage.setItem('telefono', data.telefono || '');
+        localStorage.setItem('foto', data.foto || '');
         localStorage.setItem('rol', data.rol);
- 
+
         // Limpiar formulario
         setNombre('');
         setApellido('');

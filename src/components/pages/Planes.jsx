@@ -4,6 +4,7 @@ import BtnFlotanteWp from '../Button/BtnFlotanteWp/BtnFlotanteWp'
 import Footer from '../Footer/Footer'
 import { useNavigate } from 'react-router-dom'
 import './Planes.css'
+import { apiFetch } from '../../api'
 
 // NOTA: los nombres, precios y beneficios de acá son PLACEHOLDER.
 // Reemplazalos por los planes reales que va a ofrecer tu plataforma.
@@ -50,7 +51,6 @@ function Planes() {
   const navigate = useNavigate();
 
   const rol = localStorage.getItem('rol');
-  const idUsuario = localStorage.getItem('id');
   const esClub = Number(rol) === 2;
 
   const [clubId, setClubId] = useState(null);
@@ -63,7 +63,7 @@ function Planes() {
 
     const cargarClub = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/club/mi-club?id_usuario=${idUsuario}`);
+        const res = await apiFetch('/club/mi-club');
         const data = await res.json();
 
         if (res.ok) {
@@ -92,9 +92,8 @@ function Planes() {
     setMensaje('');
 
     try {
-      const res = await fetch(`http://localhost:3000/club/${clubId}/plan`, {
+      const res = await apiFetch(`/club/${clubId}/plan`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: plan.id })
       });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './Cards.css'
 import Card from '../Card/Card'
+import { apiFetch } from '../../api'
 
 function Cards() {
   const [clubes, setClubes] = useState([]);
@@ -9,7 +10,7 @@ function Cards() {
   useEffect(() => {
     const fetchClubesPopulares = async () => {
       try {
-        const response = await fetch('http://localhost:3000/clubes/populares?limit=3');
+        const response = await apiFetch('/clubes/populares?limit=3');
         const data = await response.json();
         setClubes(data);
       } catch (error) {

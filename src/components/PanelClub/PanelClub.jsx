@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import './PanelClub.css';
+import { apiFetch } from '../../api';
 
 function PanelClub() {
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelandoId, setCancelandoId] = useState(null);
 
-  const idUsuario = localStorage.getItem('id');
   const nombreUsuario = localStorage.getItem('nombre');
 
   const fetchResumen = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/club/resumen?id_dueno=${idUsuario}`);
+      const res = await apiFetch('/club/resumen');
       const data = await res.json();
       setResumen(data);
     } catch (error) {
@@ -24,7 +24,7 @@ function PanelClub() {
   useEffect(() => {
     fetchResumen();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idUsuario]);
+  }, []);
 
   const formatearHora = (hora) => (hora ? hora.slice(0, 5) : '');
 
@@ -37,7 +37,7 @@ function PanelClub() {
 
     setCancelandoId(turno.id_turno);
     try {
-      const res = await fetch(`http://localhost:3000/turnos/${turno.id_turno}/cancelar`, {
+      const res = await apiFetch(`/turnos/${turno.id_turno}/cancelar`, {
         method: 'PUT'
       });
 

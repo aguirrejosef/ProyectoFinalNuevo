@@ -1,5 +1,5 @@
 import './App.css';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './components/pages/Home';
 import Login from './components/pages/Login';
 import RecPassword from './components/pages/RecPassword';
@@ -17,13 +17,31 @@ import Planes from './components/pages/Planes';
 import Novedades from './components/pages/Novedades';
 import MisCanchas from './components/pages/MisCanchas';
 import TurnosCancha from './components/pages/TurnosCancha';
+
+// Bloquea el acceso a una ruta si no hay sesión, o si el rol no está permitido.
+function RutaPrivada({ rolesPermitidos, children }) {
+  const token = localStorage.getItem('token');
+  const rol = Number(localStorage.getItem('rol'));
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  if (rolesPermitidos && !rolesPermitidos.includes(rol)) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
 function App() {
   return (
     <div className="App">
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/admin" element={<Home />} />
+          <Route
+            path="/admin"
+            element={<RutaPrivada rolesPermitidos={[1]}><PanelAdmin /></RutaPrivada>}
+          />
           <Route path="/club" element={<Home />} />
           <Route path="/cliente" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -33,14 +51,29 @@ function App() {
           <Route path="/canchas" element={<Canchas />} />
           <Route path="/canchas/:id" element={<Club />} />
           <Route path="/historia" element={<Historia />} />
-          <Route path="/usuario" element={<Usuario />} />
-          <Route path="/mi-perfil" element={<Perfil />} />
-          <Route path="/mis-turnos" element={<MisTurnos />} />
+          <Route
+            path="/usuario"
+            element={<RutaPrivada rolesPermitidos={[1, 2]}><Usuario /></RutaPrivada>}
+          />
+          <Route
+            path="/mi-perfil"
+            element={<RutaPrivada><Perfil /></RutaPrivada>}
+          />
+          <Route
+            path="/mis-turnos"
+            element={<RutaPrivada rolesPermitidos={[3]}><MisTurnos /></RutaPrivada>}
+          />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/planes" element={<Planes />} />
           <Route path="/novedades" element={<Novedades />} />
-          <Route path="/mis-canchas" element={<MisCanchas />} />
-          <Route path="/mis-canchas/:idCancha/turnos" element={<TurnosCancha />} />
+          <Route
+            path="/mis-canchas"
+            element={<RutaPrivada rolesPermitidos={[2]}><MisCanchas /></RutaPrivada>}
+          />
+          <Route
+            path="/mis-canchas/:idCancha/turnos"
+            element={<RutaPrivada rolesPermitidos={[2]}><TurnosCancha /></RutaPrivada>}
+          />
         </Routes>
       </BrowserRouter>
     </div>

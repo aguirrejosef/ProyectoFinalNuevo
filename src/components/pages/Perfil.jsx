@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import './Perfil.css';
+import { apiFetch } from '../../api';
 
 function Perfil() {
     const navigate = useNavigate();
@@ -80,15 +81,15 @@ function Perfil() {
 
         // Si es club, traemos los datos del club desde el backend
         if (Number(storedRol) === 2) {
-            cargarClub(idUsuario);
+            cargarClub();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate]);
 
-    const cargarClub = async (idUsuario) => {
+    const cargarClub = async () => {
         setCargandoClub(true);
         try {
-            const res = await fetch(`http://localhost:3000/club/mi-club?id_usuario=${idUsuario}`);
+            const res = await apiFetch('/club/mi-club');
             const data = await res.json();
 
             if (res.ok) {
@@ -129,9 +130,8 @@ function Perfil() {
         try {
             if (Number(rol) === 2) {
                 // ------ Guardar datos del club ------
-                const res = await fetch(`http://localhost:3000/club/${clubId}`, {
+                const res = await apiFetch(`/club/${clubId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formClub)
                 });
 
@@ -140,9 +140,8 @@ function Perfil() {
 
             } else {
                 // ------ Guardar datos del usuario/cliente ------
-                const res = await fetch(`http://localhost:3000/usuarios/${usuarioId}`, {
+                const res = await apiFetch(`/usuarios/${usuarioId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(form)
                 });
 
@@ -169,7 +168,7 @@ function Perfil() {
 
     const handleCancelar = () => {
         if (Number(rol) === 2) {
-            cargarClub(usuarioId);
+            cargarClub();
         } else {
             setForm({
                 nombre: localStorage.getItem('nombre') || '',
@@ -211,9 +210,8 @@ function Perfil() {
         setGuardandoPassword(true);
 
         try {
-            const res = await fetch(`http://localhost:3000/usuarios/${usuarioId}/password`, {
+            const res = await apiFetch(`/usuarios/${usuarioId}/password`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ passwordActual, passwordNueva })
             });
 
@@ -245,7 +243,7 @@ function Perfil() {
     // ------------------ Carrusel de fotos del club ------------------
     const cargarFotos = async (idClub) => {
         try {
-            const res = await fetch(`http://localhost:3000/club/fotos?id_club=${idClub}`);
+            const res = await apiFetch(`/club/fotos?id_club=${idClub}`);
             const data = await res.json();
             if (res.ok) setFotos(data);
         } catch (err) {
@@ -271,7 +269,7 @@ function Perfil() {
             formData.append('foto', archivo);
             formData.append('id_club', clubId);
 
-            const res = await fetch('http://localhost:3000/club/fotos/upload', {
+            const res = await apiFetch('/club/fotos/upload', {
                 method: 'POST',
                 body: formData
             });
@@ -305,7 +303,7 @@ function Perfil() {
         if (!confirmar) return;
 
         try {
-            const res = await fetch(`http://localhost:3000/club/fotos/${fotoActual.id_foto}`, {
+            const res = await apiFetch(`/club/fotos/${fotoActual.id_foto}`, {
                 method: 'DELETE'
             });
 
@@ -325,7 +323,7 @@ function Perfil() {
     // ------------------ Servicios adicionales ------------------
     const cargarServicios = async (idClub) => {
         try {
-            const res = await fetch(`http://localhost:3000/club/servicios?id_club=${idClub}`);
+            const res = await apiFetch(`/club/servicios?id_club=${idClub}`);
             const data = await res.json();
             if (res.ok) setServicios(data);
         } catch (err) {
@@ -339,9 +337,8 @@ function Perfil() {
 
         setAgregandoServicio(true);
         try {
-            const res = await fetch('http://localhost:3000/club/servicios', {
+            const res = await apiFetch('/club/servicios', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id_club: clubId, nombre })
             });
 
@@ -364,7 +361,7 @@ function Perfil() {
 
     const handleEliminarServicio = async (idServicio) => {
         try {
-            const res = await fetch(`http://localhost:3000/club/servicios/${idServicio}`, {
+            const res = await apiFetch(`/club/servicios/${idServicio}`, {
                 method: 'DELETE'
             });
 

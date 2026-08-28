@@ -4,6 +4,7 @@ import NavBar from '../NavBar/NavBar'
 import BtnFlotanteWp from '../Button/BtnFlotanteWp/BtnFlotanteWp'
 import Footer from '../Footer/Footer'
 import './RecPassword.css'
+import { apiFetch } from '../../api'
  
 function ResetPassword() {
   const [searchParams] = useSearchParams()
@@ -39,9 +40,8 @@ function ResetPassword() {
     setEnviando(true)
  
     try {
-      const res = await fetch('http://localhost:3000/usuarios/reset-password', {
+      const res = await apiFetch('/usuarios/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password })
       })
  

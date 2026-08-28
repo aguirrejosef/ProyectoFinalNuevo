@@ -3,6 +3,7 @@ import NavBar from '../NavBar/NavBar'
 import BtnFlotanteWp from '../Button/BtnFlotanteWp/BtnFlotanteWp'
 import Footer from '../Footer/Footer'
 import './RecPassword.css'
+import { apiFetch } from '../../api'
  
 function RecPassword() {
   const [correo, setCorreo] = useState('')
@@ -15,9 +16,8 @@ function RecPassword() {
     setEnviando(true)
  
     try {
-      const res = await fetch('http://localhost:3000/usuarios/solicitar-reset', {
+      const res = await apiFetch('/usuarios/solicitar-reset', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo })
       })
  

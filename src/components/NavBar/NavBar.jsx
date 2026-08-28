@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../NavBar/NavBar.css';
 import Logo from '../Logo/Logo';
+import { apiFetch, cerrarSesion } from '../../api';
 
 function NavBar() {
     const navigate = useNavigate();
@@ -31,7 +32,7 @@ function NavBar() {
         const storedId = localStorage.getItem('id');
 
         if (Number(storedRol) === 3 && storedId) {
-            fetch(`http://localhost:3000/turnos/proximos-count?id_usuario=${storedId}`)
+            apiFetch(`/turnos/proximos-count?id_usuario=${storedId}`)
                 .then((res) => res.json())
                 .then((data) => setProximoInfo(data))
                 .catch((err) => console.error('Error al obtener turnos próximos:', err));
@@ -51,6 +52,7 @@ function NavBar() {
     }, []);
 
     const botonesAdmin = [
+        { label: 'Panel', path: '/admin' },
         { label: 'Historia', path: '/historia' },
         { label: 'Clubes', path: '/canchas' },
         { label: 'Usuarios', path: '/usuario' },
@@ -92,11 +94,7 @@ function NavBar() {
     }
 
     const handleLogout = () => {
-        localStorage.removeItem('rol');
-        localStorage.removeItem('usuario');
-        localStorage.removeItem('nombre');
-        localStorage.removeItem('foto');
-        navigate('/login');
+        cerrarSesion();
     };
 
     const handleMiPerfil = () => {

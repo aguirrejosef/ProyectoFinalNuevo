@@ -4,6 +4,7 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import '../pages/Login.css';
 import Logo from '../Logo/Logo';
+import { apiFetch } from '../../api';
 
 function Login() {
     const navigate = useNavigate();
@@ -15,11 +16,6 @@ function Login() {
 
     const handleRecuperarPassword = () =>
         window.location.href = '/recuperar-password';
-
-    const handleRegistroClub = () =>
-        window.location.href = '/registro-club';
-    const handleRegistroUsuario = () =>
-        window.location.href = '/registro-usuario';
 
     // ==========================================
     // LOGIN MANUAL
@@ -34,9 +30,8 @@ function Login() {
     setLoading(true);
 
     try {
-        const response = await fetch('http://localhost:3000/login', {
+        const response = await apiFetch('/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario: correo, password: password })
         });
 
@@ -47,6 +42,7 @@ function Login() {
             return;
         }
 
+            localStorage.setItem('token', data.token);
             localStorage.setItem('id', data.id);
             localStorage.setItem('usuario', data.usuario || '');
             localStorage.setItem('nombre', data.nombre || '');
@@ -92,13 +88,10 @@ function Login() {
         // ENVIAR CREDENCIAL AL BACKEND
         // ------------------------------------------
 
-        const res = await fetch(
-            'http://localhost:3000/usuarios/login-google',
+        const res = await apiFetch(
+            '/usuarios/login-google',
             {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
                     credential: credentialResponse.credential
                 })
@@ -115,6 +108,7 @@ function Login() {
 
             console.log('Login Google:', data);
 
+            localStorage.setItem('token', data.token);
             localStorage.setItem('id', data.id);
             localStorage.setItem('usuario', data.usuario || '');
             localStorage.setItem('nombre', data.nombre || '');

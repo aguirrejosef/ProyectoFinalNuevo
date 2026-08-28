@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
 import './MisCanchas.css';
+import { apiFetch } from '../../api';
 
 function MisCanchas() {
     const navigate = useNavigate();
@@ -48,7 +49,7 @@ function MisCanchas() {
         setError('');
 
         try {
-            const resClub = await fetch(`http://localhost:3000/club/mi-club?id_usuario=${idUsuario}`);
+            const resClub = await apiFetch('/club/mi-club');
             const dataClub = await resClub.json();
 
             if (!resClub.ok) {
@@ -59,7 +60,7 @@ function MisCanchas() {
 
             setClub(dataClub);
 
-            const resCanchas = await fetch(`http://localhost:3000/club/canchas?id_club=${dataClub.id_club}`);
+            const resCanchas = await apiFetch(`/club/canchas?id_club=${dataClub.id_club}`);
             const dataCanchas = await resCanchas.json();
 
             if (!resCanchas.ok) {
@@ -82,9 +83,8 @@ function MisCanchas() {
         const nuevoEstado = cancha.estado === 'disponible' ? 'inactiva' : 'disponible';
 
         try {
-            const res = await fetch(`http://localhost:3000/canchas/${cancha.id_cancha}/estado`, {
+            const res = await apiFetch(`/canchas/${cancha.id_cancha}/estado`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ estado: nuevoEstado })
             });
 
@@ -104,9 +104,8 @@ function MisCanchas() {
         setErrorModal('');
 
         try {
-            const res = await fetch(`http://localhost:3000/canchas/${canchaEditando.id_cancha}`, {
+            const res = await apiFetch(`/canchas/${canchaEditando.id_cancha}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     nombre: canchaEditando.nombre,
                     tipo: canchaEditando.tipo,
@@ -141,7 +140,7 @@ function MisCanchas() {
         setErrorModal('');
 
         try {
-            const res = await fetch(`http://localhost:3000/canchas/${canchaEliminando.id_cancha}`, {
+            const res = await apiFetch(`/canchas/${canchaEliminando.id_cancha}`, {
                 method: 'DELETE'
             });
 
@@ -176,9 +175,8 @@ function MisCanchas() {
         setErrorModal('');
 
         try {
-            const res = await fetch('http://localhost:3000/club/canchas', {
+            const res = await apiFetch('/club/canchas', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     id_club: club.id_club,
                     nombre: nuevaCancha.nombre,
@@ -231,7 +229,7 @@ function MisCanchas() {
             const formData = new FormData();
             formData.append('foto', archivo);
 
-            const res = await fetch('http://localhost:3000/canchas/upload-foto', {
+            const res = await apiFetch('/canchas/upload-foto', {
                 method: 'POST',
                 body: formData
             });
