@@ -6,6 +6,7 @@ function PanelClub() {
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelandoId, setCancelandoId] = useState(null);
+  const [error, setError] = useState('');
 
   const nombreUsuario = localStorage.getItem('nombre');
 
@@ -13,9 +14,17 @@ function PanelClub() {
     try {
       const res = await apiFetch('/club/resumen');
       const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'No se pudo cargar el resumen del club');
+        return;
+      }
+
       setResumen(data);
+      setError('');
     } catch (error) {
       console.error('Error al cargar el resumen del club:', error);
+      setError('Error al conectar con el servidor');
     } finally {
       setLoading(false);
     }
@@ -58,8 +67,8 @@ function PanelClub() {
     return <div className="panel-club-cargando">Cargando panel...</div>;
   }
 
-  if (!resumen) {
-    return <div className="panel-club-cargando">No se pudo cargar la información del club.</div>;
+  if (error || !resumen) {
+    return <div className="panel-club-cargando">{error || 'No se pudo cargar la información del club.'}</div>;
   }
 
   return (
