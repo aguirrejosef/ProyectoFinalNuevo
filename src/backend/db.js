@@ -834,7 +834,86 @@ app.get('/club/mi-club', verificarToken, requireRol(2), async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
- 
+
+// ------------------ Días y horario de atención del club ------------------
+// (a partir de esto se calculan, para el cliente, los rangos de horario
+// disponibles para reservar: cada club dice a qué hora abre y cierra cada
+// día, y el cliente elige hora de inicio + duración dentro de ese rango)
+//
+// IMPORTANTE: estas rutas literales van ANTES de PUT /club/:id a propósito.
+// Express matchea rutas en el orden en que se registran, y "/club/:id" con
+// id="dias-atencion" matchea igual de bien "/club/dias-atencion" — si esta
+// ruta quedara después, PUT /club/:id se la comería primero.
+
+app.get('/club/dias-atencion', async (req, res) => {
+  const { id_club } = req.query;
+  if (!id_club) return res.status(400).json({ message: 'Falta id_club' });
+
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id_dia_atencion, numero_dia, hora_apertura, hora_cierre FROM club_dias_atencion WHERE id_club = ? ORDER BY numero_dia ASC',
+      [id_club]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error en /club/dias-atencion:', error);
+    res.status(500).json({ message: 'Error al obtener los días de atención' });
+  }
+});
+
+// Crea o actualiza el horario de un día puntual (0=Lunes ... 6=Domingo)
+app.put('/club/dias-atencion', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id_club, numero_dia, hora_apertura, hora_cierre } = req.body;
+
+  if (id_club === undefined || numero_dia === undefined || !hora_apertura || !hora_cierre) {
+    return res.status(400).json({ message: 'Faltan datos' });
+  }
+  if (numero_dia < 0 || numero_dia > 6) {
+    return res.status(400).json({ message: 'Día inválido' });
+  }
+  if (hora_apertura >= hora_cierre) {
+    return res.status(400).json({ message: 'La hora de apertura debe ser anterior a la de cierre' });
+  }
+
+  try {
+    if (!(await verificarDuenoDeClub(req, id_club))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    await pool.execute(
+      `INSERT INTO club_dias_atencion (id_club, numero_dia, hora_apertura, hora_cierre)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE hora_apertura = VALUES(hora_apertura), hora_cierre = VALUES(hora_cierre)`,
+      [id_club, numero_dia, hora_apertura, hora_cierre]
+    );
+
+    res.json({ message: 'Día actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al guardar día de atención:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
+// Marca un día como cerrado (deja de ofrecerse para reservar)
+app.delete('/club/dias-atencion/:idClub/:numeroDia', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { idClub, numeroDia } = req.params;
+
+  try {
+    if (!(await verificarDuenoDeClub(req, idClub))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    await pool.execute(
+      'DELETE FROM club_dias_atencion WHERE id_club = ? AND numero_dia = ?',
+      [idClub, numeroDia]
+    );
+    res.json({ message: 'Día marcado como cerrado' });
+  } catch (error) {
+    console.error('Error al cerrar día de atención:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
 app.put('/club/:id', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   const { nombre, direccion, localidad, telefono, horarios_atencion } = req.body;
@@ -1053,80 +1132,6 @@ app.delete('/club/servicios/:id', verificarToken, requireRol(1, 2), async (req, 
     res.json({ message: 'Servicio eliminado correctamente' });
   } catch (error) {
     console.error('Error al eliminar servicio:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
-  }
-});
-
-// ------------------ Días y horario de atención del club ------------------
-// (a partir de esto se calculan, para el cliente, los rangos de horario
-// disponibles para reservar: cada club dice a qué hora abre y cierra cada
-// día, y el cliente elige hora de inicio + duración dentro de ese rango)
-
-app.get('/club/dias-atencion', async (req, res) => {
-  const { id_club } = req.query;
-  if (!id_club) return res.status(400).json({ message: 'Falta id_club' });
-
-  try {
-    const [rows] = await pool.execute(
-      'SELECT id_dia_atencion, numero_dia, hora_apertura, hora_cierre FROM club_dias_atencion WHERE id_club = ? ORDER BY numero_dia ASC',
-      [id_club]
-    );
-    res.json(rows);
-  } catch (error) {
-    console.error('Error en /club/dias-atencion:', error);
-    res.status(500).json({ message: 'Error al obtener los días de atención' });
-  }
-});
-
-// Crea o actualiza el horario de un día puntual (0=Lunes ... 6=Domingo)
-app.put('/club/dias-atencion', verificarToken, requireRol(1, 2), async (req, res) => {
-  const { id_club, numero_dia, hora_apertura, hora_cierre } = req.body;
-
-  if (id_club === undefined || numero_dia === undefined || !hora_apertura || !hora_cierre) {
-    return res.status(400).json({ message: 'Faltan datos' });
-  }
-  if (numero_dia < 0 || numero_dia > 6) {
-    return res.status(400).json({ message: 'Día inválido' });
-  }
-  if (hora_apertura >= hora_cierre) {
-    return res.status(400).json({ message: 'La hora de apertura debe ser anterior a la de cierre' });
-  }
-
-  try {
-    if (!(await verificarDuenoDeClub(req, id_club))) {
-      return res.status(403).json({ message: 'No autorizado' });
-    }
-
-    await pool.execute(
-      `INSERT INTO club_dias_atencion (id_club, numero_dia, hora_apertura, hora_cierre)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE hora_apertura = VALUES(hora_apertura), hora_cierre = VALUES(hora_cierre)`,
-      [id_club, numero_dia, hora_apertura, hora_cierre]
-    );
-
-    res.json({ message: 'Día actualizado correctamente' });
-  } catch (error) {
-    console.error('Error al guardar día de atención:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
-  }
-});
-
-// Marca un día como cerrado (deja de ofrecerse para reservar)
-app.delete('/club/dias-atencion/:idClub/:numeroDia', verificarToken, requireRol(1, 2), async (req, res) => {
-  const { idClub, numeroDia } = req.params;
-
-  try {
-    if (!(await verificarDuenoDeClub(req, idClub))) {
-      return res.status(403).json({ message: 'No autorizado' });
-    }
-
-    await pool.execute(
-      'DELETE FROM club_dias_atencion WHERE id_club = ? AND numero_dia = ?',
-      [idClub, numeroDia]
-    );
-    res.json({ message: 'Día marcado como cerrado' });
-  } catch (error) {
-    console.error('Error al cerrar día de atención:', error);
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
