@@ -515,6 +515,61 @@
     cursor: default;
 }
 
+/* ------------------ Horarios reservables ------------------ */
+
+.texto-ayuda-horarios-reservables {
+    font-size: 0.8rem;
+    color: #667085;
+    margin: 0 0 10px;
+}
+
+.lista-horarios-reservables {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.item-horario-reservable {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #e3f0fd;
+    color: #0d3b66;
+    border-radius: 20px;
+    padding: 6px 8px 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.agregar-horario-reservable {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.agregar-horario-reservable input {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.agregar-horario-reservable input:focus {
+    border-color: #1565c0;
+}
+
+.agregar-horario-reservable span {
+    font-size: 0.85rem;
+    color: #667085;
+}
+
+.error-horario-reservable {
+    color: #c62828;
+}
+
 /* ------------------ Encabezado dentro de la columna del club ------------------ */
 
 .encabezado-perfil-club {

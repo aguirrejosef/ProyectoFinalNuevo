@@ -48,8 +48,9 @@
 }
 
 .grid-canchas-club {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 14px;
 }
 
@@ -61,8 +62,13 @@
     cursor: pointer;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 6px;
-    text-align: left;
+    text-align: center;
+    width: 160px;
+    min-height: 110px;
+    box-sizing: border-box;
     transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 

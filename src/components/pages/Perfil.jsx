@@ -15,7 +15,8 @@ import {
     faStar,
     faChevronUp,
     faChevronDown,
-    faPenToSquare
+    faPenToSquare,
+    faCalendarCheck
 } from '@fortawesome/free-solid-svg-icons';
 
 // Fila de solo-lectura (icono + etiqueta + valor) o de edición (icono + etiqueta + input)
@@ -94,9 +95,17 @@ function Perfil() {
     const [nuevoServicio, setNuevoServicio] = useState('');
     const [agregandoServicio, setAgregandoServicio] = useState(false);
 
+    // ------------------ Horarios reservables del club ------------------
+    const [horariosReservables, setHorariosReservables] = useState([]);
+    const [nuevoHorarioInicio, setNuevoHorarioInicio] = useState('');
+    const [nuevoHorarioFin, setNuevoHorarioFin] = useState('');
+    const [agregandoHorario, setAgregandoHorario] = useState(false);
+    const [errorHorario, setErrorHorario] = useState('');
+
     // ------------------ Sección "Donde estamos" (paneles colapsables) ------------------
     const [abiertoUbicacion, setAbiertoUbicacion] = useState(true);
     const [abiertoHorarios, setAbiertoHorarios] = useState(true);
+    const [abiertoHorariosReservables, setAbiertoHorariosReservables] = useState(true);
     const [abiertoServicios, setAbiertoServicios] = useState(true);
 
     useEffect(() => {
@@ -145,6 +154,7 @@ function Perfil() {
 
                 cargarFotos(data.id_club);
                 cargarServicios(data.id_club);
+                cargarHorariosReservables(data.id_club);
             } else {
                 setMensaje(data.message || 'No se pudo cargar el club');
             }
@@ -426,6 +436,68 @@ function Perfil() {
 
         } catch (err) {
             console.error('Error al eliminar servicio:', err);
+        }
+    };
+
+    // ------------------ Horarios reservables ------------------
+    const cargarHorariosReservables = async (idClub) => {
+        try {
+            const res = await apiFetch(`/club/horarios?id_club=${idClub}`);
+            const data = await res.json();
+            if (res.ok) setHorariosReservables(data);
+        } catch (err) {
+            console.error('Error al cargar horarios reservables:', err);
+        }
+    };
+
+    const handleAgregarHorario = async () => {
+        setErrorHorario('');
+
+        if (!nuevoHorarioInicio || !nuevoHorarioFin || !clubId) return;
+
+        if (nuevoHorarioInicio >= nuevoHorarioFin) {
+            setErrorHorario('La hora de inicio debe ser anterior a la de fin');
+            return;
+        }
+
+        setAgregandoHorario(true);
+        try {
+            const res = await apiFetch('/club/horarios', {
+                method: 'POST',
+                body: JSON.stringify({ id_club: clubId, hora_inicio: nuevoHorarioInicio, hora_fin: nuevoHorarioFin })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setErrorHorario(data.message || 'No se pudo agregar el horario');
+                return;
+            }
+
+            setHorariosReservables((prev) => [...prev, data].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)));
+            setNuevoHorarioInicio('');
+            setNuevoHorarioFin('');
+
+        } catch (err) {
+            console.error('Error al agregar horario:', err);
+            setErrorHorario('Error al conectar con el servidor');
+        } finally {
+            setAgregandoHorario(false);
+        }
+    };
+
+    const handleEliminarHorarioReservable = async (idHorario) => {
+        try {
+            const res = await apiFetch(`/club/horarios/${idHorario}`, {
+                method: 'DELETE'
+            });
+
+            if (!res.ok) return;
+
+            setHorariosReservables((prev) => prev.filter((h) => h.id_horario !== idHorario));
+
+        } catch (err) {
+            console.error('Error al eliminar horario:', err);
         }
     };
 
@@ -795,6 +867,72 @@ function Perfil() {
                                                 ) : (
                                                     <p className="mensaje-perfil">Todavía no cargaste los horarios. Podés hacerlo editando tu perfil.</p>
                                                 )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="panel-colapsable">
+                                        <button
+                                            type="button"
+                                            className="panel-colapsable-header"
+                                            onClick={() => setAbiertoHorariosReservables(!abiertoHorariosReservables)}
+                                        >
+                                            <span><FontAwesomeIcon icon={faCalendarCheck} /> Horarios para reservar</span>
+                                            <FontAwesomeIcon icon={abiertoHorariosReservables ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
+                                        </button>
+                                        {abiertoHorariosReservables && (
+                                            <div className="panel-colapsable-body">
+                                                <p className="texto-ayuda-horarios-reservables">
+                                                    Estas son las franjas horarias que tus clientes van a poder elegir al reservar un turno.
+                                                </p>
+
+                                                {horariosReservables.length === 0 && (
+                                                    <p className="mensaje-perfil">Todavía no cargaste horarios reservables. Nadie va a poder reservar hasta que agregues al menos uno.</p>
+                                                )}
+
+                                                {horariosReservables.length > 0 && (
+                                                    <div className="lista-horarios-reservables">
+                                                        {horariosReservables.map((h) => (
+                                                            <div key={h.id_horario} className="item-horario-reservable">
+                                                                <span>{h.hora_inicio.slice(0, 5)} - {h.hora_fin.slice(0, 5)}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-quitar-servicio-icono"
+                                                                    onClick={() => handleEliminarHorarioReservable(h.id_horario)}
+                                                                    aria-label={`Quitar horario ${h.hora_inicio}`}
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {errorHorario && <p className="mensaje-perfil error-horario-reservable">{errorHorario}</p>}
+
+                                                <div className="agregar-horario-reservable">
+                                                    <input
+                                                        type="time"
+                                                        value={nuevoHorarioInicio}
+                                                        onChange={(e) => setNuevoHorarioInicio(e.target.value)}
+                                                        aria-label="Hora de inicio"
+                                                    />
+                                                    <span>a</span>
+                                                    <input
+                                                        type="time"
+                                                        value={nuevoHorarioFin}
+                                                        onChange={(e) => setNuevoHorarioFin(e.target.value)}
+                                                        aria-label="Hora de fin"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn-agregar-servicio"
+                                                        onClick={handleAgregarHorario}
+                                                        disabled={agregandoHorario || !nuevoHorarioInicio || !nuevoHorarioFin}
+                                                    >
+                                                        Agregar
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                     </div>

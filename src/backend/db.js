@@ -995,6 +995,85 @@ app.delete('/club/servicios/:id', verificarToken, requireRol(1, 2), async (req, 
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
+
+// ------------------ Horarios reservables del club ------------------
+// (las franjas que sus clientes pueden elegir al reservar un turno; cada
+// club define las suyas, con la duración que quiera)
+
+app.get('/club/horarios', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id_club } = req.query;
+  if (!id_club) return res.status(400).json({ message: 'Falta id_club' });
+
+  try {
+    if (!(await verificarDuenoDeClub(req, id_club))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    const [rows] = await pool.execute(
+      'SELECT id_horario, hora_inicio, hora_fin FROM horarios WHERE id_club = ? ORDER BY hora_inicio ASC',
+      [id_club]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error en /club/horarios:', error);
+    res.status(500).json({ message: 'Error al obtener los horarios' });
+  }
+});
+
+app.post('/club/horarios', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id_club, hora_inicio, hora_fin } = req.body;
+
+  if (!id_club || !hora_inicio || !hora_fin) {
+    return res.status(400).json({ message: 'Faltan datos' });
+  }
+  if (hora_inicio >= hora_fin) {
+    return res.status(400).json({ message: 'La hora de inicio debe ser anterior a la hora de fin' });
+  }
+
+  try {
+    if (!(await verificarDuenoDeClub(req, id_club))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    const [result] = await pool.execute(
+      'INSERT INTO horarios (id_club, hora_inicio, hora_fin) VALUES (?, ?, ?)',
+      [id_club, hora_inicio, hora_fin]
+    );
+
+    res.status(201).json({ id_horario: result.insertId, hora_inicio, hora_fin });
+  } catch (error) {
+    console.error('Error al agregar horario:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
+app.delete('/club/horarios/:id', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [horarioRows] = await pool.execute('SELECT id_club FROM horarios WHERE id_horario = ?', [id]);
+    if (horarioRows.length === 0) {
+      return res.status(404).json({ message: 'Horario no encontrado' });
+    }
+    if (!(await verificarDuenoDeClub(req, horarioRows[0].id_club))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    await pool.execute('DELETE FROM horarios WHERE id_horario = ?', [id]);
+    res.json({ message: 'Horario eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar horario:', error);
+
+    if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
+      return res.status(400).json({
+        message: 'No se puede eliminar: este horario tiene turnos asociados.'
+      });
+    }
+
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
  // ------------------ Agregar una cancha nueva al club ------------------
 app.post('/club/canchas', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id_club, nombre, tipo, foto, precio } = req.body;
@@ -1187,9 +1266,11 @@ app.get('/canchas/:id/disponibilidad', async (req, res) => {
             )
             OR (? = CURDATE() AND h.hora_inicio <= CURTIME())
           ) AS ocupado
-       FROM horarios h
+       FROM canchas c
+       INNER JOIN horarios h ON h.id_club = c.id_club
+       WHERE c.id_cancha = ?
        ORDER BY h.hora_inicio ASC`,
-      [id, fecha, fecha]
+      [id, fecha, fecha, id]
     );
 
     res.json(rows.map((r) => ({ ...r, ocupado: !!r.ocupado })));
