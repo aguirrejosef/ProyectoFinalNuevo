@@ -5,6 +5,8 @@ import Footer from '../Footer/Footer'
 import InfoClub from '../InfoClub/InfoClub'
 import ReservaTurno from '../ReservaTurno/ReservaTurno'
 import { apiFetch } from '../../api'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faLocationDot } from '@fortawesome/free-solid-svg-icons'
 import "./Club.css"
 
 function Club() {
@@ -17,6 +19,7 @@ function Club() {
   const [canchaSeleccionada, setCanchaSeleccionada] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [fotoIndex, setFotoIndex] = useState(0);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -64,6 +67,20 @@ function Club() {
     return Number(precio).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
   };
 
+  const handleFotoAnterior = () => {
+    setFotoIndex((prev) => (prev === 0 ? fotos.length - 1 : prev - 1));
+  };
+
+  const handleFotoSiguiente = () => {
+    setFotoIndex((prev) => (prev === fotos.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleVerEnMapa = () => {
+    const direccionCompleta = [club?.direccion, club?.localidad].filter(Boolean).join(', ');
+    if (!direccionCompleta) return;
+    window.open(`https://www.google.com/maps?q=${encodeURIComponent(direccionCompleta)}`, '_blank');
+  };
+
   if (cargando) {
     return (
       <div>
@@ -88,18 +105,49 @@ function Club() {
     <div>
       <NavBar />
 
-      <h1 className="nombre-club">{club.nombre}</h1>
-
       {fotos.length > 0 && (
-        <div className="galeria-club">
-          {fotos.map((f) => (
-            <img key={f.id_foto} src={f.url} alt={club.nombre} className="galeria-club-img" />
-          ))}
+        <div className="carrusel-club">
+          <img src={fotos[fotoIndex]?.url} alt={club.nombre} className="carrusel-club-img" />
+
+          {fotos.length > 1 && (
+            <>
+              <button type="button" className="carrusel-club-flecha carrusel-club-flecha-izq" onClick={handleFotoAnterior} aria-label="Foto anterior">
+                ‹
+              </button>
+              <button type="button" className="carrusel-club-flecha carrusel-club-flecha-der" onClick={handleFotoSiguiente} aria-label="Foto siguiente">
+                ›
+              </button>
+              <div className="carrusel-club-puntos">
+                {fotos.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`carrusel-club-punto ${i === fotoIndex ? 'carrusel-club-punto-activo' : ''}`}
+                    onClick={() => setFotoIndex(i)}
+                  ></span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
+      <div className="encabezado-club">
+        <h1 className="nombre-club">{club.nombre}</h1>
+        {(club.direccion || club.localidad) && (
+          <p className="direccion-club">
+            <FontAwesomeIcon icon={faLocationDot} />
+            {' '}{[club.direccion, club.localidad].filter(Boolean).join(', ')}
+          </p>
+        )}
+        {club.direccion && (
+          <button type="button" className="btn-ver-en-mapa" onClick={handleVerEnMapa}>
+            (ver en mapa)
+          </button>
+        )}
+      </div>
+
       <div className="seccion-canchas-club">
-        <h2 className="titulo-seccion-canchas">Elegí tu cancha y tu turno</h2>
+        <h2 className="titulo-seccion-canchas">Elegí tu turno</h2>
 
         {canchas.length === 0 && (
           <p className="mensaje-club">Este club todavía no cargó canchas.</p>
