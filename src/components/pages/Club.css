@@ -23,22 +23,6 @@
     flex-shrink: 0;
 }
 
-.servicios-club {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 0 90px 20px;
-}
-
-.servicio-club-tag {
-    background: #e3f0fd;
-    color: #0d3b66;
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
 .seccion-canchas-club {
     padding: 0 90px 20px;
 }
@@ -101,7 +85,6 @@
     .nombre-club,
     .mensaje-club,
     .galeria-club,
-    .servicios-club,
     .seccion-canchas-club {
         padding-left: 20px;
         padding-right: 20px;

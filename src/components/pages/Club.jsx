@@ -98,14 +98,6 @@ function Club() {
         </div>
       )}
 
-      {servicios.length > 0 && (
-        <div className="servicios-club">
-          {servicios.map((s) => (
-            <span key={s.id_servicio} className="servicio-club-tag">{s.nombre}</span>
-          ))}
-        </div>
-      )}
-
       <div className="seccion-canchas-club">
         <h2 className="titulo-seccion-canchas">Elegí tu cancha y tu turno</h2>
 

@@ -18,6 +18,7 @@ import {
     faPenToSquare,
     faCalendarCheck
 } from '@fortawesome/free-solid-svg-icons';
+import { iconoServicio } from '../../utils/iconoServicio';
 
 // Fila de solo-lectura (icono + etiqueta + valor) o de edición (icono + etiqueta + input)
 function CampoPerfil({ icon, label, name, value, editando, onChange, type = 'text' }) {
@@ -502,23 +503,6 @@ function Perfil() {
     const esClub = Number(rol) === 2;
 
     // Ícono aproximado según el nombre del servicio (texto libre cargado por el club)
-    const iconoServicio = (nombre) => {
-        const texto = (nombre || '').toLowerCase();
-        if (texto.includes('wifi')) return '📶';
-        if (texto.includes('estacionamiento')) return '🅿️';
-        if (texto.includes('vestuario')) return '🚻';
-        if (texto.includes('cumplea')) return '🎉';
-        if (texto.includes('turno')) return '📅';
-        if (texto.includes('parrilla')) return '🍖';
-        if (texto.includes('escuel')) return '🏫';
-        if (texto.includes('bar') || texto.includes('restaur')) return '🍽️';
-        if (texto.includes('quincho')) return '🏕️';
-        if (texto.includes('paleta')) return '🎾';
-        if (texto.includes('pileta') || texto.includes('pool')) return '🏊';
-        if (texto.includes('buffet') || texto.includes('kiosco')) return '🛒';
-        return '✅';
-    };
-
     // ------------------ Bloques reutilizables ------------------
 
     const bloqueFormulario = (
@@ -949,7 +933,7 @@ function Perfil() {
                                                     )}
                                                     {servicios.map((s) => (
                                                         <div key={s.id_servicio} className="item-servicio-icono">
-                                                            <span className="icono-servicio">{iconoServicio(s.nombre)}</span>
+                                                            <span className="icono-servicio"><FontAwesomeIcon icon={iconoServicio(s.nombre)} /></span>
                                                             <span>{s.nombre}</span>
                                                             <button
                                                                 type="button"
