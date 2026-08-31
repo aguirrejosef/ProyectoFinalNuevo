@@ -47,6 +47,7 @@ function MisTurnos() {
     const [error, setError] = useState('');
     const [tabActiva, setTabActiva] = useState('reservado');
     const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
+    const [cancelando, setCancelando] = useState(false);
  
     useEffect(() => {
         const idUsuario = localStorage.getItem('id');
@@ -107,6 +108,38 @@ function MisTurnos() {
         setTabActiva(tab);
         setTurnoSeleccionado(null);
     };
+
+    const handleCancelarTurno = async () => {
+        if (!turnoSeleccionado) return;
+
+        const confirmar = window.confirm('¿Seguro que querés cancelar este turno?');
+        if (!confirmar) return;
+
+        setCancelando(true);
+
+        try {
+            const res = await apiFetch(`/turnos/${turnoSeleccionado.id_turno}/cancelar`, {
+                method: 'PUT'
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                alert(data.message || 'No se pudo cancelar el turno');
+                return;
+            }
+
+            setTurnos((prev) => prev.map((t) =>
+                t.id_turno === turnoSeleccionado.id_turno ? { ...t, estado: 'cancelado' } : t
+            ));
+            setTurnoSeleccionado(null);
+
+        } catch (err) {
+            console.error('Error al cancelar turno:', err);
+            alert('Error al conectar con el servidor');
+        } finally {
+            setCancelando(false);
+        }
+    };
  
     return (
         <>
@@ -115,9 +148,14 @@ function MisTurnos() {
             <div className="contenedor-turnos">
  
                 <div className="panel-turnos">
- 
-                    <h2 className="titulo-panel">Mis Reservas</h2>
- 
+
+                    <div className="fila-titulo-panel">
+                        <h2 className="titulo-panel">Mis Reservas</h2>
+                        <button type="button" className="btn-nueva-reserva" onClick={() => navigate('/canchas')}>
+                            + Reservar turno
+                        </button>
+                    </div>
+
                     <div className="tabs-turnos">
                         {TABS.map((tab) => (
                             <button
@@ -236,7 +274,18 @@ function MisTurnos() {
                                     <span>{turnoSeleccionado.telefono_club}</span>
                                 </div>
                             )}
- 
+
+                            {turnoSeleccionado.estado?.toLowerCase() === 'reservado' && (
+                                <button
+                                    type="button"
+                                    className="btn-cancelar-turno-detalle"
+                                    onClick={handleCancelarTurno}
+                                    disabled={cancelando}
+                                >
+                                    {cancelando ? 'Cancelando...' : 'Cancelar turno'}
+                                </button>
+                            )}
+
                         </div>
                     )}
  

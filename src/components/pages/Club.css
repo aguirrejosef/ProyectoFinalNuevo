@@ -3,3 +3,102 @@
     font-size: 50px;
 }
 
+.mensaje-club {
+    padding: 20px 90px;
+    color: #444;
+}
+
+.galeria-club {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 0 90px 20px;
+}
+
+.galeria-club-img {
+    width: 220px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.servicios-club {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 90px 20px;
+}
+
+.servicio-club-tag {
+    background: #e3f0fd;
+    color: #0d3b66;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.seccion-canchas-club {
+    padding: 0 90px 20px;
+}
+
+.titulo-seccion-canchas {
+    color: #0d3b66;
+}
+
+.grid-canchas-club {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.tarjeta-cancha-club {
+    background: white;
+    border: 2px solid #e0e4ea;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.tarjeta-cancha-club:hover {
+    border-color: #1565c0;
+}
+
+.tarjeta-cancha-club-elegida {
+    border-color: #1565c0;
+    box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.15);
+}
+
+.tarjeta-cancha-club-nombre {
+    font-weight: 700;
+    color: #0d3b66;
+}
+
+.tarjeta-cancha-club-tipo {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.tarjeta-cancha-club-precio {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1b7a3d;
+}
+
+@media (max-width: 700px) {
+    .nombre-club,
+    .mensaje-club,
+    .galeria-club,
+    .servicios-club,
+    .seccion-canchas-club {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+

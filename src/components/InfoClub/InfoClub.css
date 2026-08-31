@@ -29,11 +29,16 @@
 }
 
 .contenedor-map{
-    width: 1200px;
-    height: 600px;
+    width: 93%;
+    height: 400px;
+    max-width: 1200px;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.texto-horarios-club {
+    white-space: pre-line;
 }
 
 .info-club{

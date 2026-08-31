@@ -696,6 +696,35 @@ app.get('/clubes', async (req, res) => {
 
 });
 
+// ------------------ Obtener un club puntual (vista pública) ------------------
+app.get('/clubes/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [rows] = await pool.execute(
+      `SELECT
+        c.*,
+        u.usuario AS dueno,
+        (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
+        (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde
+      FROM club c
+      LEFT JOIN usuarios u ON c.id_dueno = u.id_usuario
+      WHERE c.id_club = ?`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Club no encontrado' });
+    }
+
+    res.json(rows[0]);
+
+  } catch (error) {
+    console.error('Error en /clubes/:id:', error);
+    res.status(500).json({ message: 'Error al obtener el club' });
+  }
+});
+
 // ------------------ Dar de baja un club (solo admin) ------------------
 app.delete('/clubes/:id', verificarToken, requireRol(1), async (req, res) => {
   const { id } = req.params;
@@ -1133,8 +1162,108 @@ app.delete('/canchas/:id', verificarToken, requireRol(1, 2), async (req, res) =>
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
- 
- 
+
+// ------------------ Disponibilidad de horarios de una cancha en una fecha (vista pública) ------------------
+app.get('/canchas/:id/disponibilidad', async (req, res) => {
+  const { id } = req.params;
+  const { fecha } = req.query;
+
+  if (!fecha) {
+    return res.status(400).json({ message: 'Falta la fecha' });
+  }
+
+  try {
+    const [rows] = await pool.execute(
+      `SELECT
+          h.id_horario,
+          h.hora_inicio,
+          h.hora_fin,
+          (
+            EXISTS (
+              SELECT 1 FROM turnos t
+              INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+              WHERE t.id_cancha = ? AND t.id_horario = h.id_horario AND t.fecha = ?
+                AND et.nombre <> 'cancelado'
+            )
+            OR (? = CURDATE() AND h.hora_inicio <= CURTIME())
+          ) AS ocupado
+       FROM horarios h
+       ORDER BY h.hora_inicio ASC`,
+      [id, fecha, fecha]
+    );
+
+    res.json(rows.map((r) => ({ ...r, ocupado: !!r.ocupado })));
+
+  } catch (error) {
+    console.error('Error en /canchas/:id/disponibilidad:', error);
+    res.status(500).json({ message: 'Error al obtener la disponibilidad' });
+  }
+});
+
+// ------------------ Reservar un turno (cliente) ------------------
+app.post('/turnos', verificarToken, async (req, res) => {
+  const { id_cancha, id_horario, fecha } = req.body;
+
+  if (!id_cancha || !id_horario || !fecha) {
+    return res.status(400).json({ message: 'Faltan datos obligatorios' });
+  }
+
+  try {
+    const [fechaValida] = await pool.execute('SELECT ? >= CURDATE() AS valida', [fecha]);
+    if (!fechaValida[0].valida) {
+      return res.status(400).json({ message: 'No se puede reservar una fecha pasada' });
+    }
+
+    const [canchaRows] = await pool.execute(
+      'SELECT estado FROM canchas WHERE id_cancha = ?',
+      [id_cancha]
+    );
+
+    if (canchaRows.length === 0) {
+      return res.status(404).json({ message: 'La cancha no existe' });
+    }
+    if (canchaRows[0].estado !== 'disponible') {
+      return res.status(400).json({ message: 'Esta cancha no está disponible actualmente' });
+    }
+
+    const [horarioRows] = await pool.execute(
+      `SELECT (hora_inicio <= CURTIME() AND ? = CURDATE()) AS yaPaso
+       FROM horarios WHERE id_horario = ?`,
+      [fecha, id_horario]
+    );
+    if (horarioRows.length === 0) {
+      return res.status(404).json({ message: 'El horario elegido no existe' });
+    }
+    if (horarioRows[0].yaPaso) {
+      return res.status(400).json({ message: 'Ese horario ya pasó' });
+    }
+
+    const [ocupado] = await pool.execute(
+      `SELECT t.id_turno FROM turnos t
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE t.id_cancha = ? AND t.id_horario = ? AND t.fecha = ? AND et.nombre <> 'cancelado'`,
+      [id_cancha, id_horario, fecha]
+    );
+
+    if (ocupado.length > 0) {
+      return res.status(409).json({ message: 'Ese horario ya está reservado, elegí otro' });
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO turnos (id_usuario, id_cancha, id_horario, id_estado, fecha)
+       VALUES (?, ?, ?, (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado'), ?)`,
+      [req.usuario.id, id_cancha, id_horario, fecha]
+    );
+
+    res.status(201).json({ message: 'Turno reservado correctamente', id_turno: result.insertId });
+
+  } catch (error) {
+    console.error('Error al reservar turno:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
+
 // ------------------ Turnos de una cancha específica (vista del club) ------------------
 app.get('/club/turnos-cancha', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id_cancha } = req.query;

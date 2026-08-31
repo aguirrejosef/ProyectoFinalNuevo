@@ -28,6 +28,54 @@
   margin-bottom: 20px;
   font-size: 24px;
 }
+
+.fila-titulo-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.fila-titulo-panel .titulo-panel {
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.btn-nueva-reserva {
+  background-color: #1565c0;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.btn-nueva-reserva:hover {
+  background-color: #0d47a1;
+}
+
+.btn-cancelar-turno-detalle {
+  margin-top: 10px;
+  background-color: #fdecea;
+  color: #c62828;
+  border: 1px solid #f5c6cb;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-cancelar-turno-detalle:hover:not(:disabled) {
+  background-color: #f8d7da;
+}
+
+.btn-cancelar-turno-detalle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
  
 .tabs-turnos {
   display: flex;

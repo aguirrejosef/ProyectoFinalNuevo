@@ -1,0 +1,114 @@
+.tarjeta-reserva {
+    background: white;
+    border: 1px solid #e0e4ea;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    padding: 24px;
+    max-width: 520px;
+    margin: 20px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.titulo-reserva {
+    margin: 0;
+    color: #0d3b66;
+}
+
+.label-fecha-reserva {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #444;
+    font-weight: 600;
+}
+
+.label-fecha-reserva input {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.label-fecha-reserva input:focus {
+    border-color: #1565c0;
+}
+
+.grid-horarios-reserva {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.btn-horario-reserva {
+    background: #f5f7fa;
+    border: 1px solid #d5dbe4;
+    border-radius: 8px;
+    padding: 10px 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #0d3b66;
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.btn-horario-reserva:hover:not(:disabled) {
+    background: #e3f0fd;
+    border-color: #1565c0;
+}
+
+.horario-elegido {
+    background: #1565c0;
+    border-color: #1565c0;
+    color: white;
+}
+
+.horario-ocupado {
+    background: #f0f0f0;
+    border-color: #e0e0e0;
+    color: #aaa;
+    text-decoration: line-through;
+    cursor: not-allowed;
+}
+
+.reserva-mensaje {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #444;
+}
+
+.reserva-mensaje-exito {
+    color: #1b7a3d;
+    font-weight: 600;
+}
+
+.btn-reservar {
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 150ms ease;
+}
+
+.btn-reservar:hover:not(:disabled) {
+    background-color: #0d47a1;
+}
+
+.btn-reservar:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.btn-ver-mis-turnos {
+    background-color: #1b7a3d;
+}
+
+.btn-ver-mis-turnos:hover {
+    background-color: #14602f;
+}
