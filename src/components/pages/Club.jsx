@@ -147,6 +147,7 @@ function Club() {
         localidad={club.localidad}
         telefono={club.telefono}
         horariosAtencion={club.horarios_atencion}
+        servicios={servicios}
       />
 
       <Footer />

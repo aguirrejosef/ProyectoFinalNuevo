@@ -1,7 +1,7 @@
 import React from 'react'
 import './InfoClub.css'
 
-function InfoClub({ direccion, telefono, localidad, horariosAtencion }) {
+function InfoClub({ direccion, telefono, localidad, horariosAtencion, servicios = [] }) {
   const direccionCompleta = [direccion, localidad].filter(Boolean).join(', ');
 
   return (
@@ -46,6 +46,16 @@ function InfoClub({ direccion, telefono, localidad, horariosAtencion }) {
                         <p className="descripcion-info-club" id='horario'>Este club todavía no cargó sus horarios.</p>
                     )}
                 </div>
+                {servicios.length > 0 && (
+                    <div className="grupo-info">
+                        <h3 className="titulo-info-club">Servicios adicionales</h3>
+                        <div className="servicios-adicionales-infoclub">
+                            {servicios.map((s) => (
+                                <span key={s.id_servicio} className="servicio-adicional-tag">{s.nombre}</span>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
 

@@ -72,3 +72,19 @@
 #horario {
     padding: 5px 40px;
 }
+
+.servicios-adicionales-infoclub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 40px 0;
+}
+
+.servicio-adicional-tag {
+    background: #e3f0fd;
+    color: #0d3b66;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
