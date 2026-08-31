@@ -37,6 +37,13 @@
     border-color: #1565c0;
 }
 
+.label-paso-horario {
+    margin: 4px 0 -4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #444;
+}
+
 .grid-horarios-reserva {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -52,7 +59,14 @@
     font-weight: 600;
     color: #0d3b66;
     cursor: pointer;
+    line-height: 1.4;
     transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.btn-horario-reserva small {
+    font-weight: 400;
+    font-size: 0.75rem;
+    opacity: 0.8;
 }
 
 .btn-horario-reserva:hover:not(:disabled) {

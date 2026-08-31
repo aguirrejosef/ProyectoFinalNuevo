@@ -515,7 +515,7 @@
     cursor: default;
 }
 
-/* ------------------ Horarios reservables ------------------ */
+/* ------------------ Días y horario de atención ------------------ */
 
 .texto-ayuda-horarios-reservables {
     font-size: 0.8rem;
@@ -523,51 +523,75 @@
     margin: 0 0 10px;
 }
 
-.lista-horarios-reservables {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
+.error-horario-reservable {
+    color: #c62828;
 }
 
-.item-horario-reservable {
+.lista-dias-atencion {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fila-dia-atencion {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: #e3f0fd;
-    color: #0d3b66;
-    border-radius: 20px;
-    padding: 6px 8px 6px 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 6px 0;
+    border-bottom: 1px solid #eef1f5;
+}
+
+.fila-dia-atencion:last-child {
+    border-bottom: none;
+}
+
+.fila-dia-atencion-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.85rem;
     font-weight: 600;
+    color: #0d3b66;
+    min-width: 110px;
 }
 
-.agregar-horario-reservable {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.agregar-horario-reservable input {
+.fila-dia-atencion input[type="time"] {
     border: 1px solid #ccc;
     border-radius: 8px;
-    padding: 8px 10px;
+    padding: 6px 8px;
     font-size: 0.85rem;
     outline: none;
 }
 
-.agregar-horario-reservable input:focus {
+.fila-dia-atencion input[type="time"]:focus {
     border-color: #1565c0;
 }
 
-.agregar-horario-reservable span {
+.fila-dia-atencion span {
     font-size: 0.85rem;
     color: #667085;
 }
 
-.error-horario-reservable {
-    color: #c62828;
+.btn-guardar-dia {
+    margin-left: auto;
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.btn-guardar-dia:hover:not(:disabled) {
+    background-color: #0d47a1;
+}
+
+.btn-guardar-dia:disabled {
+    opacity: 0.6;
+    cursor: default;
 }
 
 /* ------------------ Encabezado dentro de la columna del club ------------------ */

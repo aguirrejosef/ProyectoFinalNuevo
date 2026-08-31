@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api';
 import './ReservaTurno.css';
 
+const DURACIONES_MIN = [60, 90, 120];
+
 // Fecha de hoy en el huso horario local (no UTC), formato YYYY-MM-DD
 function fechaLocalDeHoy() {
     const ahora = new Date();
@@ -12,6 +14,12 @@ function fechaLocalDeHoy() {
 
 function formatearHora(hora) {
     return hora ? hora.slice(0, 5) : '';
+}
+
+function formatearDuracion(minutos) {
+    if (minutos === 60) return '1 hora';
+    if (minutos % 60 === 0) return `${minutos / 60} horas`;
+    return `${Math.floor(minutos / 60)}h ${minutos % 60}min`;
 }
 
 function formatearFechaLarga(fechaISO) {
@@ -44,9 +52,10 @@ function ReservaTurno({ club, cancha }) {
     const [paso, setPaso] = useState('eligiendo');
 
     const [fecha, setFecha] = useState(fechaLocalDeHoy());
-    const [horarios, setHorarios] = useState([]);
+    const [disponibilidad, setDisponibilidad] = useState({ abierto: null, horarios: [] });
     const [cargando, setCargando] = useState(false);
-    const [horarioElegido, setHorarioElegido] = useState(null);
+    const [horaInicioElegida, setHoraInicioElegida] = useState(null);
+    const [duracionElegida, setDuracionElegida] = useState(null);
     const [mensaje, setMensaje] = useState('');
 
     const [titular, setTitular] = useState({
@@ -71,12 +80,13 @@ function ReservaTurno({ club, cancha }) {
 
         setCargando(true);
         setMensaje('');
-        setHorarioElegido(null);
+        setHoraInicioElegida(null);
+        setDuracionElegida(null);
 
         try {
             const res = await apiFetch(`/canchas/${cancha.id_cancha}/disponibilidad?fecha=${fecha}`);
             const data = await res.json();
-            setHorarios(Array.isArray(data) ? data : []);
+            setDisponibilidad(data && Array.isArray(data.horarios) ? data : { abierto: false, horarios: [] });
         } catch (err) {
             console.error('Error al cargar disponibilidad:', err);
             setMensaje('No se pudo cargar la disponibilidad. Intentá de nuevo.');
@@ -99,11 +109,27 @@ function ReservaTurno({ club, cancha }) {
 
     if (!cancha) return null;
 
-    const horarioInfo = horarios.find((h) => h.id_horario === horarioElegido);
-    const montoSenaEstimado = cancha.precio ? Math.round(Number(cancha.precio) * 0.5) : null;
+    // Agrupamos las combinaciones por hora de inicio, para el selector en dos pasos
+    const horasInicioDisponibles = [...new Set(disponibilidad.horarios.map((h) => h.hora_inicio))];
+    const duracionesParaInicioElegido = disponibilidad.horarios.filter((h) => h.hora_inicio === horaInicioElegida);
+    const algunaDuracionDisponible = (horaInicio) =>
+        disponibilidad.horarios.some((h) => h.hora_inicio === horaInicio && h.disponible);
+
+    const combinacionElegida = disponibilidad.horarios.find(
+        (h) => h.hora_inicio === horaInicioElegida && h.minutos === duracionElegida
+    );
+
+    const precioPorHora = cancha.precio ? Number(cancha.precio) : null;
+    const precioTotalEstimado = precioPorHora && duracionElegida ? precioPorHora * (duracionElegida / 60) : null;
+    const montoSenaEstimado = precioTotalEstimado ? Math.round(precioTotalEstimado * 0.5) : null;
+
+    const handleElegirHoraInicio = (horaInicio) => {
+        setHoraInicioElegida(horaInicio);
+        setDuracionElegida(null);
+    };
 
     const handleIrARevision = () => {
-        if (!horarioElegido) return;
+        if (!combinacionElegida) return;
         setPaso('revision');
     };
 
@@ -114,7 +140,12 @@ function ReservaTurno({ club, cancha }) {
         try {
             const res = await apiFetch('/turnos', {
                 method: 'POST',
-                body: JSON.stringify({ id_cancha: cancha.id_cancha, id_horario: horarioElegido, fecha })
+                body: JSON.stringify({
+                    id_cancha: cancha.id_cancha,
+                    fecha,
+                    hora_inicio: horaInicioElegida,
+                    minutos: duracionElegida
+                })
             });
 
             const data = await res.json();
@@ -122,9 +153,8 @@ function ReservaTurno({ club, cancha }) {
             if (!res.ok) {
                 setMensaje(data.message || 'No se pudo reservar el turno');
                 if (res.status === 409) {
-                    setHorarios((prev) => prev.map((h) => h.id_horario === horarioElegido ? { ...h, ocupado: true } : h));
-                    setHorarioElegido(null);
                     setPaso('eligiendo');
+                    cargarDisponibilidad();
                 }
                 return;
             }
@@ -197,15 +227,15 @@ function ReservaTurno({ club, cancha }) {
                     </div>
                     <div className="resumen-fila">
                         <span>Turno</span>
-                        <strong>{formatearHora(horarioInfo?.hora_inicio)} a {formatearHora(horarioInfo?.hora_fin)}</strong>
+                        <strong>{formatearHora(combinacionElegida?.hora_inicio)} a {formatearHora(combinacionElegida?.hora_fin)} ({formatearDuracion(duracionElegida)})</strong>
                     </div>
                     <div className="resumen-fila">
                         <span>Cancha</span>
                         <strong>{cancha.nombre}{cancha.tipo ? ` - ${cancha.tipo}` : ''}</strong>
                     </div>
                     <div className="resumen-fila">
-                        <span>Precio de la cancha</span>
-                        <strong>{formatearPrecio(cancha.precio)}</strong>
+                        <span>Precio total</span>
+                        <strong>{formatearPrecio(precioTotalEstimado)}</strong>
                     </div>
                     <div className="resumen-fila resumen-fila-destacada">
                         <span>Ahora pagás (seña)</span>
@@ -272,7 +302,7 @@ function ReservaTurno({ club, cancha }) {
                     </div>
                     <div className="resumen-fila">
                         <span>Turno</span>
-                        <strong>{formatearHora(horarioInfo?.hora_inicio)} a {formatearHora(horarioInfo?.hora_fin)}</strong>
+                        <strong>{formatearHora(combinacionElegida?.hora_inicio)} a {formatearHora(combinacionElegida?.hora_fin)}</strong>
                     </div>
                     <div className="resumen-fila">
                         <span>Cancha</span>
@@ -308,7 +338,7 @@ function ReservaTurno({ club, cancha }) {
         );
     }
 
-    // ------------------ Paso 1: elegir fecha y horario ------------------
+    // ------------------ Paso 1: elegir fecha, hora de inicio y duración ------------------
     return (
         <div className="tarjeta-reserva">
             <h3 className="titulo-reserva">Reservar en {cancha.nombre}</h3>
@@ -325,24 +355,56 @@ function ReservaTurno({ club, cancha }) {
 
             {cargando && <p className="reserva-mensaje">Cargando horarios...</p>}
 
-            {!cargando && horarios.length === 0 && (
-                <p className="reserva-mensaje">Este club todavía no cargó horarios reservables para esta cancha.</p>
+            {!cargando && disponibilidad.abierto === false && (
+                <p className="reserva-mensaje">El club no atiende ese día.</p>
             )}
 
-            {!cargando && horarios.length > 0 && (
-                <div className="grid-horarios-reserva">
-                    {horarios.map((h) => (
-                        <button
-                            type="button"
-                            key={h.id_horario}
-                            className={`btn-horario-reserva ${h.ocupado ? 'horario-ocupado' : ''} ${horarioElegido === h.id_horario ? 'horario-elegido' : ''}`}
-                            disabled={h.ocupado}
-                            onClick={() => setHorarioElegido(h.id_horario)}
-                        >
-                            {formatearHora(h.hora_inicio)} - {formatearHora(h.hora_fin)}
-                        </button>
-                    ))}
-                </div>
+            {!cargando && disponibilidad.abierto && horasInicioDisponibles.length === 0 && (
+                <p className="reserva-mensaje">No quedan horarios disponibles ese día.</p>
+            )}
+
+            {!cargando && horasInicioDisponibles.length > 0 && (
+                <>
+                    <p className="label-paso-horario">Hora de inicio</p>
+                    <div className="grid-horarios-reserva">
+                        {horasInicioDisponibles.map((horaInicio) => (
+                            <button
+                                type="button"
+                                key={horaInicio}
+                                className={`btn-horario-reserva ${!algunaDuracionDisponible(horaInicio) ? 'horario-ocupado' : ''} ${horaInicioElegida === horaInicio ? 'horario-elegido' : ''}`}
+                                disabled={!algunaDuracionDisponible(horaInicio)}
+                                onClick={() => handleElegirHoraInicio(horaInicio)}
+                            >
+                                {formatearHora(horaInicio)}
+                            </button>
+                        ))}
+                    </div>
+
+                    {horaInicioElegida && (
+                        <>
+                            <p className="label-paso-horario">Duración</p>
+                            <div className="grid-horarios-reserva">
+                                {DURACIONES_MIN.map((minutos) => {
+                                    const combo = duracionesParaInicioElegido.find((h) => h.minutos === minutos);
+                                    if (!combo) return null;
+
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={minutos}
+                                            className={`btn-horario-reserva ${!combo.disponible ? 'horario-ocupado' : ''} ${duracionElegida === minutos ? 'horario-elegido' : ''}`}
+                                            disabled={!combo.disponible}
+                                            onClick={() => setDuracionElegida(minutos)}
+                                        >
+                                            {formatearDuracion(minutos)}<br />
+                                            <small>hasta {formatearHora(combo.hora_fin)}</small>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+                </>
             )}
 
             {mensaje && <p className="reserva-mensaje">{mensaje}</p>}
@@ -351,7 +413,7 @@ function ReservaTurno({ club, cancha }) {
                 type="button"
                 className="btn-reservar"
                 onClick={handleIrARevision}
-                disabled={!horarioElegido}
+                disabled={!combinacionElegida}
             >
                 Continuar
             </button>

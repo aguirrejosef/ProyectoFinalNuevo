@@ -95,17 +95,19 @@ function Perfil() {
     const [nuevoServicio, setNuevoServicio] = useState('');
     const [agregandoServicio, setAgregandoServicio] = useState(false);
 
-    // ------------------ Horarios reservables del club ------------------
-    const [horariosReservables, setHorariosReservables] = useState([]);
-    const [nuevoHorarioInicio, setNuevoHorarioInicio] = useState('');
-    const [nuevoHorarioFin, setNuevoHorarioFin] = useState('');
-    const [agregandoHorario, setAgregandoHorario] = useState(false);
-    const [errorHorario, setErrorHorario] = useState('');
+    // ------------------ Días y horario de atención (de acá salen los rangos que el cliente puede reservar) ------------------
+    const NOMBRES_DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const diaVacio = () => ({ abierto: false, hora_apertura: '09:00', hora_cierre: '22:00' });
+    const [diasAtencion, setDiasAtencion] = useState(
+        NOMBRES_DIAS.map(() => diaVacio())
+    );
+    const [guardandoDia, setGuardandoDia] = useState(null); // numero_dia que se está guardando, o null
+    const [errorDias, setErrorDias] = useState('');
 
     // ------------------ Sección "Donde estamos" (paneles colapsables) ------------------
     const [abiertoUbicacion, setAbiertoUbicacion] = useState(true);
     const [abiertoHorarios, setAbiertoHorarios] = useState(true);
-    const [abiertoHorariosReservables, setAbiertoHorariosReservables] = useState(true);
+    const [abiertoDiasAtencion, setAbiertoDiasAtencion] = useState(true);
     const [abiertoServicios, setAbiertoServicios] = useState(true);
 
     useEffect(() => {
@@ -154,7 +156,7 @@ function Perfil() {
 
                 cargarFotos(data.id_club);
                 cargarServicios(data.id_club);
-                cargarHorariosReservables(data.id_club);
+                cargarDiasAtencion(data.id_club);
             } else {
                 setMensaje(data.message || 'No se pudo cargar el club');
             }
@@ -439,65 +441,61 @@ function Perfil() {
         }
     };
 
-    // ------------------ Horarios reservables ------------------
-    const cargarHorariosReservables = async (idClub) => {
+    // ------------------ Días y horario de atención ------------------
+    const cargarDiasAtencion = async (idClub) => {
         try {
-            const res = await apiFetch(`/club/horarios?id_club=${idClub}`);
+            const res = await apiFetch(`/club/dias-atencion?id_club=${idClub}`);
             const data = await res.json();
-            if (res.ok) setHorariosReservables(data);
+            if (!res.ok) return;
+
+            setDiasAtencion(NOMBRES_DIAS.map((_, numeroDia) => {
+                const guardado = data.find((d) => d.numero_dia === numeroDia);
+                return guardado
+                    ? { abierto: true, hora_apertura: guardado.hora_apertura.slice(0, 5), hora_cierre: guardado.hora_cierre.slice(0, 5) }
+                    : diaVacio();
+            }));
         } catch (err) {
-            console.error('Error al cargar horarios reservables:', err);
+            console.error('Error al cargar días de atención:', err);
         }
     };
 
-    const handleAgregarHorario = async () => {
-        setErrorHorario('');
+    const handleCambiarDia = (numeroDia, cambios) => {
+        setDiasAtencion((prev) => prev.map((d, i) => i === numeroDia ? { ...d, ...cambios } : d));
+    };
 
-        if (!nuevoHorarioInicio || !nuevoHorarioFin || !clubId) return;
+    const handleGuardarDia = async (numeroDia) => {
+        setErrorDias('');
+        const dia = diasAtencion[numeroDia];
 
-        if (nuevoHorarioInicio >= nuevoHorarioFin) {
-            setErrorHorario('La hora de inicio debe ser anterior a la de fin');
+        if (dia.abierto && dia.hora_apertura >= dia.hora_cierre) {
+            setErrorDias('La hora de apertura debe ser anterior a la de cierre');
             return;
         }
 
-        setAgregandoHorario(true);
+        setGuardandoDia(numeroDia);
         try {
-            const res = await apiFetch('/club/horarios', {
-                method: 'POST',
-                body: JSON.stringify({ id_club: clubId, hora_inicio: nuevoHorarioInicio, hora_fin: nuevoHorarioFin })
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                setErrorHorario(data.message || 'No se pudo agregar el horario');
-                return;
+            if (dia.abierto) {
+                const res = await apiFetch('/club/dias-atencion', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        id_club: clubId,
+                        numero_dia: numeroDia,
+                        hora_apertura: dia.hora_apertura,
+                        hora_cierre: dia.hora_cierre
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    setErrorDias(data.message || 'No se pudo guardar el día');
+                }
+            } else {
+                await apiFetch(`/club/dias-atencion/${clubId}/${numeroDia}`, { method: 'DELETE' });
             }
-
-            setHorariosReservables((prev) => [...prev, data].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)));
-            setNuevoHorarioInicio('');
-            setNuevoHorarioFin('');
-
         } catch (err) {
-            console.error('Error al agregar horario:', err);
-            setErrorHorario('Error al conectar con el servidor');
+            console.error('Error al guardar día de atención:', err);
+            setErrorDias('Error al conectar con el servidor');
         } finally {
-            setAgregandoHorario(false);
-        }
-    };
-
-    const handleEliminarHorarioReservable = async (idHorario) => {
-        try {
-            const res = await apiFetch(`/club/horarios/${idHorario}`, {
-                method: 'DELETE'
-            });
-
-            if (!res.ok) return;
-
-            setHorariosReservables((prev) => prev.filter((h) => h.id_horario !== idHorario));
-
-        } catch (err) {
-            console.error('Error al eliminar horario:', err);
+            setGuardandoDia(null);
         }
     };
 
@@ -875,63 +873,60 @@ function Perfil() {
                                         <button
                                             type="button"
                                             className="panel-colapsable-header"
-                                            onClick={() => setAbiertoHorariosReservables(!abiertoHorariosReservables)}
+                                            onClick={() => setAbiertoDiasAtencion(!abiertoDiasAtencion)}
                                         >
-                                            <span><FontAwesomeIcon icon={faCalendarCheck} /> Horarios para reservar</span>
-                                            <FontAwesomeIcon icon={abiertoHorariosReservables ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
+                                            <span><FontAwesomeIcon icon={faCalendarCheck} /> Días y horario de atención</span>
+                                            <FontAwesomeIcon icon={abiertoDiasAtencion ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
                                         </button>
-                                        {abiertoHorariosReservables && (
+                                        {abiertoDiasAtencion && (
                                             <div className="panel-colapsable-body">
                                                 <p className="texto-ayuda-horarios-reservables">
-                                                    Estas son las franjas horarias que tus clientes van a poder elegir al reservar un turno.
+                                                    Definí en qué días y en qué horario abre tu club. Tus clientes van a poder reservar cualquier rango dentro de ese horario (no vas a poder recibir reservas hasta que cargues al menos un día).
                                                 </p>
 
-                                                {horariosReservables.length === 0 && (
-                                                    <p className="mensaje-perfil">Todavía no cargaste horarios reservables. Nadie va a poder reservar hasta que agregues al menos uno.</p>
-                                                )}
+                                                {errorDias && <p className="mensaje-perfil error-horario-reservable">{errorDias}</p>}
 
-                                                {horariosReservables.length > 0 && (
-                                                    <div className="lista-horarios-reservables">
-                                                        {horariosReservables.map((h) => (
-                                                            <div key={h.id_horario} className="item-horario-reservable">
-                                                                <span>{h.hora_inicio.slice(0, 5)} - {h.hora_fin.slice(0, 5)}</span>
+                                                <div className="lista-dias-atencion">
+                                                    {NOMBRES_DIAS.map((nombreDia, numeroDia) => {
+                                                        const dia = diasAtencion[numeroDia];
+                                                        return (
+                                                            <div key={numeroDia} className="fila-dia-atencion">
+                                                                <label className="fila-dia-atencion-check">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={dia.abierto}
+                                                                        onChange={(e) => handleCambiarDia(numeroDia, { abierto: e.target.checked })}
+                                                                    />
+                                                                    {nombreDia}
+                                                                </label>
+
+                                                                {dia.abierto && (
+                                                                    <>
+                                                                        <input
+                                                                            type="time"
+                                                                            value={dia.hora_apertura}
+                                                                            onChange={(e) => handleCambiarDia(numeroDia, { hora_apertura: e.target.value })}
+                                                                        />
+                                                                        <span>a</span>
+                                                                        <input
+                                                                            type="time"
+                                                                            value={dia.hora_cierre}
+                                                                            onChange={(e) => handleCambiarDia(numeroDia, { hora_cierre: e.target.value })}
+                                                                        />
+                                                                    </>
+                                                                )}
+
                                                                 <button
                                                                     type="button"
-                                                                    className="btn-quitar-servicio-icono"
-                                                                    onClick={() => handleEliminarHorarioReservable(h.id_horario)}
-                                                                    aria-label={`Quitar horario ${h.hora_inicio}`}
+                                                                    className="btn-guardar-dia"
+                                                                    onClick={() => handleGuardarDia(numeroDia)}
+                                                                    disabled={guardandoDia === numeroDia}
                                                                 >
-                                                                    ×
+                                                                    {guardandoDia === numeroDia ? 'Guardando...' : 'Guardar'}
                                                                 </button>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {errorHorario && <p className="mensaje-perfil error-horario-reservable">{errorHorario}</p>}
-
-                                                <div className="agregar-horario-reservable">
-                                                    <input
-                                                        type="time"
-                                                        value={nuevoHorarioInicio}
-                                                        onChange={(e) => setNuevoHorarioInicio(e.target.value)}
-                                                        aria-label="Hora de inicio"
-                                                    />
-                                                    <span>a</span>
-                                                    <input
-                                                        type="time"
-                                                        value={nuevoHorarioFin}
-                                                        onChange={(e) => setNuevoHorarioFin(e.target.value)}
-                                                        aria-label="Hora de fin"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        className="btn-agregar-servicio"
-                                                        onClick={handleAgregarHorario}
-                                                        disabled={agregandoHorario || !nuevoHorarioInicio || !nuevoHorarioFin}
-                                                    >
-                                                        Agregar
-                                                    </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}

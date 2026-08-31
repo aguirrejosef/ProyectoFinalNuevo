@@ -1057,38 +1057,39 @@ app.delete('/club/servicios/:id', verificarToken, requireRol(1, 2), async (req, 
   }
 });
 
-// ------------------ Horarios reservables del club ------------------
-// (las franjas que sus clientes pueden elegir al reservar un turno; cada
-// club define las suyas, con la duración que quiera)
+// ------------------ Días y horario de atención del club ------------------
+// (a partir de esto se calculan, para el cliente, los rangos de horario
+// disponibles para reservar: cada club dice a qué hora abre y cierra cada
+// día, y el cliente elige hora de inicio + duración dentro de ese rango)
 
-app.get('/club/horarios', verificarToken, requireRol(1, 2), async (req, res) => {
+app.get('/club/dias-atencion', async (req, res) => {
   const { id_club } = req.query;
   if (!id_club) return res.status(400).json({ message: 'Falta id_club' });
 
   try {
-    if (!(await verificarDuenoDeClub(req, id_club))) {
-      return res.status(403).json({ message: 'No autorizado' });
-    }
-
     const [rows] = await pool.execute(
-      'SELECT id_horario, hora_inicio, hora_fin FROM horarios WHERE id_club = ? ORDER BY hora_inicio ASC',
+      'SELECT id_dia_atencion, numero_dia, hora_apertura, hora_cierre FROM club_dias_atencion WHERE id_club = ? ORDER BY numero_dia ASC',
       [id_club]
     );
     res.json(rows);
   } catch (error) {
-    console.error('Error en /club/horarios:', error);
-    res.status(500).json({ message: 'Error al obtener los horarios' });
+    console.error('Error en /club/dias-atencion:', error);
+    res.status(500).json({ message: 'Error al obtener los días de atención' });
   }
 });
 
-app.post('/club/horarios', verificarToken, requireRol(1, 2), async (req, res) => {
-  const { id_club, hora_inicio, hora_fin } = req.body;
+// Crea o actualiza el horario de un día puntual (0=Lunes ... 6=Domingo)
+app.put('/club/dias-atencion', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id_club, numero_dia, hora_apertura, hora_cierre } = req.body;
 
-  if (!id_club || !hora_inicio || !hora_fin) {
+  if (id_club === undefined || numero_dia === undefined || !hora_apertura || !hora_cierre) {
     return res.status(400).json({ message: 'Faltan datos' });
   }
-  if (hora_inicio >= hora_fin) {
-    return res.status(400).json({ message: 'La hora de inicio debe ser anterior a la hora de fin' });
+  if (numero_dia < 0 || numero_dia > 6) {
+    return res.status(400).json({ message: 'Día inválido' });
+  }
+  if (hora_apertura >= hora_cierre) {
+    return res.status(400).json({ message: 'La hora de apertura debe ser anterior a la de cierre' });
   }
 
   try {
@@ -1096,41 +1097,36 @@ app.post('/club/horarios', verificarToken, requireRol(1, 2), async (req, res) =>
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    const [result] = await pool.execute(
-      'INSERT INTO horarios (id_club, hora_inicio, hora_fin) VALUES (?, ?, ?)',
-      [id_club, hora_inicio, hora_fin]
+    await pool.execute(
+      `INSERT INTO club_dias_atencion (id_club, numero_dia, hora_apertura, hora_cierre)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE hora_apertura = VALUES(hora_apertura), hora_cierre = VALUES(hora_cierre)`,
+      [id_club, numero_dia, hora_apertura, hora_cierre]
     );
 
-    res.status(201).json({ id_horario: result.insertId, hora_inicio, hora_fin });
+    res.json({ message: 'Día actualizado correctamente' });
   } catch (error) {
-    console.error('Error al agregar horario:', error);
+    console.error('Error al guardar día de atención:', error);
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
 
-app.delete('/club/horarios/:id', verificarToken, requireRol(1, 2), async (req, res) => {
-  const { id } = req.params;
+// Marca un día como cerrado (deja de ofrecerse para reservar)
+app.delete('/club/dias-atencion/:idClub/:numeroDia', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { idClub, numeroDia } = req.params;
 
   try {
-    const [horarioRows] = await pool.execute('SELECT id_club FROM horarios WHERE id_horario = ?', [id]);
-    if (horarioRows.length === 0) {
-      return res.status(404).json({ message: 'Horario no encontrado' });
-    }
-    if (!(await verificarDuenoDeClub(req, horarioRows[0].id_club))) {
+    if (!(await verificarDuenoDeClub(req, idClub))) {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    await pool.execute('DELETE FROM horarios WHERE id_horario = ?', [id]);
-    res.json({ message: 'Horario eliminado correctamente' });
+    await pool.execute(
+      'DELETE FROM club_dias_atencion WHERE id_club = ? AND numero_dia = ?',
+      [idClub, numeroDia]
+    );
+    res.json({ message: 'Día marcado como cerrado' });
   } catch (error) {
-    console.error('Error al eliminar horario:', error);
-
-    if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
-      return res.status(400).json({
-        message: 'No se puede eliminar: este horario tiene turnos asociados.'
-      });
-    }
-
+    console.error('Error al cerrar día de atención:', error);
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
@@ -1304,6 +1300,25 @@ app.delete('/canchas/:id', verificarToken, requireRol(1, 2), async (req, res) =>
 });
 
 // ------------------ Disponibilidad de horarios de una cancha en una fecha (vista pública) ------------------
+// El cliente elige hora de inicio + duración (60/90/120 min); las combinaciones
+// posibles se calculan a partir del horario de atención del club ese día,
+// descartando las que se solapen con turnos ya activos.
+const DURACIONES_TURNO_MIN = [60, 90, 120];
+const INCREMENTO_INICIO_MIN = 30;
+
+function horaAMinutos(hhmmss) {
+  const [h, m] = hhmmss.split(':').map(Number);
+  return h * 60 + m;
+}
+function minutosAHora(mins) {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+}
+function rangosSeSuperponen(aInicio, aFin, bInicio, bFin) {
+  return aInicio < bFin && bInicio < aFin;
+}
+
 app.get('/canchas/:id/disponibilidad', async (req, res) => {
   const { id } = req.params;
   const { fecha } = req.query;
@@ -1313,29 +1328,64 @@ app.get('/canchas/:id/disponibilidad', async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.execute(
-      `SELECT
-          h.id_horario,
-          h.hora_inicio,
-          h.hora_fin,
-          (
-            EXISTS (
-              SELECT 1 FROM turnos t
-              INNER JOIN estados_turno et ON t.id_estado = et.id_estado
-              WHERE t.id_cancha = ? AND t.id_horario = h.id_horario AND t.fecha = ?
-                AND et.nombre <> 'cancelado'
-                AND NOT (et.nombre = 'pendiente_pago' AND t.fecha_creacion <= NOW() - INTERVAL ? MINUTE)
-            )
-            OR (? = CURDATE() AND h.hora_inicio <= CURTIME())
-          ) AS ocupado
+    const [diaRows] = await pool.execute(
+      `SELECT cda.hora_apertura, cda.hora_cierre
        FROM canchas c
-       INNER JOIN horarios h ON h.id_club = c.id_club
-       WHERE c.id_cancha = ?
-       ORDER BY h.hora_inicio ASC`,
-      [id, fecha, MINUTOS_ESPERA_PAGO, fecha, id]
+       INNER JOIN club_dias_atencion cda ON cda.id_club = c.id_club AND cda.numero_dia = WEEKDAY(?)
+       WHERE c.id_cancha = ?`,
+      [fecha, id]
     );
 
-    res.json(rows.map((r) => ({ ...r, ocupado: !!r.ocupado })));
+    if (diaRows.length === 0) {
+      return res.json({ abierto: false, horarios: [] });
+    }
+
+    const { hora_apertura, hora_cierre } = diaRows[0];
+
+    const [turnosActivos] = await pool.execute(
+      `SELECT h.hora_inicio, h.hora_fin
+       FROM turnos t
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE t.id_cancha = ? AND t.fecha = ?
+         AND et.nombre <> 'cancelado'
+         AND NOT (et.nombre = 'pendiente_pago' AND t.fecha_creacion <= NOW() - INTERVAL ? MINUTE)`,
+      [id, fecha, MINUTOS_ESPERA_PAGO]
+    );
+
+    const [[{ esHoy, ahora }]] = [
+      (await pool.query('SELECT (? = CURDATE()) AS esHoy, CURTIME() AS ahora', [fecha]))[0]
+    ];
+
+    const apertura = horaAMinutos(hora_apertura);
+    const cierre = horaAMinutos(hora_cierre);
+    const minutosAhora = esHoy ? horaAMinutos(ahora) : null;
+
+    const ocupados = turnosActivos.map((t) => ({
+      inicio: horaAMinutos(t.hora_inicio),
+      fin: horaAMinutos(t.hora_fin)
+    }));
+
+    const horarios = [];
+    for (let inicio = apertura; inicio < cierre; inicio += INCREMENTO_INICIO_MIN) {
+      if (minutosAhora !== null && inicio <= minutosAhora) continue;
+
+      for (const duracion of DURACIONES_TURNO_MIN) {
+        const fin = inicio + duracion;
+        if (fin > cierre) continue;
+
+        const disponible = !ocupados.some((o) => rangosSeSuperponen(inicio, fin, o.inicio, o.fin));
+
+        horarios.push({
+          hora_inicio: minutosAHora(inicio),
+          hora_fin: minutosAHora(fin),
+          minutos: duracion,
+          disponible
+        });
+      }
+    }
+
+    res.json({ abierto: true, hora_apertura, hora_cierre, horarios });
 
   } catch (error) {
     console.error('Error en /canchas/:id/disponibilidad:', error);
@@ -1348,10 +1398,13 @@ app.get('/canchas/:id/disponibilidad', async (req, res) => {
 // el link de pago de Mercado Pago para la seña. El turno pasa a "reservado"
 // recién cuando el pago se confirma (ver /pagos/estado/:idTurno y el webhook).
 app.post('/turnos', verificarToken, async (req, res) => {
-  const { id_cancha, id_horario, fecha } = req.body;
+  const { id_cancha, fecha, hora_inicio, minutos } = req.body;
 
-  if (!id_cancha || !id_horario || !fecha) {
+  if (!id_cancha || !fecha || !hora_inicio || !minutos) {
     return res.status(400).json({ message: 'Faltan datos obligatorios' });
+  }
+  if (!DURACIONES_TURNO_MIN.includes(Number(minutos))) {
+    return res.status(400).json({ message: 'Duración de turno inválida' });
   }
 
   try {
@@ -1361,7 +1414,7 @@ app.post('/turnos', verificarToken, async (req, res) => {
     }
 
     const [canchaRows] = await pool.execute(
-      `SELECT c.estado, c.precio, c.nombre AS nombre_cancha, cl.nombre AS nombre_club
+      `SELECT c.estado, c.precio, c.nombre AS nombre_cancha, cl.id_club, cl.nombre AS nombre_club
        FROM canchas c INNER JOIN club cl ON c.id_club = cl.id_club
        WHERE c.id_cancha = ?`,
       [id_cancha]
@@ -1377,39 +1430,81 @@ app.post('/turnos', verificarToken, async (req, res) => {
       return res.status(400).json({ message: 'Esta cancha todavía no tiene un precio configurado' });
     }
 
-    const [horarioRows] = await pool.execute(
-      `SELECT (hora_inicio <= CURTIME() AND ? = CURDATE()) AS yaPaso
-       FROM horarios WHERE id_horario = ?`,
-      [fecha, id_horario]
+    const idClub = canchaRows[0].id_club;
+
+    const [diaRows] = await pool.execute(
+      `SELECT hora_apertura, hora_cierre FROM club_dias_atencion WHERE id_club = ? AND numero_dia = WEEKDAY(?)`,
+      [idClub, fecha]
     );
-    if (horarioRows.length === 0) {
-      return res.status(404).json({ message: 'El horario elegido no existe' });
+    if (diaRows.length === 0) {
+      return res.status(400).json({ message: 'El club no atiende ese día' });
     }
-    if (horarioRows[0].yaPaso) {
+
+    const inicioMin = horaAMinutos(hora_inicio);
+    const finMin = inicioMin + Number(minutos);
+    const aperturaMin = horaAMinutos(diaRows[0].hora_apertura);
+    const cierreMin = horaAMinutos(diaRows[0].hora_cierre);
+
+    if (inicioMin < aperturaMin || finMin > cierreMin) {
+      return res.status(400).json({ message: 'Ese horario está fuera de la atención del club' });
+    }
+
+    const [validezHoy] = await pool.execute(
+      'SELECT (? = CURDATE() AND ? <= CURTIME()) AS yaPaso',
+      [fecha, hora_inicio]
+    );
+    if (validezHoy[0].yaPaso) {
       return res.status(400).json({ message: 'Ese horario ya pasó' });
     }
 
-    const [ocupado] = await pool.execute(
-      `SELECT t.id_turno FROM turnos t
+    const horaFin = minutosAHora(finMin);
+
+    const [turnosActivos] = await pool.execute(
+      `SELECT h.hora_inicio, h.hora_fin
+       FROM turnos t
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
        INNER JOIN estados_turno et ON t.id_estado = et.id_estado
-       WHERE t.id_cancha = ? AND t.id_horario = ? AND t.fecha = ?
+       WHERE t.id_cancha = ? AND t.fecha = ?
          AND et.nombre <> 'cancelado'
          AND NOT (et.nombre = 'pendiente_pago' AND t.fecha_creacion <= NOW() - INTERVAL ? MINUTE)`,
-      [id_cancha, id_horario, fecha, MINUTOS_ESPERA_PAGO]
+      [id_cancha, fecha, MINUTOS_ESPERA_PAGO]
     );
 
-    if (ocupado.length > 0) {
+    const hayChoque = turnosActivos.some((t) =>
+      rangosSeSuperponen(inicioMin, finMin, horaAMinutos(t.hora_inicio), horaAMinutos(t.hora_fin))
+    );
+
+    if (hayChoque) {
       return res.status(409).json({ message: 'Ese horario ya está reservado, elegí otro' });
+    }
+
+    // Buscamos o creamos la franja horaria puntual (hora_inicio - hora_fin) para este club
+    const [horarioExistente] = await pool.execute(
+      'SELECT id_horario FROM horarios WHERE id_club = ? AND hora_inicio = ? AND hora_fin = ?',
+      [idClub, hora_inicio, horaFin]
+    );
+
+    let idHorario;
+    if (horarioExistente.length > 0) {
+      idHorario = horarioExistente[0].id_horario;
+    } else {
+      const [nuevoHorario] = await pool.execute(
+        'INSERT INTO horarios (id_club, hora_inicio, hora_fin) VALUES (?, ?, ?)',
+        [idClub, hora_inicio, horaFin]
+      );
+      idHorario = nuevoHorario.insertId;
     }
 
     const [result] = await pool.execute(
       `INSERT INTO turnos (id_usuario, id_cancha, id_horario, id_estado, fecha, fecha_creacion)
        VALUES (?, ?, ?, (SELECT id_estado FROM estados_turno WHERE nombre = 'pendiente_pago'), ?, NOW())`,
-      [req.usuario.id, id_cancha, id_horario, fecha]
+      [req.usuario.id, id_cancha, idHorario, fecha]
     );
     const idTurno = result.insertId;
 
-    const montoSena = Math.round(Number(canchaRows[0].precio) * PORCENTAJE_SENA);
+    // El precio de la cancha es por hora; se escala según la duración elegida
+    const precioTotal = Number(canchaRows[0].precio) * (Number(minutos) / 60);
+    const montoSena = Math.round(precioTotal * PORCENTAJE_SENA);
 
     await pool.execute(
       'INSERT INTO pagos (id_turno, id_metodo, monto, estado) VALUES (?, ?, ?, ?)',

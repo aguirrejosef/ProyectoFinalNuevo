@@ -398,7 +398,7 @@ function MisCanchas() {
                                 <img src={canchaEditando.foto} alt="Vista previa" className="preview-foto-cancha" />
                             )}
 
-                            <label>Precio por turno</label>
+                            <label>Precio por hora</label>
                             <input
                                 type="number"
                                 min="0"
@@ -458,7 +458,7 @@ function MisCanchas() {
                                 <img src={nuevaCancha.foto} alt="Vista previa" className="preview-foto-cancha" />
                             )}
 
-                            <label>Precio por turno</label>
+                            <label>Precio por hora</label>
                             <input
                                 type="number"
                                 min="0"
