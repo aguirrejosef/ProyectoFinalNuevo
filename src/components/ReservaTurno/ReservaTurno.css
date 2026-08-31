@@ -46,11 +46,18 @@
 
 .grid-horarios-reserva {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 10px;
 }
 
+.grid-duraciones-reserva {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+
 .btn-horario-reserva {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
     background: #f5f7fa;
     border: 1px solid #d5dbe4;
     border-radius: 8px;
@@ -59,14 +66,28 @@
     font-weight: 600;
     color: #0d3b66;
     cursor: pointer;
-    line-height: 1.4;
+    white-space: nowrap;
     transition: background-color 150ms ease, border-color 150ms ease;
 }
 
-.btn-horario-reserva small {
+.btn-duracion-reserva {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 56px;
+}
+
+.duracion-principal {
+    white-space: nowrap;
+}
+
+.duracion-hasta {
     font-weight: 400;
     font-size: 0.75rem;
     opacity: 0.8;
+    white-space: nowrap;
 }
 
 .btn-horario-reserva:hover:not(:disabled) {

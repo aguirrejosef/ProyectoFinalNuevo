@@ -383,7 +383,7 @@ function ReservaTurno({ club, cancha }) {
                     {horaInicioElegida && (
                         <>
                             <p className="label-paso-horario">Duración</p>
-                            <div className="grid-horarios-reserva">
+                            <div className="grid-horarios-reserva grid-duraciones-reserva">
                                 {DURACIONES_MIN.map((minutos) => {
                                     const combo = duracionesParaInicioElegido.find((h) => h.minutos === minutos);
                                     if (!combo) return null;
@@ -392,12 +392,12 @@ function ReservaTurno({ club, cancha }) {
                                         <button
                                             type="button"
                                             key={minutos}
-                                            className={`btn-horario-reserva ${!combo.disponible ? 'horario-ocupado' : ''} ${duracionElegida === minutos ? 'horario-elegido' : ''}`}
+                                            className={`btn-horario-reserva btn-duracion-reserva ${!combo.disponible ? 'horario-ocupado' : ''} ${duracionElegida === minutos ? 'horario-elegido' : ''}`}
                                             disabled={!combo.disponible}
                                             onClick={() => setDuracionElegida(minutos)}
                                         >
-                                            {formatearDuracion(minutos)}<br />
-                                            <small>hasta {formatearHora(combo.hora_fin)}</small>
+                                            <span className="duracion-principal">{formatearDuracion(minutos)}</span>
+                                            <span className="duracion-hasta">hasta {formatearHora(combo.hora_fin)}</span>
                                         </button>
                                     );
                                 })}
