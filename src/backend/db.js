@@ -1413,6 +1413,18 @@ app.post('/turnos', verificarToken, async (req, res) => {
   }
 
   try {
+    const [usuarioRows] = await pool.execute(
+      'SELECT nombre, apellido, dni, telefono FROM usuarios WHERE id_usuario = ?',
+      [req.usuario.id]
+    );
+    const perfil = usuarioRows[0] || {};
+    if (!perfil.nombre || !perfil.apellido || !perfil.dni || !perfil.telefono) {
+      return res.status(400).json({
+        message: 'Completá tu perfil (nombre, apellido, DNI y teléfono) antes de reservar',
+        perfilIncompleto: true
+      });
+    }
+
     const [fechaValida] = await pool.execute('SELECT ? >= CURDATE() AS valida', [fecha]);
     if (!fechaValida[0].valida) {
       return res.status(400).json({ message: 'No se puede reservar una fecha pasada' });

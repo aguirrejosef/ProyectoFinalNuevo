@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api';
+import { perfilCompletoDesdeLocalStorage } from '../../utils/perfilCompleto';
 import './ReservaTurno.css';
 
 const DURACIONES_MIN = [60, 90, 120];
@@ -130,6 +131,13 @@ function ReservaTurno({ club, cancha }) {
 
     const handleIrARevision = () => {
         if (!combinacionElegida) return;
+
+        if (!perfilCompletoDesdeLocalStorage()) {
+            alert('Para reservar necesitás completar tus datos de perfil (nombre, apellido, DNI y teléfono).');
+            navigate('/mi-perfil');
+            return;
+        }
+
         setPaso('revision');
     };
 
@@ -151,6 +159,11 @@ function ReservaTurno({ club, cancha }) {
             const data = await res.json();
 
             if (!res.ok) {
+                if (data.perfilIncompleto) {
+                    alert(data.message);
+                    navigate('/mi-perfil');
+                    return;
+                }
                 setMensaje(data.message || 'No se pudo reservar el turno');
                 if (res.status === 409) {
                     setPaso('eligiendo');

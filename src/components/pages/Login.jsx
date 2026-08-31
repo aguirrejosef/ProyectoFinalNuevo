@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import '../pages/Login.css';
 import Logo from '../Logo/Logo';
 import { apiFetch } from '../../api';
+import { perfilCompletoDesdeLocalStorage } from '../../utils/perfilCompleto';
 
 function Login() {
     const navigate = useNavigate();
@@ -127,6 +128,9 @@ function Login() {
             navigate('/admin');
             } else if (data.rol === 2) {
             navigate('/canchas');
+            } else if (data.rol === 3 && !perfilCompletoDesdeLocalStorage()) {
+            alert('Te faltan completar algunos datos de tu perfil (apellido, DNI y/o teléfono). Completalos para poder reservar turnos.');
+            navigate('/mi-perfil');
             } else {
             navigate('/');
             }
