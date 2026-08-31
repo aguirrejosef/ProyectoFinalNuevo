@@ -21,6 +21,7 @@
     "gapi-script": "^1.2.0",
     "google-auth-library": "^10.3.0",
     "jsonwebtoken": "^9.0.2",
+    "mercadopago": "^3.6.0",
     "mongoose": "^8.4.4",
     "multer": "^2.2.0",
     "mysql2": "^3.11.4",

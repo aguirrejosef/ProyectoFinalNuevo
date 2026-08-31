@@ -17,6 +17,7 @@ import Planes from './components/pages/Planes';
 import Novedades from './components/pages/Novedades';
 import MisCanchas from './components/pages/MisCanchas';
 import TurnosCancha from './components/pages/TurnosCancha';
+import ReservaConfirmacion from './components/pages/ReservaConfirmacion';
 
 // Bloquea el acceso a una ruta si no hay sesión, o si el rol no está permitido.
 function RutaPrivada({ rolesPermitidos, children }) {
@@ -73,6 +74,10 @@ function App() {
           <Route
             path="/mis-canchas/:idCancha/turnos"
             element={<RutaPrivada rolesPermitidos={[2]}><TurnosCancha /></RutaPrivada>}
+          />
+          <Route
+            path="/reserva-confirmacion"
+            element={<RutaPrivada><ReservaConfirmacion /></RutaPrivada>}
           />
         </Routes>
       </BrowserRouter>

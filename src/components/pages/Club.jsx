@@ -136,8 +136,8 @@ function Club() {
 
         {canchaSeleccionada && (
           <ReservaTurno
-            idCancha={canchaSeleccionada}
-            nombreCancha={canchas.find((c) => c.id_cancha === canchaSeleccionada)?.nombre}
+            club={club}
+            cancha={canchas.find((c) => c.id_cancha === canchaSeleccionada)}
           />
         )}
       </div>

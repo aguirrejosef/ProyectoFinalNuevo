@@ -11,7 +11,8 @@ const app = express();
 const port = 3000;
 const multer = require('multer');
 const path = require('path');
- 
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+
 if (!process.env.JWT_SECRET) {
   throw new Error('Falta JWT_SECRET en el archivo .env');
 }
@@ -85,6 +86,66 @@ async function verificarDuenoDeCancha(req, idCancha) {
     [idCancha]
   );
   return rows.length > 0 && rows[0].id_dueno === req.usuario.id;
+}
+
+// ------------------ Pagos (Mercado Pago) ------------------
+const PORCENTAJE_SENA = 0.5;
+const ID_METODO_MERCADOPAGO = 4;
+// Minutos que se sostiene una reserva mientras el cliente paga la seña.
+// Pasado ese tiempo sin pago aprobado, el horario vuelve a estar libre.
+const MINUTOS_ESPERA_PAGO = 10;
+
+const mpClient = process.env.MP_ACCESS_TOKEN
+  ? new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN })
+  : null;
+
+// Consulta a Mercado Pago el estado real del pago de un turno (por external_reference)
+// y sincroniza turnos/pagos según corresponda. La llaman tanto el webhook de MP
+// como la pantalla a la que vuelve el cliente después de pagar.
+async function sincronizarPagoDeTurno(idTurno) {
+  if (!mpClient) {
+    return { estado: 'error', message: 'Los pagos no están configurados en el servidor' };
+  }
+
+  const [pagoRows] = await pool.execute('SELECT estado FROM pagos WHERE id_turno = ?', [idTurno]);
+  if (pagoRows.length === 0) {
+    return { estado: 'sin_pago' };
+  }
+  if (pagoRows[0].estado === 'pagado') {
+    return { estado: 'pagado' };
+  }
+
+  const paymentClient = new Payment(mpClient);
+  const busqueda = await paymentClient.search({ options: { external_reference: String(idTurno) } });
+  const pagosEncontrados = busqueda.results || [];
+
+  if (pagosEncontrados.length === 0) {
+    return { estado: 'pendiente' };
+  }
+
+  const ultimoPago = pagosEncontrados.sort(
+    (a, b) => new Date(b.date_created) - new Date(a.date_created)
+  )[0];
+
+  if (ultimoPago.status === 'approved') {
+    await pool.execute('UPDATE pagos SET estado = ? WHERE id_turno = ?', ['pagado', idTurno]);
+    await pool.execute(
+      `UPDATE turnos SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado') WHERE id_turno = ?`,
+      [idTurno]
+    );
+    return { estado: 'pagado' };
+  }
+
+  if (['rejected', 'cancelled'].includes(ultimoPago.status)) {
+    await pool.execute('DELETE FROM pagos WHERE id_turno = ?', [idTurno]);
+    await pool.execute(
+      `UPDATE turnos SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado') WHERE id_turno = ?`,
+      [idTurno]
+    );
+    return { estado: 'rechazado' };
+  }
+
+  return { estado: 'pendiente' };
 }
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -1263,6 +1324,7 @@ app.get('/canchas/:id/disponibilidad', async (req, res) => {
               INNER JOIN estados_turno et ON t.id_estado = et.id_estado
               WHERE t.id_cancha = ? AND t.id_horario = h.id_horario AND t.fecha = ?
                 AND et.nombre <> 'cancelado'
+                AND NOT (et.nombre = 'pendiente_pago' AND t.fecha_creacion <= NOW() - INTERVAL ? MINUTE)
             )
             OR (? = CURDATE() AND h.hora_inicio <= CURTIME())
           ) AS ocupado
@@ -1270,7 +1332,7 @@ app.get('/canchas/:id/disponibilidad', async (req, res) => {
        INNER JOIN horarios h ON h.id_club = c.id_club
        WHERE c.id_cancha = ?
        ORDER BY h.hora_inicio ASC`,
-      [id, fecha, fecha, id]
+      [id, fecha, MINUTOS_ESPERA_PAGO, fecha, id]
     );
 
     res.json(rows.map((r) => ({ ...r, ocupado: !!r.ocupado })));
@@ -1282,6 +1344,9 @@ app.get('/canchas/:id/disponibilidad', async (req, res) => {
 });
 
 // ------------------ Reservar un turno (cliente) ------------------
+// Crea el turno en estado "pendiente_pago" (retiene el horario) y devuelve
+// el link de pago de Mercado Pago para la seña. El turno pasa a "reservado"
+// recién cuando el pago se confirma (ver /pagos/estado/:idTurno y el webhook).
 app.post('/turnos', verificarToken, async (req, res) => {
   const { id_cancha, id_horario, fecha } = req.body;
 
@@ -1296,7 +1361,9 @@ app.post('/turnos', verificarToken, async (req, res) => {
     }
 
     const [canchaRows] = await pool.execute(
-      'SELECT estado FROM canchas WHERE id_cancha = ?',
+      `SELECT c.estado, c.precio, c.nombre AS nombre_cancha, cl.nombre AS nombre_club
+       FROM canchas c INNER JOIN club cl ON c.id_club = cl.id_club
+       WHERE c.id_cancha = ?`,
       [id_cancha]
     );
 
@@ -1305,6 +1372,9 @@ app.post('/turnos', verificarToken, async (req, res) => {
     }
     if (canchaRows[0].estado !== 'disponible') {
       return res.status(400).json({ message: 'Esta cancha no está disponible actualmente' });
+    }
+    if (!canchaRows[0].precio) {
+      return res.status(400).json({ message: 'Esta cancha todavía no tiene un precio configurado' });
     }
 
     const [horarioRows] = await pool.execute(
@@ -1322,8 +1392,10 @@ app.post('/turnos', verificarToken, async (req, res) => {
     const [ocupado] = await pool.execute(
       `SELECT t.id_turno FROM turnos t
        INNER JOIN estados_turno et ON t.id_estado = et.id_estado
-       WHERE t.id_cancha = ? AND t.id_horario = ? AND t.fecha = ? AND et.nombre <> 'cancelado'`,
-      [id_cancha, id_horario, fecha]
+       WHERE t.id_cancha = ? AND t.id_horario = ? AND t.fecha = ?
+         AND et.nombre <> 'cancelado'
+         AND NOT (et.nombre = 'pendiente_pago' AND t.fecha_creacion <= NOW() - INTERVAL ? MINUTE)`,
+      [id_cancha, id_horario, fecha, MINUTOS_ESPERA_PAGO]
     );
 
     if (ocupado.length > 0) {
@@ -1331,16 +1403,108 @@ app.post('/turnos', verificarToken, async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      `INSERT INTO turnos (id_usuario, id_cancha, id_horario, id_estado, fecha)
-       VALUES (?, ?, ?, (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado'), ?)`,
+      `INSERT INTO turnos (id_usuario, id_cancha, id_horario, id_estado, fecha, fecha_creacion)
+       VALUES (?, ?, ?, (SELECT id_estado FROM estados_turno WHERE nombre = 'pendiente_pago'), ?, NOW())`,
       [req.usuario.id, id_cancha, id_horario, fecha]
     );
+    const idTurno = result.insertId;
 
-    res.status(201).json({ message: 'Turno reservado correctamente', id_turno: result.insertId });
+    const montoSena = Math.round(Number(canchaRows[0].precio) * PORCENTAJE_SENA);
+
+    await pool.execute(
+      'INSERT INTO pagos (id_turno, id_metodo, monto, estado) VALUES (?, ?, ?, ?)',
+      [idTurno, ID_METODO_MERCADOPAGO, montoSena, 'pendiente']
+    );
+
+    if (!mpClient) {
+      return res.status(201).json({
+        message: 'Turno creado, pero los pagos no están configurados en el servidor',
+        id_turno: idTurno,
+        monto_sena: montoSena,
+        init_point: null
+      });
+    }
+
+    const expiraEn = new Date(Date.now() + MINUTOS_ESPERA_PAGO * 60000).toISOString();
+
+    const preference = new Preference(mpClient);
+    const resultadoPreferencia = await preference.create({
+      body: {
+        items: [{
+          title: `Seña - ${canchaRows[0].nombre_club} - ${canchaRows[0].nombre_cancha}`,
+          quantity: 1,
+          unit_price: montoSena,
+          currency_id: 'ARS'
+        }],
+        external_reference: String(idTurno),
+        back_urls: {
+          success: `${process.env.FRONTEND_URL}/reserva-confirmacion?turno=${idTurno}`,
+          failure: `${process.env.FRONTEND_URL}/reserva-confirmacion?turno=${idTurno}`,
+          pending: `${process.env.FRONTEND_URL}/reserva-confirmacion?turno=${idTurno}`
+        },
+        auto_return: 'approved',
+        expires: true,
+        expiration_date_to: expiraEn,
+        ...(process.env.MP_WEBHOOK_URL ? { notification_url: process.env.MP_WEBHOOK_URL } : {})
+      }
+    });
+
+    res.status(201).json({
+      message: 'Turno creado, falta completar el pago de la seña',
+      id_turno: idTurno,
+      monto_sena: montoSena,
+      expira_en: expiraEn,
+      init_point: resultadoPreferencia.init_point || resultadoPreferencia.sandbox_init_point
+    });
 
   } catch (error) {
     console.error('Error al reservar turno:', error);
     res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
+// ------------------ Estado del pago de un turno (la pantalla de retorno lo consulta) ------------------
+app.get('/pagos/estado/:idTurno', verificarToken, async (req, res) => {
+  const { idTurno } = req.params;
+
+  try {
+    const [turnoRows] = await pool.execute('SELECT id_usuario FROM turnos WHERE id_turno = ?', [idTurno]);
+    if (turnoRows.length === 0) {
+      return res.status(404).json({ message: 'Turno no encontrado' });
+    }
+    if (Number(req.usuario.rol) !== 1 && turnoRows[0].id_usuario !== req.usuario.id) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    const resultado = await sincronizarPagoDeTurno(idTurno);
+    res.json(resultado);
+
+  } catch (error) {
+    console.error('Error en /pagos/estado:', error);
+    res.status(500).json({ message: 'Error al consultar el estado del pago' });
+  }
+});
+
+// ------------------ Webhook de Mercado Pago ------------------
+// MP notifica acá cuando cambia el estado de un pago. No requiere autenticación
+// de usuario (la llama Mercado Pago, no el navegador del cliente).
+app.post('/pagos/webhook', async (req, res) => {
+  try {
+    const tipo = req.query.type || req.body?.type;
+    const idPago = req.query['data.id'] || req.body?.data?.id;
+
+    if (tipo === 'payment' && idPago && mpClient) {
+      const paymentClient = new Payment(mpClient);
+      const pago = await paymentClient.get({ id: idPago });
+      if (pago.external_reference) {
+        await sincronizarPagoDeTurno(pago.external_reference);
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Error en webhook de Mercado Pago:', error);
+    res.sendStatus(200); // Le confirmamos igual a MP para que no siga reintentando
   }
 });
 
@@ -1682,7 +1846,10 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Turno no encontrado' });
     }
- 
+
+    // Si tenía un pago sin completar (seña abandonada), lo limpiamos
+    await pool.query("DELETE FROM pagos WHERE id_turno = ? AND estado = 'pendiente'", [id]);
+
     res.json({ message: 'Turno cancelado correctamente' });
  
   } catch (error) {
