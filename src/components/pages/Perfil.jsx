@@ -187,7 +187,12 @@ function Perfil() {
                 body: JSON.stringify(form)
             });
 
-            if (!res.ok) throw new Error('Error al actualizar');
+            const data = await res.json();
+
+            if (!res.ok) {
+                setMensaje(`${data.message || 'Ocurrió un error al guardar los cambios'} ❌`);
+                return;
+            }
 
             // Sincronizamos localStorage con los nuevos datos
             localStorage.setItem('nombre', form.nombre);

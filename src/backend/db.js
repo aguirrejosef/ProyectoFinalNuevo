@@ -427,6 +427,10 @@ app.post('/usuarios/login-google', async (req, res) => {
     const correo = payload.email;
     const usuario = payload.name;
     const foto = payload.picture; // <-- nuevo
+    // Google ya nos da el nombre y apellido separados; usarlos evita que la
+    // persona tenga que completar el apellido a mano después de registrarse.
+    const nombreGoogle = payload.given_name || payload.name;
+    const apellidoGoogle = payload.family_name || '';
 
     const conn = await pool.getConnection();
 
@@ -436,17 +440,17 @@ app.post('/usuarios/login-google', async (req, res) => {
     );
 
     let rol = 3;
-    let nombreFinal = usuario;
+    let nombreFinal = nombreGoogle;
     let fotoFinal = foto;
     let idUsuarioFinal;
-    let apellidoFinal = '';
+    let apellidoFinal = apellidoGoogle;
     let dniFinal = '';
     let telefonoFinal = '';
 
     if (rows.length === 0) {
     const [insertResult] = await conn.execute(
-        'INSERT INTO usuarios (usuario, nombre, correo, foto, password, metodo_registro, id_rol) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [usuario, usuario, correo, foto, '', 'google', 3]
+        'INSERT INTO usuarios (usuario, nombre, apellido, correo, foto, password, metodo_registro, id_rol) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [usuario, nombreGoogle, apellidoGoogle, correo, foto, '', 'google', 3]
     );
     idUsuarioFinal = insertResult.insertId;
 } else {
