@@ -1,19 +1,20 @@
 #contenedor-login {
-    background-image: url('../../imagenes/fondoLogin.png');
+    background-image: linear-gradient(rgba(0, 20, 45, 0.55), rgba(0, 20, 45, 0.55)), url('../../imagenes/fondoLogin.png');
     background-size: cover;
     background-position: center;
+    background-attachment: fixed;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #004AAD;
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
+    padding: 40px 20px;
+    box-sizing: border-box;
 }
 
 /* Contenedor principal del login */
 .grid-login {
     width: 100%;
-    height: 80%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -21,52 +22,43 @@
 
 /* Tarjeta de login centrada */
 .grid-item-login {
-    width: 600px;
-    min-height: 600px;
+    width: 420px;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: black;
+    color: #1a1a1a;
     background-color: white;
-    opacity: 0.9;
-    border-radius: 5px;
-    box-shadow: 0 0 5px 5px rgb(255, 255, 255, 1);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
     box-sizing: border-box;
+    padding: 40px 36px 32px;
+    animation: aparecer-login 300ms ease;
 }
 
-/* Imagen del usuario */
-.contenedor-img-login {
-    width: 300px;
-    height: 300px;
-    background-color: black;
-    border: 3px solid black;
-    border-radius: 30px;
-    opacity: 1;
-    background-size: cover;
-    background-position: center;
+@keyframes aparecer-login {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Logo de marca */
+.logo-login {
+    width: 220px;
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+    margin-bottom: 20px;
 }
 
 /* Título */
 .titulo-login {
     opacity: 1;
-    font-size: 45px;
+    font-size: 26px;
+    font-weight: 700;
+    color: #0d3b66;
     text-align: center;
-    margin: 25px 0;
-}
-
-/* Imagen específica del usuario */
-#img-usuario {
-    background-image: url('../../imagenes/usuarioLogin.png');
-    background-size: cover;
-    background-position: center;
-}
-
-/* Imagen específica del negocio */
-#img-negocio {
-    background-image: url('../../imagenes/negocioLogin.png');
-    background-size: cover;
-    background-position: center;
+    margin: 0 0 24px;
 }
 
 /* Formularios */
@@ -74,7 +66,7 @@
     display: flex;
     align-items: center;
     flex-direction: column;
-    row-gap: 18px;
+    row-gap: 16px;
     width: 100%;
 }
 
@@ -82,21 +74,26 @@
     width: 320px;
     max-width: 100%;
     height: 50px;
-    border-radius: 30px;
+    border-radius: 12px;
     padding: 10px 20px;
-    font-size: 18px;
+    font-size: 16px;
     box-sizing: border-box;
 }
 
 .formulario-negocio input {
-    border: 2px solid #cccccc;
+    border: 1.5px solid #dde2ea;
     outline: none;
-    background-color: white;
-    transition: border-color 0.2s ease;
+    background-color: #f8fafc;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.formulario-negocio input::placeholder {
+    color: #97a1af;
 }
 
 .formulario-negocio input:focus {
     border-color: #004AAD;
+    background-color: white;
 }
 
 /* Botón iniciar sesión */
@@ -104,15 +101,29 @@
     width: 320px;
     max-width: 100%;
     height: 50px;
-    border-radius: 30px;
+    border-radius: 12px;
     padding: 10px;
-    font-size: 18px;
+    font-size: 16px;
     border: none;
     background-color: #004AAD;
     color: white;
     font-weight: bold;
     cursor: pointer;
-    margin-top: 5px;
+    margin-top: 4px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-iniciar-sesion-usuario:hover:not(:disabled) {
+    background-color: #003580;
+}
+
+.btn-iniciar-sesion-usuario:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.btn-iniciar-sesion-usuario:disabled {
+    opacity: 0.7;
+    cursor: default;
 }
 
 /* Botón inscribirme */
@@ -120,15 +131,15 @@
     width: 320px;
     max-width: 100%;
     height: 50px;
-    border-radius: 30px;
+    border-radius: 12px;
     padding: 10px;
-    font-size: 18px;
-    border: 2px solid #004AAD;
+    font-size: 16px;
+    border: 1.5px solid #004AAD;
     background-color: white;
     color: #004AAD;
     font-weight: bold;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 6px;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -139,11 +150,25 @@
 
 /* Separador "o" */
 .separador-login {
-    margin: 10px 0;
+    margin: 4px 0;
     text-align: center;
-    color: gray;
+    color: #97a1af;
     width: 320px;
     max-width: 100%;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.separador-login::before,
+.separador-login::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: #e5e9f0;
 }
 
 /* Envoltorio para centrar el botón de Google al mismo ancho */
@@ -154,67 +179,22 @@
     justify-content: center;
 }
 
-/* Botón Facebook */
-#btn-facebook {
-    background-color: #3b5998;
-    opacity: 100%;
-    color: white;
+.contenedor-google-login > div {
+    width: 100% !important;
 }
 
-/* Botón Facebook personalizado */
-.facebook-login-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    max-width: 300px;
-    height: 50px;
-    margin: 10px auto;
-    background-color: #1877f2;
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    text-align: center;
-}
-
-.facebook-login-button .fa-facebook {
-    margin-right: 10px;
-    font-size: 20px;
-}
-
-/* Recuperar contraseña y registro */
-.recuperar-password-negocio,
-.registro-negocio {
-    color: gray;
-    margin: 0;
-}
-
-.registro-negocio {
-    margin: 5px 0;
-}
-
+/* Recuperar contraseña */
 .recuperar-password-negocio {
-    margin-top: 10px;
-    margin-bottom: 5px;
+    color: #667085;
+    margin: 6px 0 4px;
+    font-size: 14px;
 }
 
 /* Hover de enlaces */
-.recuperar-password-negocio:hover,
-.registro-negocio:hover {
+.recuperar-password-negocio:hover {
     color: #004AAD;
     cursor: pointer;
-}
-
-/* Logo */
-.contenedor-logo {
-    width: 200px;
-    height: 100px;
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
+    text-decoration: underline;
 }
 
 /* =========================
@@ -222,18 +202,16 @@
 ========================= */
 @media (max-width: 700px) {
     .grid-item-login {
-        width: 90%;
-        min-height: 550px;
-        padding: 20px;
+        width: 100%;
+        padding: 32px 22px 26px;
     }
 
-    .contenedor-img-login {
-        width: 220px;
-        height: 220px;
+    .logo-login {
+        width: 170px;
     }
 
     .titulo-login {
-        font-size: 32px;
+        font-size: 22px;
     }
 
     .formulario-negocio > * {
@@ -241,20 +219,11 @@
         max-width: 320px;
     }
 
-    .btn-iniciar-sesion-usuario {
+    .btn-iniciar-sesion-usuario,
+    .btn-inscribirme,
+    .separador-login,
+    .contenedor-google-login {
         width: 100%;
         max-width: 320px;
-    }
-
-    .btn-inscribirme {
-        width: 100%;
-        max-width: 320px;
-    }
-
-    .contenedor-logo {
-        width: 120px;
-        height: auto;
-        bottom: 15px;
-        right: 15px;
     }
 }

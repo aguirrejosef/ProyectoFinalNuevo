@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import '../pages/Login.css';
-import Logo from '../Logo/Logo';
+import logo from '../../imagenes/logo.png';
 import { apiFetch } from '../../api';
 import { perfilCompletoDesdeLocalStorage } from '../../utils/perfilCompleto';
 
@@ -164,13 +164,10 @@ function Login() {
 
                     <div className="grid-item-login">
 
-                        <div
-                            className="contenedor-img-login"
-                            id="img-usuario"
-                        ></div>
+                        <img src={logo} alt="SUP - Sale un Padel" className="logo-login" />
 
                        <h2 className="titulo-login">
-    Iniciar Sesion
+    Iniciar sesión
 </h2>
 
 
@@ -259,13 +256,6 @@ function Login() {
 
                     </div>
 
-                </div>
-
-
-                {/* LOGO */}
-
-                <div className="contenedor-logo">
-                    <Logo />
                 </div>
 
             </div>
