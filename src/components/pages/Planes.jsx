@@ -6,13 +6,13 @@ import { useNavigate } from 'react-router-dom'
 import './Planes.css'
 import { apiFetch } from '../../api'
 
-// NOTA: los nombres, precios y beneficios de acá son PLACEHOLDER.
-// Reemplazalos por los planes reales que va a ofrecer tu plataforma.
+// NOTA: los beneficios de cada plan son PLACEHOLDER, ajustalos si hace falta.
+// Los precios deben coincidir con PRECIOS_PLANES en src/backend/db.js.
 const PLANES = [
   {
     id: 'basico',
     nombre: 'Básico',
-    precio: 'A definir',
+    precio: '$50.000/mes',
     destacado: false,
     beneficios: [
       'Hasta 2 canchas publicadas',
@@ -23,7 +23,7 @@ const PLANES = [
   {
     id: 'estandar',
     nombre: 'Estándar',
-    precio: 'A definir',
+    precio: '$80.000/mes',
     destacado: true,
     beneficios: [
       'Hasta 6 canchas publicadas',
@@ -35,7 +35,7 @@ const PLANES = [
   {
     id: 'premium',
     nombre: 'Premium',
-    precio: 'A definir',
+    precio: '$120.000/mes',
     destacado: false,
     beneficios: [
       'Canchas ilimitadas',

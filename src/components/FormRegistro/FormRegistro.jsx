@@ -5,10 +5,12 @@ import Modal from '../Modal/Modal';
 import { apiFetch } from '../../api';
  
 const PLANES = [
-  { id: 'basico', label: 'Básico' },
-  { id: 'estandar', label: 'Estándar' },
-  { id: 'premium', label: 'Premium' }
+  { id: 'basico', label: 'Básico', precio: 50000 },
+  { id: 'estandar', label: 'Estándar', precio: 80000 },
+  { id: 'premium', label: 'Premium', precio: 120000 }
 ];
+
+const formatearPrecioPlan = (precio) => `$${precio.toLocaleString('es-AR')}/mes`;
  
 function FormRegistro() {
   const location = useLocation();
@@ -27,6 +29,7 @@ function FormRegistro() {
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [enviando, setEnviando] = useState(false);
  
   // Validación del formulario
   useEffect(() => {
@@ -73,37 +76,32 @@ function FormRegistro() {
       plan
     };
  
+    setEnviando(true);
+
     try {
       const response = await apiFetch('/usuarios/registro-club', {
         method: 'POST',
         body: JSON.stringify(clubData)
       });
- 
+
       const data = await response.json();
- 
-      if (response.ok) {
-        setMensaje(data.message || 'Registro exitoso');
- 
-        // Limpiar formulario
-        setNombreClub('');
-        setTelefono('');
-        setProvincia('');
-        setLocalidad('');
-        setDireccion('');
-        setCanchas('');
-        setCorreo('');
-        setUsuario('');
-        setPassword('');
-        
- 
-      } else {
-        setMensaje(data.message || 'Error en el registro');
+
+      if (response.ok && data.init_point) {
+        // Vamos directo al checkout de Mercado Pago a autorizar el pago del plan.
+        // El club recién se crea de verdad cuando el pago queda aprobado.
+        window.location.href = data.init_point;
+        return;
       }
+
+      setMensaje(data.message || (response.ok ? 'Registro iniciado' : 'Error en el registro'));
+
     } catch (error) {
       console.error('Error:', error);
       setMensaje('No se pudo conectar con el servidor');
+    } finally {
+      setEnviando(false);
     }
- 
+
     setModalVisible(true);
     setTimeout(() => setModalVisible(false), 2000);
   };
@@ -201,7 +199,7 @@ function FormRegistro() {
             required
           >
             {PLANES.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
+              <option key={p.id} value={p.id}>{p.label} - {formatearPrecioPlan(p.precio)}</option>
             ))}
           </select>
         </div>
@@ -217,8 +215,8 @@ function FormRegistro() {
           />
         </div>
  
-        <button type="submit" disabled={isSubmitDisabled}>
-          Registrar
+        <button type="submit" disabled={isSubmitDisabled || enviando}>
+          {enviando ? 'Generando el pago...' : 'Siguiente'}
         </button>
  
       </form>

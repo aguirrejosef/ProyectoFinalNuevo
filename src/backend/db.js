@@ -11,7 +11,7 @@ const app = express();
 const port = 3000;
 const multer = require('multer');
 const path = require('path');
-const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment, PreApproval } = require('mercadopago');
 
 if (!process.env.JWT_SECRET) {
   throw new Error('Falta JWT_SECRET en el archivo .env');
@@ -98,6 +98,84 @@ const MINUTOS_ESPERA_PAGO = 10;
 const mpClient = process.env.MP_ACCESS_TOKEN
   ? new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN })
   : null;
+
+// ------------------ Suscripción de planes del club ------------------
+const PRECIOS_PLANES = {
+  basico: 50000,
+  estandar: 80000,
+  premium: 120000
+};
+
+// Da de alta de verdad al club (usuario dueño + club + canchas) una vez que
+// Mercado Pago confirmó que la suscripción del plan quedó autorizada.
+async function registrarClubDesdePendiente(pendiente) {
+  const hashedPassword = pendiente.password_hash;
+
+  const [userResult] = await pool.execute(
+    'INSERT INTO usuarios (usuario, correo, password, metodo_registro, id_rol) VALUES (?, ?, ?, ?, ?)',
+    [pendiente.usuario, pendiente.correo, hashedPassword, 'manual', 2]
+  );
+  const idUsuario = userResult.insertId;
+
+  const [clubResult] = await pool.execute(
+    `INSERT INTO club (nombre, direccion, provincia, localidad, telefono, id_dueno, plan, mp_preapproval_id, estado_suscripcion)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activa')`,
+    [pendiente.nombre_club, pendiente.direccion, pendiente.provincia, pendiente.localidad, pendiente.nro_titular, idUsuario, pendiente.plan, pendiente.mp_preapproval_id]
+  );
+  const idClub = clubResult.insertId;
+
+  for (let i = 1; i <= pendiente.canchas; i++) {
+    await pool.execute(
+      'INSERT INTO canchas (nombre, estado, id_club) VALUES (?, ?, ?)',
+      [`Cancha ${i}`, 'disponible', idClub]
+    );
+  }
+
+  return idClub;
+}
+
+// Consulta a Mercado Pago el estado real de la suscripción de un registro
+// pendiente y, si ya está autorizada, recién ahí crea el club de verdad.
+// La llaman tanto el webhook de MP como la pantalla a la que vuelve el
+// dueño del club después de autorizar el pago.
+async function sincronizarRegistroClubPendiente(idRegistro) {
+  if (!mpClient) {
+    return { estado: 'error', message: 'Los pagos no están configurados en el servidor' };
+  }
+
+  const [rows] = await pool.execute('SELECT * FROM registros_club_pendientes WHERE id_registro = ?', [idRegistro]);
+  if (rows.length === 0) {
+    return { estado: 'no_encontrado' };
+  }
+
+  const pendiente = rows[0];
+
+  if (pendiente.estado === 'aprobado') {
+    return { estado: 'aprobado' };
+  }
+  if (pendiente.estado === 'rechazado') {
+    return { estado: 'rechazado' };
+  }
+  if (!pendiente.mp_preapproval_id) {
+    return { estado: 'pendiente' };
+  }
+
+  const preapprovalClient = new PreApproval(mpClient);
+  const preapproval = await preapprovalClient.get({ id: pendiente.mp_preapproval_id });
+
+  if (preapproval.status === 'authorized') {
+    await registrarClubDesdePendiente(pendiente);
+    await pool.execute("UPDATE registros_club_pendientes SET estado = 'aprobado' WHERE id_registro = ?", [idRegistro]);
+    return { estado: 'aprobado' };
+  }
+
+  if (['cancelled', 'rejected'].includes(preapproval.status)) {
+    await pool.execute("UPDATE registros_club_pendientes SET estado = 'rechazado' WHERE id_registro = ?", [idRegistro]);
+    return { estado: 'rechazado' };
+  }
+
+  return { estado: 'pendiente' };
+}
 
 // Consulta a Mercado Pago el estado real del pago de un turno (por external_reference)
 // y sincroniza turnos/pagos según corresponda. La llaman tanto el webhook de MP
@@ -195,6 +273,9 @@ const transporter = nodemailer.createTransport({
 })();
 
 // ------------------ Registro Club/Usuario ------------------
+// El club recién se crea (usuario + club + canchas) cuando Mercado Pago
+// confirma que la suscripción del plan quedó autorizada; ver
+// sincronizarRegistroClubPendiente y /registros-pendientes/estado/:id.
 app.post('/usuarios/registro-club', async (req, res) => {
   const {
     nombreClub,
@@ -208,64 +289,88 @@ app.post('/usuarios/registro-club', async (req, res) => {
     canchas,
     plan
   } = req.body;
- 
+
   if (!nombreClub || !correo || !usuario || !password || !canchas) {
-    console.log('❌ Faltan datos obligatorios:', { nombreClub, correo, usuario, password, canchas });
     return res.status(400).json({ message: 'Faltan datos obligatorios' });
   }
- 
+
   if (password.length < 6) {
     return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
   }
- 
+
+  const planElegido = PRECIOS_PLANES[plan] ? plan : 'basico';
+
   try {
-    const conn = await pool.getConnection();
- 
-    // Verificar duplicados
-    const [existingUser] = await conn.execute(
-      'SELECT * FROM usuarios WHERE correo = ? OR usuario = ?',
+    const [existingUser] = await pool.execute(
+      'SELECT id_usuario FROM usuarios WHERE correo = ? OR usuario = ?',
       [correo, usuario]
     );
- 
+
     if (existingUser.length > 0) {
-      console.log('❌ Correo o usuario ya existe:', { correo, usuario });
-      conn.release();
       return res.status(400).json({ message: 'Correo o usuario ya existe' });
     }
- 
+
     const hashedPassword = await bcrypt.hash(password, 10);
- 
-    // 1. Crear usuario (dueño del club)
-    const [userResult] = await conn.execute(
-      'INSERT INTO usuarios (usuario, correo, password, metodo_registro, id_rol) VALUES (?, ?, ?, ?, ?)',
-      [usuario, correo, hashedPassword, 'manual', 2] // 2 = dueño club
+
+    const [pendienteResult] = await pool.execute(
+      `INSERT INTO registros_club_pendientes
+        (nombre_club, nro_titular, provincia, localidad, direccion, correo, usuario, password_hash, canchas, plan, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+      [nombreClub, nroTitular, provincia, localidad, direccion, correo, usuario, hashedPassword, parseInt(canchas), planElegido]
     );
- 
-    const idUsuario = userResult.insertId;
- 
-    // 2. Crear club
-    const [clubResult] = await conn.execute(
-      `INSERT INTO club (nombre, direccion, provincia, localidad, telefono, id_dueno, plan)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [nombreClub, direccion, provincia, localidad, nroTitular, idUsuario, plan || 'basico']
-    );
- 
-    const idClub = clubResult.insertId;
- 
-    // 3. Crear canchas automáticamente
-    for (let i = 1; i <= parseInt(canchas); i++) {
-      await conn.execute(
-        'INSERT INTO canchas (nombre, estado, id_club) VALUES (?, ?, ?)',
-        [`Cancha ${i}`, 'disponible', idClub]
-      );
+    const idRegistro = pendienteResult.insertId;
+
+    if (!mpClient) {
+      return res.status(201).json({
+        message: 'No se pudo generar el pago: los pagos no están configurados en el servidor',
+        id_registro: idRegistro,
+        init_point: null
+      });
     }
- 
-    conn.release();
-    res.status(201).json({ message: 'Club registrado correctamente' });
- 
+
+    const preapproval = new PreApproval(mpClient);
+    const resultado = await preapproval.create({
+      body: {
+        reason: `Plan ${planElegido} - SaleUnPadel (${nombreClub})`,
+        external_reference: String(idRegistro),
+        payer_email: correo,
+        back_url: `${process.env.FRONTEND_URL}/registro-club/confirmacion?registro=${idRegistro}`,
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: 'months',
+          transaction_amount: PRECIOS_PLANES[planElegido],
+          currency_id: 'ARS'
+        },
+        status: 'pending'
+      }
+    });
+
+    await pool.execute(
+      'UPDATE registros_club_pendientes SET mp_preapproval_id = ? WHERE id_registro = ?',
+      [resultado.id, idRegistro]
+    );
+
+    res.status(201).json({
+      message: 'Registro iniciado, falta autorizar el pago del plan',
+      id_registro: idRegistro,
+      init_point: resultado.init_point
+    });
+
   } catch (error) {
     console.error('Error en registro club:', error);
     res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
+// ------------------ Estado de un registro de club pendiente de pago ------------------
+// Público (todavía no existe usuario/token en este punto del flujo).
+app.get('/registros-pendientes/estado/:id', async (req, res) => {
+  try {
+    const resultado = await sincronizarRegistroClubPendiente(req.params.id);
+    res.json(resultado);
+  } catch (error) {
+    console.error('Error en /registros-pendientes/estado:', error);
+    res.status(500).json({ message: 'Error al consultar el estado del registro' });
   }
 });
 
@@ -1607,13 +1712,39 @@ app.get('/pagos/estado/:idTurno', verificarToken, async (req, res) => {
 app.post('/pagos/webhook', async (req, res) => {
   try {
     const tipo = req.query.type || req.body?.type;
-    const idPago = req.query['data.id'] || req.body?.data?.id;
+    const idNotificado = req.query['data.id'] || req.body?.data?.id;
 
-    if (tipo === 'payment' && idPago && mpClient) {
+    if (tipo === 'payment' && idNotificado && mpClient) {
       const paymentClient = new Payment(mpClient);
-      const pago = await paymentClient.get({ id: idPago });
+      const pago = await paymentClient.get({ id: idNotificado });
       if (pago.external_reference) {
         await sincronizarPagoDeTurno(pago.external_reference);
+      }
+    }
+
+    if (tipo === 'subscription_preapproval' && idNotificado && mpClient) {
+      // Puede ser un registro de club todavía pendiente...
+      const [pendientes] = await pool.execute(
+        'SELECT id_registro FROM registros_club_pendientes WHERE mp_preapproval_id = ?',
+        [idNotificado]
+      );
+      if (pendientes.length > 0) {
+        await sincronizarRegistroClubPendiente(pendientes[0].id_registro);
+      } else {
+        // ...o un club ya activo cuya suscripción cambió de estado (pausada/cancelada).
+        const preapprovalClient = new PreApproval(mpClient);
+        const preapproval = await preapprovalClient.get({ id: idNotificado });
+        const estadoSuscripcion = preapproval.status === 'authorized' ? 'activa'
+          : preapproval.status === 'paused' ? 'pausada'
+          : preapproval.status === 'cancelled' ? 'cancelada'
+          : null;
+
+        if (estadoSuscripcion) {
+          await pool.execute(
+            'UPDATE club SET estado_suscripcion = ? WHERE mp_preapproval_id = ?',
+            [estadoSuscripcion, idNotificado]
+          );
+        }
       }
     }
 
