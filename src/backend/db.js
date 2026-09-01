@@ -755,7 +755,7 @@ app.get('/usuarios', verificarToken, requireRol(1, 2), async (req, res) => {
     // 👑 ADMIN → ve todos
     if (Number(rol) === 1) {
       query = `
-        SELECT id_usuario, usuario, correo, id_rol
+        SELECT id_usuario, usuario, nombre, apellido, correo, telefono, foto, id_rol, fecha_registro
         FROM usuarios
       `;
     }

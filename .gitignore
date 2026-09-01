@@ -27,3 +27,6 @@ yarn-error.log*
 # uploads (contenido subido por usuarios, no forma parte del código)
 src/backend/uploads/*
 !src/backend/uploads/.gitkeep
+
+# config local del editor (MCP servers, etc), no es parte del proyecto
+.vscode/mcp.json

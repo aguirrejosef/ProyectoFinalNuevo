@@ -324,21 +324,53 @@ const Usuarios = () => {
   }
 
   // ------------------ Vista genérica (admin u otros roles) ------------------
+  const claseRol = (idRol) => {
+    if (idRol === 1) return 'badge-rol-usuario badge-rol-admin';
+    if (idRol === 2) return 'badge-rol-usuario badge-rol-club';
+    return 'badge-rol-usuario badge-rol-cliente';
+  };
+
   return (
     <div className="users-list">
-      {usuariosOrdenados.map((user) => (
-        <div key={user.id_usuario} className="user-card">
-          <div className="cliente-avatar cliente-avatar-generico">
-            <span>{iniciales(user)}</span>
-          </div>
+      <div className="usuarios-buscador usuarios-buscador-generico">
+        <input
+          type="text"
+          placeholder="Buscar por nombre, usuario o correo..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+      </div>
 
-          <div className="user-card__info">
-            <h3>{user.usuario}</h3>
-            <p>{user.correo}</p>
-            <p><strong>Rol:</strong> {getRol(user.id_rol)}</p>
-          </div>
-        </div>
-      ))}
+      <div className="grid-usuarios-generico">
+        {usuariosOrdenados.map((user) => {
+          const nombreCompleto = user.nombre
+            ? `${user.nombre} ${user.apellido || ''}`.trim()
+            : user.usuario;
+
+          return (
+            <div key={user.id_usuario} className="tarjeta-usuario-generico">
+              <div className="tarjeta-usuario-frente">
+                {user.foto ? (
+                  <img src={user.foto} alt={nombreCompleto} className="foto-usuario-generico" />
+                ) : (
+                  <div className="foto-usuario-generico foto-usuario-generico-inicial">
+                    {iniciales(user)}
+                  </div>
+                )}
+                <h3>{nombreCompleto}</h3>
+                <span className="usuario-arroba">@{user.usuario}</span>
+                <span className={claseRol(user.id_rol)}>{getRol(user.id_rol)}</span>
+              </div>
+
+              <div className="tarjeta-usuario-detalle">
+                <p>✉️ {user.correo || 'Sin correo'}</p>
+                <p>📞 {user.telefono || 'Sin teléfono'}</p>
+                <p>🗓️ En la plataforma desde {formatearMesAno(user.fecha_registro)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
