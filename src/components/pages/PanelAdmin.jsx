@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ListaTablaAdmin from '../ListaTablaAdmin/ListaTablaAdmin';
 import CardsUsuarios from '../CardsUsuarios/CardsUsuarios';
+import AdminResumen from '../AdminResumen/AdminResumen';
 import BtnFlotanteWp from '../Button/BtnFlotanteWp/BtnFlotanteWp';
 import Footer from '../Footer/Footer';
 import NavBar from '../NavBar/NavBar';
@@ -11,6 +12,7 @@ function PanelAdmin() {
   return (
     <div>
         <NavBar/>
+        <AdminResumen />
       <div className="botones-alternancia">
         <button onClick={() => setMostrarTabla(true)}>Mostrar Clubes</button>
         <button onClick={() => setMostrarTabla(false)}>Mostrar Usuarios</button>

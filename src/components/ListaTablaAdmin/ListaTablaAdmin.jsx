@@ -10,7 +10,7 @@ function ListaTablaAdmin() {
     useEffect(() => {
       const fetchData = async () => {
         try {
-          const response = await apiFetch('/clubes');
+          const response = await apiFetch('/admin/clubes');
           if (!response.ok) {
             throw new Error('Error al obtener los datos');
           }

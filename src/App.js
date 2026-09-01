@@ -19,6 +19,7 @@ import MisCanchas from './components/pages/MisCanchas';
 import TurnosCancha from './components/pages/TurnosCancha';
 import ReservaConfirmacion from './components/pages/ReservaConfirmacion';
 import RegistroClubConfirmacion from './components/pages/RegistroClubConfirmacion';
+import AdminClubDetalle from './components/pages/AdminClubDetalle';
 
 // Bloquea el acceso a una ruta si no hay sesión, o si el rol no está permitido.
 function RutaPrivada({ rolesPermitidos, children }) {
@@ -43,6 +44,10 @@ function App() {
           <Route
             path="/admin"
             element={<RutaPrivada rolesPermitidos={[1]}><PanelAdmin /></RutaPrivada>}
+          />
+          <Route
+            path="/admin/clubes/:id"
+            element={<RutaPrivada rolesPermitidos={[1]}><AdminClubDetalle /></RutaPrivada>}
           />
           <Route path="/club" element={<Home />} />
           <Route path="/cliente" element={<Home />} />

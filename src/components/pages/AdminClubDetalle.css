@@ -1,0 +1,140 @@
+.mensaje-detalle-club {
+    padding: 40px 90px;
+    color: #444;
+}
+
+.contenedor-detalle-club {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px 60px;
+}
+
+.btn-volver-detalle {
+    background: none;
+    border: none;
+    color: #1565c0;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 16px;
+}
+
+.btn-volver-detalle:hover {
+    text-decoration: underline;
+}
+
+.tarjeta-detalle-club {
+    background: white;
+    border: 1px solid #e0e4ea;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    padding: 32px;
+}
+
+.encabezado-detalle-club {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.encabezado-detalle-club h1 {
+    margin: 0;
+    color: #0d3b66;
+}
+
+.subtitulo-detalle-club {
+    margin: 4px 0 0;
+    color: #667085;
+}
+
+.badge-suscripcion {
+    font-size: 0.85rem;
+    font-weight: bold;
+    padding: 6px 16px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.badge-suscripcion-activa {
+    background: #e3f7e9;
+    color: #1b7a3d;
+}
+
+.badge-suscripcion-pausada {
+    background: #fff4e0;
+    color: #b06a00;
+}
+
+.badge-suscripcion-cancelada {
+    background: #fdecea;
+    color: #c62828;
+}
+
+.grid-detalle-club {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.seccion-detalle-club h3 {
+    margin: 0 0 6px;
+    color: #667085;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.seccion-detalle-club p {
+    margin: 0 0 4px;
+    color: #333;
+}
+
+.dato-grande {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #0d3b66;
+}
+
+.separador-detalle-club {
+    border-top: 1px dashed #d5dbe4;
+    margin: 28px 0;
+}
+
+.btn-descargar-detalle {
+    margin-top: 28px;
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-descargar-detalle:hover {
+    background-color: #0d47a1;
+}
+
+@media (max-width: 700px) {
+    .grid-detalle-club {
+        grid-template-columns: 1fr;
+    }
+
+    .encabezado-detalle-club {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media print {
+    .no-imprimir {
+        display: none !important;
+    }
+
+    .tarjeta-detalle-club {
+        box-shadow: none;
+        border: none;
+    }
+}

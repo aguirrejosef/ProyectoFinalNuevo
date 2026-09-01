@@ -108,7 +108,7 @@ const PRECIOS_PLANES = {
 
 // Da de alta de verdad al club (usuario dueño + club + canchas) una vez que
 // Mercado Pago confirmó que la suscripción del plan quedó autorizada.
-async function registrarClubDesdePendiente(pendiente) {
+async function registrarClubDesdePendiente(pendiente, proximaFechaPago) {
   const hashedPassword = pendiente.password_hash;
 
   const [userResult] = await pool.execute(
@@ -118,9 +118,9 @@ async function registrarClubDesdePendiente(pendiente) {
   const idUsuario = userResult.insertId;
 
   const [clubResult] = await pool.execute(
-    `INSERT INTO club (nombre, direccion, provincia, localidad, telefono, id_dueno, plan, mp_preapproval_id, estado_suscripcion)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activa')`,
-    [pendiente.nombre_club, pendiente.direccion, pendiente.provincia, pendiente.localidad, pendiente.nro_titular, idUsuario, pendiente.plan, pendiente.mp_preapproval_id]
+    `INSERT INTO club (nombre, direccion, provincia, localidad, telefono, id_dueno, plan, mp_preapproval_id, estado_suscripcion, proxima_fecha_pago)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activa', ?)`,
+    [pendiente.nombre_club, pendiente.direccion, pendiente.provincia, pendiente.localidad, pendiente.nro_titular, idUsuario, pendiente.plan, pendiente.mp_preapproval_id, proximaFechaPago || null]
   );
   const idClub = clubResult.insertId;
 
@@ -164,7 +164,10 @@ async function sincronizarRegistroClubPendiente(idRegistro) {
   const preapproval = await preapprovalClient.get({ id: pendiente.mp_preapproval_id });
 
   if (preapproval.status === 'authorized') {
-    await registrarClubDesdePendiente(pendiente);
+    const proximaFechaPago = preapproval.next_payment_date
+      ? preapproval.next_payment_date.slice(0, 10)
+      : null;
+    await registrarClubDesdePendiente(pendiente, proximaFechaPago);
     await pool.execute("UPDATE registros_club_pendientes SET estado = 'aprobado' WHERE id_registro = ?", [idRegistro]);
     return { estado: 'aprobado' };
   }
@@ -816,7 +819,7 @@ app.get('/clubes/populares', async (req, res) => {
  
     const [rows] = await conn.execute(
       `SELECT
-        c.*,
+        c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion, c.plan, c.id_dueno,
         u.usuario AS dueno,
         (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
         (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde,
@@ -848,7 +851,7 @@ app.get('/clubes', async (req, res) => {
  
     const [rows] = await conn.execute(`
       SELECT
-        c.*,
+        c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion, c.plan, c.id_dueno,
         u.usuario AS dueno,
         (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
         (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde
@@ -873,7 +876,7 @@ app.get('/clubes/:id', async (req, res) => {
   try {
     const [rows] = await pool.execute(
       `SELECT
-        c.*,
+        c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion, c.plan, c.id_dueno,
         u.usuario AS dueno,
         (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
         (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde
@@ -891,6 +894,51 @@ app.get('/clubes/:id', async (req, res) => {
 
   } catch (error) {
     console.error('Error en /clubes/:id:', error);
+    res.status(500).json({ message: 'Error al obtener el club' });
+  }
+});
+
+// ------------------ Clubes con datos de suscripción (solo admin) ------------------
+const CAMPOS_CLUB_ADMIN = `
+  c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion,
+  c.plan, c.id_dueno, c.estado_suscripcion, c.proxima_fecha_pago, c.fecha_alta,
+  u.usuario AS dueno, u.correo AS correo_dueno, u.telefono AS telefono_dueno,
+  (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
+  (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde
+`;
+
+app.get('/admin/clubes', verificarToken, requireRol(1), async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT ${CAMPOS_CLUB_ADMIN}
+      FROM club c
+      LEFT JOIN usuarios u ON c.id_dueno = u.id_usuario
+      ORDER BY c.fecha_alta DESC
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error en /admin/clubes:', error);
+    res.status(500).json({ message: 'Error al obtener los clubes' });
+  }
+});
+
+app.get('/admin/clubes/:id', verificarToken, requireRol(1), async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT ${CAMPOS_CLUB_ADMIN}
+       FROM club c
+       LEFT JOIN usuarios u ON c.id_dueno = u.id_usuario
+       WHERE c.id_club = ?`,
+      [req.params.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Club no encontrado' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error en /admin/clubes/:id:', error);
     res.status(500).json({ message: 'Error al obtener el club' });
   }
 });
@@ -1740,9 +1788,12 @@ app.post('/pagos/webhook', async (req, res) => {
           : null;
 
         if (estadoSuscripcion) {
+          const proximaFechaPago = preapproval.next_payment_date
+            ? preapproval.next_payment_date.slice(0, 10)
+            : null;
           await pool.execute(
-            'UPDATE club SET estado_suscripcion = ? WHERE mp_preapproval_id = ?',
-            [estadoSuscripcion, idNotificado]
+            'UPDATE club SET estado_suscripcion = ?, proxima_fecha_pago = ? WHERE mp_preapproval_id = ?',
+            [estadoSuscripcion, proximaFechaPago, idNotificado]
           );
         }
       }

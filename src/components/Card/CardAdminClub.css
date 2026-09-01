@@ -15,9 +15,36 @@
   }
   
   .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
     font-size: 35px;
     text-align: center;
     color: teal
+  }
+
+  .badge-suscripcion {
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .badge-suscripcion-activa {
+    background: #e3f7e9;
+    color: #1b7a3d;
+  }
+
+  .badge-suscripcion-pausada {
+    background: #fff4e0;
+    color: #b06a00;
+  }
+
+  .badge-suscripcion-cancelada {
+    background: #fdecea;
+    color: #c62828;
   }
   
   .club-card{
@@ -43,14 +70,15 @@
 
   .grid-btn-card-negocio{
     display: grid;
-    grid-template-columns: repeat(3,1fr);
+    grid-template-columns: repeat(2,1fr);
     justify-items: center;
+    gap: 12px;
     padding-top: 10px;
     padding-bottom: 30px;
   }
 
   .grid-btn-card-negocio>*{
-    width: max-content;
+    width: 100%;
     padding: 15px;
     font-size: 18px;
     font-family: Arial, Helvetica, sans-serif;
@@ -60,6 +88,7 @@
     background-color: red;
   }
 
-  #btn-negocio-editar{
-    background-color: green;
+  #btn-negocio-detalle{
+    background-color: #1565c0;
+    color: white;
   }
