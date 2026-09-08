@@ -57,6 +57,19 @@ function Planes() {
   const [planActual, setPlanActual] = useState(null);
   const [cambiando, setCambiando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [planAImprimir, setPlanAImprimir] = useState(null);
+
+  useEffect(() => {
+    if (!planAImprimir) return;
+    const timer = setTimeout(() => window.print(), 150);
+    return () => clearTimeout(timer);
+  }, [planAImprimir]);
+
+  useEffect(() => {
+    const limpiarPlanAImprimir = () => setPlanAImprimir(null);
+    window.addEventListener('afterprint', limpiarPlanAImprimir);
+    return () => window.removeEventListener('afterprint', limpiarPlanAImprimir);
+  }, []);
 
   useEffect(() => {
     if (!esClub) return;
@@ -118,9 +131,11 @@ function Planes() {
 
   return (
     <div>
-      <NavBar/>
+      <div className="no-imprimir">
+        <NavBar/>
+      </div>
 
-      <div className="planes-contenedor">
+      <div className="planes-contenedor no-imprimir">
         <h2 className="planes-titulo">Planes para tu club</h2>
         <p className="planes-subtitulo">
           {esClub
@@ -172,18 +187,50 @@ function Planes() {
                     Elegir plan
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  className="plan-boton-pdf"
+                  onClick={() => setPlanAImprimir(plan)}
+                >
+                  Descargar PDF
+                </button>
               </div>
             );
           })}
         </div>
       </div>
 
-      <div className="contenedor-btnFlotanteWsp">
+      <div className="contenedor-btnFlotanteWsp no-imprimir">
         <BtnFlotanteWp
           NroCelular={'3814653130'}
         />
       </div>
-      <Footer/>
+      <div className="no-imprimir">
+        <Footer/>
+      </div>
+
+      {planAImprimir && (
+        <div className="hoja-plan-impresion">
+          <div className="hoja-plan-header">
+            <h1>SUP - Sale un Pádel</h1>
+            <p>Detalle del plan para clubes</p>
+          </div>
+
+          <h2 className="hoja-plan-nombre">Plan {planAImprimir.nombre}</h2>
+          <p className="hoja-plan-precio">{planAImprimir.precio}</p>
+
+          <ul className="hoja-plan-beneficios">
+            {planAImprimir.beneficios.map((beneficio, i) => (
+              <li key={i}>{beneficio}</li>
+            ))}
+          </ul>
+
+          <p className="hoja-plan-fecha">
+            Generado el {new Date().toLocaleDateString('es-AR')}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

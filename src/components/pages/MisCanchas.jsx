@@ -4,6 +4,7 @@ import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
 import './MisCanchas.css';
 import { apiFetch } from '../../api';
+import { ordenarCanchasPorNombre } from '../../utils/ordenarNatural';
 
 function MisCanchas() {
     const navigate = useNavigate();
@@ -69,7 +70,7 @@ function MisCanchas() {
                 return;
             }
 
-            setCanchas(dataCanchas);
+            setCanchas(ordenarCanchasPorNombre(dataCanchas));
 
         } catch (err) {
             console.error('Error al cargar mis canchas:', err);
@@ -123,7 +124,9 @@ function MisCanchas() {
             }
 
             setCanchas((prev) =>
-                prev.map((c) => c.id_cancha === canchaEditando.id_cancha ? canchaEditando : c)
+                ordenarCanchasPorNombre(
+                    prev.map((c) => c.id_cancha === canchaEditando.id_cancha ? canchaEditando : c)
+                )
             );
             setCanchaEditando(null);
 
@@ -194,19 +197,7 @@ function MisCanchas() {
                 return;
             }
 
-            setCanchas((prev) => [
-                ...prev,
-                {
-                    id_cancha: data.id_cancha,
-                    nombre: nuevaCancha.nombre,
-                    estado: 'disponible',
-                    tipo: nuevaCancha.tipo,
-                    foto: nuevaCancha.foto,
-                    precio: nuevaCancha.precio,
-                    turnos_semana: 0
-                }
-            ]);
-
+            await cargarDatos();
             setAgregandoCancha(false);
 
         } catch (err) {

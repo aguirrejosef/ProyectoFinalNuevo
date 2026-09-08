@@ -8,12 +8,12 @@
     background-color: #fff;
     transition: transform 0.2s;
   }
-  
+
   .grid-info-card-negocio{
     display: grid;
     grid-template-columns: repeat(2,1fr);
   }
-  
+
   .card-header {
     display: flex;
     align-items: center;
@@ -46,13 +46,13 @@
     background: #fdecea;
     color: #c62828;
   }
-  
+
   .club-card{
     font-size: 1em;
     line-height: 1.6;
   }
- 
-  
+
+
   .card-footer {
     margin-right: 40px;
     font-size: 25px;
@@ -63,7 +63,7 @@
     font-size: 25px;
     padding: 0 50px;
   }
-  
+
   .club-card:hover {
     transform: scale(1.02);
   }
@@ -89,6 +89,6 @@
   }
 
   #btn-negocio-detalle{
-    background-color: #1565c0;
+    background-color: #004AAD;
     color: white;
   }

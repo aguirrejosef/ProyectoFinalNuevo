@@ -44,11 +44,11 @@
 
 .plan-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 22px rgba(21, 101, 192, 0.15);
+  box-shadow: 0 8px 22px rgba(0, 74, 173, 0.15);
 }
 
 .plan-destacado {
-  border-color: #1565c0;
+  border-color: #004AAD;
 }
 
 .plan-actual {
@@ -61,7 +61,7 @@
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1565c0;
+  background: #004AAD;
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -82,7 +82,7 @@
 .plan-precio {
   font-size: 20px;
   font-weight: 700;
-  color: #1565c0;
+  color: #004AAD;
   margin-bottom: 20px;
 }
 
@@ -112,7 +112,7 @@
   width: 100%;
   border: none;
   border-radius: 10px;
-  background-color: #1565c0;
+  background-color: #004AAD;
   color: #fff;
   font-weight: bold;
   font-size: 14px;
@@ -125,7 +125,7 @@
 }
 
 .plan-boton:hover {
-  background-color: #0d47a1;
+  background-color: #003580;
 }
 
 .plan-boton:disabled {
@@ -136,6 +136,98 @@
 .plan-actual .plan-boton:disabled {
   background-color: #2e7d32;
   opacity: 0.85;
+}
+
+.plan-boton-pdf {
+  box-sizing: border-box;
+  width: 100%;
+  border: 2px solid #004AAD;
+  border-radius: 10px;
+  background-color: transparent;
+  color: #004AAD;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 11px 10px;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.plan-boton-pdf:hover {
+  background-color: #004AAD;
+  color: #fff;
+}
+
+/* ------------------ Hoja imprimible del plan (PDF) ------------------ */
+
+.hoja-plan-impresion {
+  display: none;
+}
+
+@media print {
+  .no-imprimir {
+    display: none !important;
+  }
+
+  .hoja-plan-impresion {
+    display: block;
+    padding: 40px;
+  }
+
+  .hoja-plan-header {
+    text-align: center;
+    border-bottom: 3px solid #004AAD;
+    padding-bottom: 16px;
+    margin-bottom: 30px;
+  }
+
+  .hoja-plan-header h1 {
+    margin: 0 0 4px;
+    color: #0d3b66;
+    font-size: 24px;
+  }
+
+  .hoja-plan-header p {
+    margin: 0;
+    color: #666;
+  }
+
+  .hoja-plan-nombre {
+    color: #0d3b66;
+    font-size: 22px;
+    margin-bottom: 6px;
+  }
+
+  .hoja-plan-precio {
+    color: #004AAD;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+
+  .hoja-plan-beneficios {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 40px;
+  }
+
+  .hoja-plan-beneficios li {
+    font-size: 15px;
+    color: #333;
+    padding: 10px 0;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .hoja-plan-beneficios li::before {
+    content: '✓ ';
+    color: #2e7d32;
+    font-weight: 700;
+  }
+
+  .hoja-plan-fecha {
+    color: #888;
+    font-size: 12px;
+  }
 }
 
 .planes-mensaje {

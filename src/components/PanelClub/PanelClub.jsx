@@ -7,6 +7,8 @@ function PanelClub() {
   const [loading, setLoading] = useState(true);
   const [cancelandoId, setCancelandoId] = useState(null);
   const [error, setError] = useState('');
+  const [turnoACancelar, setTurnoACancelar] = useState(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
 
   const nombreUsuario = localStorage.getItem('nombre');
 
@@ -37,21 +39,29 @@ function PanelClub() {
 
   const formatearHora = (hora) => (hora ? hora.slice(0, 5) : '');
 
-  const handleCancelarTurno = async (turno) => {
-    const nombreCliente = turno.nombre ? `${turno.nombre} ${turno.apellido || ''}` : turno.usuario;
-    const confirmar = window.confirm(
-      `¿Cancelar el turno de ${nombreCliente} a las ${formatearHora(turno.hora_inicio)}hs?`
-    );
-    if (!confirmar) return;
+  const handleAbrirCancelar = (turno) => {
+    setTurnoACancelar(turno);
+    setMotivoCancelacion('');
+  };
 
-    setCancelandoId(turno.id_turno);
+  const handleCerrarCancelar = () => {
+    setTurnoACancelar(null);
+    setMotivoCancelacion('');
+  };
+
+  const handleConfirmarCancelacion = async () => {
+    if (!turnoACancelar || !motivoCancelacion.trim()) return;
+
+    setCancelandoId(turnoACancelar.id_turno);
     try {
-      const res = await apiFetch(`/turnos/${turno.id_turno}/cancelar`, {
-        method: 'PUT'
+      const res = await apiFetch(`/turnos/${turnoACancelar.id_turno}/cancelar`, {
+        method: 'PUT',
+        body: JSON.stringify({ motivo: motivoCancelacion.trim() })
       });
 
       if (!res.ok) throw new Error('Error al cancelar el turno');
 
+      handleCerrarCancelar();
       // Volvemos a pedir el resumen para que los contadores y la lista se actualicen solos
       await fetchResumen();
 
@@ -133,10 +143,15 @@ function PanelClub() {
                 <span className="item-turno-cliente">
                   {t.nombre ? `${t.nombre} ${t.apellido || ''}` : t.usuario}
                 </span>
+                {t.telefono && (
+                  <a className="item-turno-telefono" href={`tel:${t.telefono}`} onClick={(e) => e.stopPropagation()}>
+                    📞 {t.telefono}
+                  </a>
+                )}
                 <span className="item-turno-cancha">{t.cancha}</span>
                 <button
                   className="btn-cancelar-turno-hoy"
-                  onClick={() => handleCancelarTurno(t)}
+                  onClick={() => handleAbrirCancelar(t)}
                   disabled={cancelandoId === t.id_turno}
                 >
                   {cancelandoId === t.id_turno ? 'Cancelando...' : 'Cancelar'}
@@ -146,6 +161,42 @@ function PanelClub() {
           </div>
         )}
       </div>
+
+      {turnoACancelar && (
+        <div className="overlay-modal-cancelar" onClick={handleCerrarCancelar}>
+          <div className="modal-cancelar-turno" onClick={(e) => e.stopPropagation()}>
+            <h3>Cancelar turno</h3>
+            <p>
+              {turnoACancelar.nombre ? `${turnoACancelar.nombre} ${turnoACancelar.apellido || ''}` : turnoACancelar.usuario}
+              {' '}— {formatearHora(turnoACancelar.hora_inicio)} a {formatearHora(turnoACancelar.hora_fin)}hs en {turnoACancelar.cancha}
+            </p>
+
+            <label className="label-motivo-cancelacion">
+              Motivo de la cancelación (se le va a enviar por correo al cliente)
+              <textarea
+                value={motivoCancelacion}
+                onChange={(e) => setMotivoCancelacion(e.target.value)}
+                placeholder="Ej: se suspendió por lluvia, problema con la cancha, etc."
+                rows={4}
+              />
+            </label>
+
+            <div className="botones-modal-cancelar">
+              <button type="button" className="btn-volver-modal-cancelar" onClick={handleCerrarCancelar}>
+                Volver
+              </button>
+              <button
+                type="button"
+                className="btn-confirmar-modal-cancelar"
+                onClick={handleConfirmarCancelacion}
+                disabled={!motivoCancelacion.trim() || cancelandoId === turnoACancelar.id_turno}
+              >
+                {cancelandoId === turnoACancelar.id_turno ? 'Cancelando...' : 'Confirmar cancelación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

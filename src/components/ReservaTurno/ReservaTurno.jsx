@@ -2,6 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api';
 import { perfilCompletoDesdeLocalStorage } from '../../utils/perfilCompleto';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faTableTennisPaddleBall,
+    faLocationDot,
+    faCalendarCheck,
+    faClock,
+    faUser,
+    faPhone,
+    faEnvelope,
+    faCircleInfo
+} from '@fortawesome/free-solid-svg-icons';
 import './ReservaTurno.css';
 
 const DURACIONES_MIN = [60, 90, 120];
@@ -45,12 +56,17 @@ function formatearCuentaRegresiva(segundos) {
     return `${m}:${s}`;
 }
 
-function ReservaTurno({ club, cancha }) {
+function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
     const navigate = useNavigate();
     const hayToken = !!localStorage.getItem('token');
 
     // 'eligiendo' -> 'revision' -> 'pago'
     const [paso, setPaso] = useState('eligiendo');
+
+    useEffect(() => {
+        onCambiarPaso?.(paso);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paso]);
 
     const [fecha, setFecha] = useState(fechaLocalDeHoy());
     const [disponibilidad, setDisponibilidad] = useState({ abierto: null, horarios: [] });
@@ -133,8 +149,11 @@ function ReservaTurno({ club, cancha }) {
         if (!combinacionElegida) return;
 
         if (!perfilCompletoDesdeLocalStorage()) {
-            alert('Para reservar necesitás completar tus datos de perfil (nombre, apellido, DNI y teléfono).');
-            navigate('/mi-perfil');
+            navigate('/mi-perfil', {
+                state: {
+                    avisoPerfilIncompleto: 'Para reservar necesitás completar tus datos de perfil (nombre, apellido, DNI y teléfono).'
+                }
+            });
             return;
         }
 
@@ -160,8 +179,11 @@ function ReservaTurno({ club, cancha }) {
 
             if (!res.ok) {
                 if (data.perfilIncompleto) {
-                    alert(data.message);
-                    navigate('/mi-perfil');
+                    navigate('/mi-perfil', {
+                        state: {
+                            avisoPerfilIncompleto: data.message || 'Te faltan completar algunos datos de tu perfil para poder reservar turnos.'
+                        }
+                    });
                     return;
                 }
                 setMensaje(data.message || 'No se pudo reservar el turno');
@@ -224,74 +246,130 @@ function ReservaTurno({ club, cancha }) {
     // ------------------ Paso 2: revisión antes de pagar ------------------
     if (paso === 'revision') {
         return (
-            <div className="tarjeta-reserva tarjeta-revision">
-                <h3 className="titulo-reserva">¡Ya casi terminamos!</h3>
-                <p className="reserva-subtitulo">Chequeá tus datos y confirmá para continuar con el pago de la seña.</p>
-
-                <div className="resumen-reserva">
-                    <div className="resumen-club">
-                        <strong>{club?.nombre}</strong>
-                        {club?.direccion && <span>{club.direccion}{club.localidad ? `, ${club.localidad}` : ''}</span>}
-                    </div>
-
-                    <div className="resumen-fila">
-                        <span>Fecha</span>
-                        <strong>{formatearFechaLarga(fecha)}</strong>
-                    </div>
-                    <div className="resumen-fila">
-                        <span>Turno</span>
-                        <strong>{formatearHora(combinacionElegida?.hora_inicio)} a {formatearHora(combinacionElegida?.hora_fin)} ({formatearDuracion(duracionElegida)})</strong>
-                    </div>
-                    <div className="resumen-fila">
-                        <span>Cancha</span>
-                        <strong>{cancha.nombre}{cancha.tipo ? ` - ${cancha.tipo}` : ''}</strong>
-                    </div>
-                    <div className="resumen-fila">
-                        <span>Precio total</span>
-                        <strong>{formatearPrecio(precioTotalEstimado)}</strong>
-                    </div>
-                    <div className="resumen-fila resumen-fila-destacada">
-                        <span>Ahora pagás (seña)</span>
-                        <strong>{formatearPrecio(montoSenaEstimado)}</strong>
-                    </div>
+            <div className="revision-layout">
+                <div className="revision-header">
+                    <h2 className="revision-titulo">¡Ya casi terminamos!</h2>
+                    <p className="revision-subtitulo">
+                        Para completar tu reserva en {club?.nombre}, por favor chequeá tus datos y luego confirmá.
+                    </p>
                 </div>
 
-                <div className="titular-reserva">
-                    <label>
-                        Nombre y apellido
-                        <input
-                            type="text"
-                            value={titular.nombre}
-                            onChange={(e) => setTitular({ ...titular, nombre: e.target.value })}
-                        />
-                    </label>
-                    <label>
-                        Teléfono
-                        <input
-                            type="tel"
-                            value={titular.telefono}
-                            onChange={(e) => setTitular({ ...titular, telefono: e.target.value })}
-                        />
-                    </label>
-                    <label>
-                        E-mail
-                        <input
-                            type="email"
-                            value={titular.correo}
-                            onChange={(e) => setTitular({ ...titular, correo: e.target.value })}
-                        />
-                    </label>
-                </div>
+                <div className="revision-columnas">
 
-                {mensaje && <p className="reserva-mensaje">{mensaje}</p>}
+                    <div className="revision-resumen-card">
+                        <div className="revision-resumen-etiqueta">
+                            <FontAwesomeIcon icon={faTableTennisPaddleBall} /> Pádel
+                        </div>
 
-                <div className="botones-revision">
-                    <button type="button" className="btn-volver-revision" onClick={() => setPaso('eligiendo')}>
-                        Volver
-                    </button>
-                    <button type="button" className="btn-reservar" onClick={handleConfirmarReserva} disabled={confirmando}>
-                        {confirmando ? 'Generando el pago...' : 'Continuar'}
-                    </button>
+                        <div className="revision-resumen-club">
+                            {fotoClub && <img src={fotoClub} alt={club?.nombre} className="revision-resumen-club-foto" />}
+                            <div>
+                                <h3>{club?.nombre}</h3>
+                                {club?.direccion && (
+                                    <p>
+                                        <FontAwesomeIcon icon={faLocationDot} />{' '}
+                                        {club.direccion}{club.localidad ? `, ${club.localidad}` : ''}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="revision-resumen-detalle">
+                            <div className="revision-resumen-fila">
+                                <span className="revision-resumen-fila-icono"><FontAwesomeIcon icon={faCalendarCheck} /></span>
+                                <div className="revision-resumen-fila-texto">
+                                    <span className="revision-resumen-fila-label">Fecha</span>
+                                    <strong>{formatearFechaLarga(fecha)}</strong>
+                                </div>
+                            </div>
+
+                            <div className="revision-resumen-fila">
+                                <span className="revision-resumen-fila-icono"><FontAwesomeIcon icon={faClock} /></span>
+                                <div className="revision-resumen-fila-texto">
+                                    <span className="revision-resumen-fila-label">Turno</span>
+                                    <strong>{formatearHora(combinacionElegida?.hora_inicio)} a {formatearHora(combinacionElegida?.hora_fin)} hs ({formatearDuracion(duracionElegida)})</strong>
+                                </div>
+                            </div>
+
+                            <div className="revision-resumen-fila">
+                                <span className="revision-resumen-fila-icono"><FontAwesomeIcon icon={faTableTennisPaddleBall} /></span>
+                                <div className="revision-resumen-fila-texto">
+                                    <span className="revision-resumen-fila-label">{cancha.nombre}</span>
+                                    {cancha.tipo && <strong>{cancha.tipo}</strong>}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="revision-resumen-precios">
+                            <div className="revision-resumen-precio-fila">
+                                <span>Precio de la cancha</span>
+                                <strong>{formatearPrecio(precioTotalEstimado)}</strong>
+                            </div>
+                            <div className="revision-resumen-precio-fila revision-resumen-precio-destacada">
+                                <div>
+                                    <span>Ahora pagás</span>
+                                    <p>Adelanto para reservar la cancha</p>
+                                </div>
+                                <strong>{formatearPrecio(montoSenaEstimado)}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="revision-columna-derecha">
+                        <div className="revision-card">
+                            <h3 className="revision-card-titulo">Titular de la reserva</h3>
+                            <div className="revision-titular-grid">
+                                <label>
+                                    <span><FontAwesomeIcon icon={faUser} /> Nombre y apellido</span>
+                                    <input
+                                        type="text"
+                                        value={titular.nombre}
+                                        onChange={(e) => setTitular({ ...titular, nombre: e.target.value })}
+                                    />
+                                </label>
+                                <label>
+                                    <span><FontAwesomeIcon icon={faPhone} /> Teléfono</span>
+                                    <input
+                                        type="tel"
+                                        value={titular.telefono}
+                                        onChange={(e) => setTitular({ ...titular, telefono: e.target.value })}
+                                    />
+                                </label>
+                                <label>
+                                    <span><FontAwesomeIcon icon={faEnvelope} /> E-mail</span>
+                                    <input
+                                        type="email"
+                                        value={titular.correo}
+                                        onChange={(e) => setTitular({ ...titular, correo: e.target.value })}
+                                    />
+                                </label>
+                            </div>
+                            <p className="revision-nota-voucher">Se te enviará el comprobante de la reserva por email.</p>
+                        </div>
+
+                        <div className="revision-card">
+                            <h3 className="revision-card-titulo">Sobre el pago</h3>
+                            <div className="revision-info-pago">
+                                <FontAwesomeIcon icon={faCircleInfo} />
+                                <div>
+                                    <strong>Estás por pagar la seña</strong>
+                                    <p>El resto de la reserva se abona directamente en el club.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {mensaje && <p className="reserva-mensaje">{mensaje}</p>}
+
+                        <div className="revision-acciones">
+                            <button type="button" className="btn-volver-revision" onClick={() => setPaso('eligiendo')}>
+                                Volver
+                            </button>
+                            <button type="button" className="btn-reservar btn-continuar-revision" onClick={handleConfirmarReserva} disabled={confirmando}>
+                                {confirmando ? 'Generando el pago...' : 'Continuar'}
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         );

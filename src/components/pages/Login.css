@@ -43,12 +43,25 @@
 }
 
 /* Logo de marca */
+.btn-logo-login {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-bottom: 20px;
+    cursor: pointer;
+    line-height: 0;
+}
+
 .logo-login {
     width: 220px;
     max-width: 100%;
     height: auto;
     border-radius: 12px;
-    margin-bottom: 20px;
+    transition: opacity 150ms ease;
+}
+
+.btn-logo-login:hover .logo-login {
+    opacity: 0.85;
 }
 
 /* Título */

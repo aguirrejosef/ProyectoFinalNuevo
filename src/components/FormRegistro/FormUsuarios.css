@@ -38,22 +38,22 @@
     justify-content: flex-end;
   }
   
-  button {
+  .form-container button {
     width: 20%;
     padding: 10px;
-    background-color: #007bff;
+    background-color: #004AAD;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
   }
-  
-  button:disabled {
+
+  .form-container button:disabled {
     background-color: #ccc;
   }
-  
-  button:hover:enabled {
-    background-color: #0056b3;
+
+  .form-container button:hover:enabled {
+    background-color: #003580;
   }
 
   .FormUsuarios-negocio {

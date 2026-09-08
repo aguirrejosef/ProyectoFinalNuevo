@@ -23,14 +23,6 @@ function Cards() {
     fetchClubesPopulares();
   }, []);
 
-  // Misma lógica de imagen por defecto que en el Listado de Clubes
-  const imagenPorClub = (nombre) => {
-    if (nombre === 'Italia Padel') return '/imagenes/cards/ITALIA PADEL.jpg';
-    if (nombre === 'Mad Padel') return '/imagenes/cards/MAD PADEL.jpg';
-    if (nombre === 'Alemania Padel') return '/imagenes/cards/ALEMANIAPADEL.jpg';
-    return '/imagenes/cards/ITALIA PADEL.jpg';
-  };
-
   if (loading) {
     return <div className="cards-cargando">Cargando clubes...</div>;
   }
@@ -44,7 +36,7 @@ function Cards() {
       {clubes.map((club) => (
         <div className="grid-item-card" key={club.id_club}>
           <Card
-            imagen={imagenPorClub(club.nombre)}
+            imagen={club.foto_dueno || '/imagenes/padel.jpg'}
             titulo={club.nombre}
             id={club.id_club}
             direccion={club.direccion}

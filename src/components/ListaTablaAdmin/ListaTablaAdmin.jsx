@@ -32,7 +32,7 @@ function ListaTablaAdmin() {
 
     return (
         <div>
-            <h1 className='titulo-tabla-admin'>Lista de Clubs</h1>
+            <h1 className='titulo-tabla-admin'>Lista de Clubes</h1>
             {cargando && <p>Cargando...</p>}
             {!cargando && clubs.length === 0 && <p>Todavía no hay clubes registrados.</p>}
             <div className='grid-listaTablaAdmin' >

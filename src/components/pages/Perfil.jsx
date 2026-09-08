@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import './Perfil.css';
 import { apiFetch } from '../../api';
@@ -45,10 +45,16 @@ function CampoPerfil({ icon, label, name, value, editando, onChange, type = 'tex
 
 function Perfil() {
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const [avisoPerfilIncompleto, setAvisoPerfilIncompleto] = useState(
+        location.state?.avisoPerfilIncompleto || ''
+    );
 
     const [rol, setRol] = useState(null);
     const [usuarioId, setUsuarioId] = useState(null);
     const [foto, setFoto] = useState('');
+    const [subiendoFotoPerfil, setSubiendoFotoPerfil] = useState(false);
     const [editando, setEditando] = useState(false);
     const [guardando, setGuardando] = useState(false);
     const [mensaje, setMensaje] = useState('');
@@ -59,7 +65,8 @@ function Perfil() {
         apellido: '',
         dni: '',
         correo: '',
-        telefono: ''
+        telefono: '',
+        usuario: ''
     });
 
     // Datos propios del club (rol === 2)
@@ -79,6 +86,7 @@ function Perfil() {
     const [abiertoSeguridad, setAbiertoSeguridad] = useState(false);
     const [editandoPassword, setEditandoPassword] = useState(false);
     const [guardandoPassword, setGuardandoPassword] = useState(false);
+    const [tieneContrasena, setTieneContrasena] = useState(true);
     const [mensajePassword, setMensajePassword] = useState('');
     const [formPassword, setFormPassword] = useState({
         passwordActual: '',
@@ -129,8 +137,11 @@ function Perfil() {
             apellido: localStorage.getItem('apellido') || '',
             dni: localStorage.getItem('dni') || '',
             correo: localStorage.getItem('correo') || '',
-            telefono: localStorage.getItem('telefono') || ''
+            telefono: localStorage.getItem('telefono') || '',
+            usuario: localStorage.getItem('usuario') || ''
         });
+
+        cargarCuenta();
 
         // Si es club, traemos los datos del club desde el backend
         if (Number(storedRol) === 2) {
@@ -138,6 +149,23 @@ function Perfil() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate]);
+
+    const cargarCuenta = async () => {
+        try {
+            const res = await apiFetch('/usuarios/mi-cuenta');
+            const data = await res.json();
+
+            if (res.ok) {
+                setTieneContrasena(!!data.tieneContrasena);
+                if (data.usuario) {
+                    setForm((prev) => ({ ...prev, usuario: data.usuario }));
+                    localStorage.setItem('usuario', data.usuario);
+                }
+            }
+        } catch (err) {
+            console.error('Error al cargar datos de la cuenta:', err);
+        }
+    };
 
     const cargarClub = async () => {
         setCargandoClub(true);
@@ -173,6 +201,39 @@ function Perfil() {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
+    // ------------------ Foto de perfil (club o cliente) ------------------
+    const handleSubirFotoPerfil = async (e) => {
+        const archivo = e.target.files[0];
+        if (!archivo) return;
+
+        setSubiendoFotoPerfil(true);
+        try {
+            const formData = new FormData();
+            formData.append('foto', archivo);
+
+            const res = await apiFetch(`/usuarios/${usuarioId}/foto`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.message || 'No se pudo subir la foto');
+                return;
+            }
+
+            setFoto(data.foto);
+            localStorage.setItem('foto', data.foto);
+
+        } catch (err) {
+            console.error('Error al subir la foto de perfil:', err);
+            alert('Error al conectar con el servidor');
+        } finally {
+            setSubiendoFotoPerfil(false);
+        }
+    };
+
     const handleChangeClub = (e) => {
         setFormClub({ ...formClub, [e.target.name]: e.target.value });
     };
@@ -200,6 +261,7 @@ function Perfil() {
             localStorage.setItem('dni', form.dni);
             localStorage.setItem('correo', form.correo);
             localStorage.setItem('telefono', form.telefono);
+            localStorage.setItem('usuario', form.usuario);
 
             setEditando(false);
             setMensaje('Perfil actualizado correctamente ✅');
@@ -218,7 +280,8 @@ function Perfil() {
             apellido: localStorage.getItem('apellido') || '',
             dni: localStorage.getItem('dni') || '',
             correo: localStorage.getItem('correo') || '',
-            telefono: localStorage.getItem('telefono') || ''
+            telefono: localStorage.getItem('telefono') || '',
+            usuario: localStorage.getItem('usuario') || ''
         });
         setEditando(false);
         setMensaje('');
@@ -265,8 +328,8 @@ function Perfil() {
 
         const { passwordActual, passwordNueva, passwordConfirmar } = formPassword;
 
-        if (!passwordActual || !passwordNueva || !passwordConfirmar) {
-            setMensajePassword('Completá los tres campos ❌');
+        if ((tieneContrasena && !passwordActual) || !passwordNueva || !passwordConfirmar) {
+            setMensajePassword('Completá los campos ❌');
             return;
         }
 
@@ -295,9 +358,10 @@ function Perfil() {
                 return;
             }
 
-            setMensajePassword('Contraseña actualizada correctamente ✅');
+            setMensajePassword(`${data.message || 'Contraseña actualizada correctamente'} ✅`);
             setFormPassword({ passwordActual: '', passwordNueva: '', passwordConfirmar: '' });
             setEditandoPassword(false);
+            setTieneContrasena(true);
 
         } catch (err) {
             console.error('Error al cambiar contraseña:', err);
@@ -510,11 +574,34 @@ function Perfil() {
     // Ícono aproximado según el nombre del servicio (texto libre cargado por el club)
     // ------------------ Bloques reutilizables ------------------
 
+    const avatarConSubida = (
+        <div className="avatar-perfil-wrapper">
+            {foto ? (
+                <img src={foto} alt="Foto de perfil" className="foto-perfil-header" />
+            ) : (
+                <div className="avatar-perfil-header">
+                    {form.nombre ? form.nombre.charAt(0).toUpperCase() : '?'}
+                </div>
+            )}
+            <label className="btn-cambiar-foto-perfil" title={foto ? 'Cambiar foto' : 'Subir foto de perfil'}>
+                {subiendoFotoPerfil ? '…' : '📷'}
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSubirFotoPerfil}
+                    disabled={subiendoFotoPerfil}
+                    hidden
+                />
+            </label>
+        </div>
+    );
+
     const bloqueFormulario = (
         <div className="tarjeta-perfil">
 
             <CampoPerfil icon={faUser} label="Nombre" name="nombre" value={form.nombre} editando={editando} onChange={handleChange} />
             <CampoPerfil icon={faUser} label="Apellido" name="apellido" value={form.apellido} editando={editando} onChange={handleChange} />
+            <CampoPerfil icon={faIdCard} label="Nombre de usuario" name="usuario" value={form.usuario} editando={editando} onChange={handleChange} />
             <CampoPerfil icon={faIdCard} label="DNI" name="dni" value={form.dni} editando={editando} onChange={handleChange} />
             <CampoPerfil icon={faEnvelope} label="Correo" name="correo" value={form.correo} editando={editando} onChange={handleChange} type="email" />
             <CampoPerfil icon={faPhone} label="Teléfono" name="telefono" value={form.telefono} editando={editando} onChange={handleChange} type="tel" />
@@ -560,21 +647,30 @@ function Perfil() {
 
             {abiertoSeguridad && (
                 <div className="panel-colapsable-body panel-colapsable-body-seguridad">
+                    {!tieneContrasena && (
+                        <p className="aviso-sin-password">
+                            Iniciaste sesión con Google y todavía no tenés una contraseña propia.
+                            Creá una para poder ingresar también con tu usuario o correo.
+                        </p>
+                    )}
+
                     {!editandoPassword ? (
                         <button className="btn-cambiar-password" onClick={() => setEditandoPassword(true)}>
-                            Cambiar contraseña
+                            {tieneContrasena ? 'Cambiar contraseña' : 'Crear contraseña'}
                         </button>
                     ) : (
                         <>
-                            <fieldset className="campo">
-                                <legend>Contraseña actual</legend>
-                                <input
-                                    type="password"
-                                    name="passwordActual"
-                                    value={formPassword.passwordActual}
-                                    onChange={handleChangePassword}
-                                />
-                            </fieldset>
+                            {tieneContrasena && (
+                                <fieldset className="campo">
+                                    <legend>Contraseña actual</legend>
+                                    <input
+                                        type="password"
+                                        name="passwordActual"
+                                        value={formPassword.passwordActual}
+                                        onChange={handleChangePassword}
+                                    />
+                                </fieldset>
+                            )}
 
                             <fieldset className="campo">
                                 <legend>Nueva contraseña</legend>
@@ -600,7 +696,7 @@ function Perfil() {
 
                             <div className="acciones-perfil">
                                 <button className="btn-guardar" onClick={handleGuardarPassword} disabled={guardandoPassword}>
-                                    {guardandoPassword ? 'Guardando...' : 'Guardar nueva contraseña'}
+                                    {guardandoPassword ? 'Guardando...' : (tieneContrasena ? 'Guardar nueva contraseña' : 'Crear contraseña')}
                                 </button>
                                 <button className="btn-cancelar" onClick={handleCancelarPassword}>
                                     Cancelar
@@ -623,16 +719,24 @@ function Perfil() {
 
             <div className={`contenedor-perfil ${esClub ? 'contenedor-perfil-club' : ''}`}>
 
+                {avisoPerfilIncompleto && (
+                    <div className="aviso-perfil-incompleto">
+                        <span>{avisoPerfilIncompleto}</span>
+                        <button
+                            type="button"
+                            className="btn-cerrar-aviso-perfil"
+                            onClick={() => setAvisoPerfilIncompleto('')}
+                            aria-label="Cerrar aviso"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+
                 {!esClub && (
                     <>
                         <div className="encabezado-perfil">
-                            {foto ? (
-                                <img src={foto} alt="Foto de perfil" className="foto-perfil-header" />
-                            ) : (
-                                <div className="avatar-perfil-header">
-                                    {form.nombre ? form.nombre.charAt(0).toUpperCase() : '?'}
-                                </div>
-                            )}
+                            {avatarConSubida}
                             <h2 className="nombre-perfil-header">{form.nombre} {form.apellido}</h2>
                             <span className="correo-perfil-header">{form.correo}</span>
                         </div>
@@ -647,13 +751,7 @@ function Perfil() {
                         <div className="perfil-club-fila">
                             <div className="perfil-club-columna">
                                 <div className="encabezado-perfil encabezado-perfil-club">
-                                    {foto ? (
-                                        <img src={foto} alt="Foto de perfil" className="foto-perfil-header" />
-                                    ) : (
-                                        <div className="avatar-perfil-header">
-                                            {form.nombre ? form.nombre.charAt(0).toUpperCase() : '?'}
-                                        </div>
-                                    )}
+                                    {avatarConSubida}
                                     <h2 className="nombre-perfil-header">{form.nombre} {form.apellido}</h2>
                                     <span className="correo-perfil-header">{form.correo}</span>
                                 </div>

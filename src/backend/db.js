@@ -239,6 +239,33 @@ const transporter = nodemailer.createTransport({
   }
 
 });
+
+// Le avisa por mail al cliente que su turno fue cancelado por el club, con el motivo.
+async function enviarEmailCancelacionTurno(turno, motivo) {
+  const fecha = new Date(turno.fecha).toLocaleDateString('es-AR', {
+    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+  const horaInicio = String(turno.hora_inicio).slice(0, 5);
+  const horaFin = String(turno.hora_fin).slice(0, 5);
+
+  await transporter.sendMail({
+    from: `"${turno.nombre_club}" <${process.env.EMAIL_USER}>`,
+    to: turno.correo_cliente,
+    subject: `Tu turno en ${turno.nombre_club} fue cancelado`,
+    html: `
+      <p>Hola ${turno.nombre_cliente || ''},</p>
+      <p>Te informamos que <b>${turno.nombre_club}</b> canceló tu turno:</p>
+      <ul>
+        <li><b>Cancha:</b> ${turno.nombre_cancha}</li>
+        <li><b>Fecha:</b> ${fecha}</li>
+        <li><b>Horario:</b> ${horaInicio} a ${horaFin} hs</li>
+      </ul>
+      <p><b>Motivo:</b> ${motivo}</p>
+      <p>Podés reservar un nuevo turno cuando quieras desde la plataforma.</p>
+    `
+  });
+}
+
 // ------------------ Crear Admin Automáticamente ------------------
 (async () => {
   try {
@@ -820,7 +847,7 @@ app.get('/clubes/populares', async (req, res) => {
     const [rows] = await conn.execute(
       `SELECT
         c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion, c.plan, c.id_dueno,
-        u.usuario AS dueno,
+        u.usuario AS dueno, u.foto AS foto_dueno,
         (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
         (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde,
         (
@@ -852,7 +879,7 @@ app.get('/clubes', async (req, res) => {
     const [rows] = await conn.execute(`
       SELECT
         c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion, c.plan, c.id_dueno,
-        u.usuario AS dueno,
+        u.usuario AS dueno, u.foto AS foto_dueno,
         (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
         (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde
       FROM club c
@@ -877,7 +904,7 @@ app.get('/clubes/:id', async (req, res) => {
     const [rows] = await pool.execute(
       `SELECT
         c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion, c.plan, c.id_dueno,
-        u.usuario AS dueno,
+        u.usuario AS dueno, u.foto AS foto_dueno,
         (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
         (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde
       FROM club c
@@ -902,7 +929,7 @@ app.get('/clubes/:id', async (req, res) => {
 const CAMPOS_CLUB_ADMIN = `
   c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion,
   c.plan, c.id_dueno, c.estado_suscripcion, c.proxima_fecha_pago, c.fecha_alta,
-  u.usuario AS dueno, u.correo AS correo_dueno, u.telefono AS telefono_dueno,
+  u.usuario AS dueno, u.correo AS correo_dueno, u.telefono AS telefono_dueno, u.foto AS foto_dueno,
   (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club) AS cantidad_canchas,
   (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL) AS precio_desde
 `;
@@ -1147,6 +1174,39 @@ app.post('/canchas/upload-foto', verificarToken, requireRol(1, 2), uploadCancha.
         }
       });
       const uploadClubFoto = multer({ storage: storageClub });
+
+      // ------------------ Foto de perfil (club o cliente) ------------------
+      const storagePerfil = multer.diskStorage({
+        destination: (req, file, cb) => {
+          cb(null, 'uploads/perfiles');
+        },
+        filename: (req, file, cb) => {
+          const nombreUnico = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+          cb(null, nombreUnico);
+        }
+      });
+      const uploadFotoPerfil = multer({ storage: storagePerfil });
+
+      app.post('/usuarios/:id/foto', verificarToken, uploadFotoPerfil.single('foto'), async (req, res) => {
+        const { id } = req.params;
+
+        if (Number(req.usuario.rol) !== 1 && req.usuario.id !== Number(id)) {
+          return res.status(403).json({ message: 'No autorizado' });
+        }
+        if (!req.file) {
+          return res.status(400).json({ message: 'No se recibió ninguna imagen' });
+        }
+
+        try {
+          const url = `http://localhost:3000/uploads/perfiles/${req.file.filename}`;
+          await pool.execute('UPDATE usuarios SET foto = ? WHERE id_usuario = ?', [url, id]);
+          res.json({ foto: url });
+        } catch (error) {
+          console.error('Error al guardar la foto de perfil:', error);
+          res.status(500).json({ message: 'Error en el servidor' });
+        }
+      });
+
       app.get('/club/fotos', async (req, res) => {
   const { id_club } = req.query;
   if (!id_club) return res.status(400).json({ message: 'Falta id_club' });
@@ -1954,7 +2014,7 @@ app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
     const [turnosHoyListado] = await pool.query(
       `SELECT
           t.id_turno,
-          u.nombre, u.apellido, u.usuario,
+          u.nombre, u.apellido, u.usuario, u.telefono,
           c.nombre AS cancha,
           h.hora_inicio, h.hora_fin
        FROM turnos t
@@ -1984,17 +2044,40 @@ app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
     res.status(500).json({ error: 'Error al obtener el resumen del club' });
   }
 });
+// ------------------ Datos de la cuenta (usuario propio) ------------------
+app.get('/usuarios/mi-cuenta', verificarToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT usuario, password FROM usuarios WHERE id_usuario = ?',
+      [req.usuario.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.json({
+      usuario: rows[0].usuario,
+      tieneContrasena: !!rows[0].password
+    });
+
+  } catch (error) {
+    console.error('Error en /usuarios/mi-cuenta:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
 // ------------------ Actualizar Perfil de Usuario ------------------
 app.put('/usuarios/:id', verificarToken, async (req, res) => {
   const { id } = req.params;
-  const { nombre, apellido, dni, correo, telefono } = req.body;
+  const { nombre, apellido, dni, correo, telefono, usuario } = req.body;
 
   if (Number(req.usuario.rol) !== 1 && req.usuario.id !== Number(id)) {
     return res.status(403).json({ message: 'No autorizado' });
   }
 
-  if (!nombre || !apellido || !correo) {
-    return res.status(400).json({ message: 'Nombre, apellido y correo son obligatorios' });
+  if (!nombre || !apellido || !correo || !usuario) {
+    return res.status(400).json({ message: 'Nombre, apellido, usuario y correo son obligatorios' });
   }
 
   try {
@@ -2011,22 +2094,22 @@ app.put('/usuarios/:id', verificarToken, async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    // Verificar que el correo o dni no estén en uso por OTRO usuario
+    // Verificar que el correo, dni o nombre de usuario no estén en uso por OTRO usuario
     const [duplicados] = await conn.execute(
-      'SELECT id_usuario FROM usuarios WHERE (correo = ? OR dni = ?) AND id_usuario != ?',
-      [correo, dni || '', id]
+      'SELECT id_usuario FROM usuarios WHERE (correo = ? OR dni = ? OR usuario = ?) AND id_usuario != ?',
+      [correo, dni || '', usuario, id]
     );
 
     if (duplicados.length > 0) {
       conn.release();
-      return res.status(400).json({ message: 'El correo o DNI ya está en uso por otro usuario' });
+      return res.status(400).json({ message: 'El correo, DNI o nombre de usuario ya está en uso por otro usuario' });
     }
 
     await conn.execute(
       `UPDATE usuarios
-       SET nombre = ?, apellido = ?, dni = ?, correo = ?, telefono = ?
+       SET nombre = ?, apellido = ?, dni = ?, correo = ?, telefono = ?, usuario = ?
        WHERE id_usuario = ?`,
-      [nombre, apellido, dni || null, correo, telefono || null, id]
+      [nombre, apellido, dni || null, correo, telefono || null, usuario, id]
     );
 
     const [updatedRows] = await conn.execute(
@@ -2060,47 +2143,48 @@ app.put('/usuarios/:id/password', verificarToken, async (req, res) => {
     return res.status(403).json({ message: 'No autorizado' });
   }
 
-  if (!passwordActual || !passwordNueva) {
+  if (!passwordNueva) {
     return res.status(400).json({ message: 'Faltan datos' });
   }
- 
+
   if (passwordNueva.length < 6) {
     return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 6 caracteres' });
   }
- 
+
   try {
     const [rows] = await pool.query(
       'SELECT password FROM usuarios WHERE id_usuario = ?',
       [id]
     );
- 
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
- 
+
     const hashActual = rows[0].password;
- 
-    // Cuentas registradas con Google/Facebook no tienen password propia
-    if (!hashActual) {
-      return res.status(400).json({
-        message: 'Esta cuenta inició sesión con Google/Facebook y no tiene contraseña propia'
-      });
+
+    // Cuentas que iniciaron sesión con Google y todavía no tienen contraseña propia:
+    // se les permite crear una directamente, sin pedir una "actual" que no existe.
+    if (hashActual) {
+      if (!passwordActual) {
+        return res.status(400).json({ message: 'Faltan datos' });
+      }
+
+      const coincide = await bcrypt.compare(passwordActual, hashActual);
+      if (!coincide) {
+        return res.status(401).json({ message: 'La contraseña actual es incorrecta' });
+      }
     }
- 
-    const coincide = await bcrypt.compare(passwordActual, hashActual);
-    if (!coincide) {
-      return res.status(401).json({ message: 'La contraseña actual es incorrecta' });
-    }
- 
+
     const nuevoHash = await bcrypt.hash(passwordNueva, 10);
- 
+
     await pool.query(
       'UPDATE usuarios SET password = ? WHERE id_usuario = ?',
       [nuevoHash, id]
     );
- 
-    res.json({ message: 'Contraseña actualizada correctamente' });
- 
+
+    res.json({ message: hashActual ? 'Contraseña actualizada correctamente' : 'Contraseña creada correctamente' });
+
   } catch (error) {
     console.error('Error al cambiar contraseña:', error);
     res.status(500).json({ message: 'Error al cambiar la contraseña' });
@@ -2110,13 +2194,20 @@ app.put('/usuarios/:id/password', verificarToken, async (req, res) => {
 
 app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
   const { id } = req.params;
+  const { motivo } = req.body;
 
   try {
     const [turnoRows] = await pool.query(
-      `SELECT t.id_usuario, cl.id_dueno
+      `SELECT
+          t.id_usuario, cl.id_dueno, t.fecha,
+          h.hora_inicio, h.hora_fin,
+          c.nombre AS nombre_cancha, cl.nombre AS nombre_club,
+          u.correo AS correo_cliente, u.nombre AS nombre_cliente
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
        INNER JOIN club cl ON c.id_club = cl.id_club
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN usuarios u ON t.id_usuario = u.id_usuario
        WHERE t.id_turno = ?`,
       [id]
     );
@@ -2125,13 +2216,19 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
       return res.status(404).json({ message: 'Turno no encontrado' });
     }
 
-    const { id_usuario: idUsuarioTurno, id_dueno: idDuenoClub } = turnoRows[0];
-    const esDueno = Number(req.usuario.rol) === 1
-      || req.usuario.id === idUsuarioTurno
-      || req.usuario.id === idDuenoClub;
+    const turno = turnoRows[0];
+    const { id_usuario: idUsuarioTurno, id_dueno: idDuenoClub } = turno;
+    const esElCliente = req.usuario.id === idUsuarioTurno;
+    const esDueno = Number(req.usuario.rol) === 1 || esElCliente || req.usuario.id === idDuenoClub;
 
     if (!esDueno) {
       return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    // Si cancela el club (o un admin) en nombre del cliente, le pedimos el motivo
+    // para poder avisarle por qué se le canceló el turno.
+    if (!esElCliente && !motivo?.trim()) {
+      return res.status(400).json({ message: 'Indicá el motivo de la cancelación' });
     }
 
     const [result] = await pool.query(
@@ -2140,7 +2237,7 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
        WHERE id_turno = ?`,
       [id]
     );
- 
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Turno no encontrado' });
     }
@@ -2148,8 +2245,14 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     // Si tenía un pago sin completar (seña abandonada), lo limpiamos
     await pool.query("DELETE FROM pagos WHERE id_turno = ? AND estado = 'pendiente'", [id]);
 
+    if (!esElCliente && turno.correo_cliente) {
+      enviarEmailCancelacionTurno(turno, motivo.trim()).catch((error) => {
+        console.error('Error al enviar el correo de cancelación:', error);
+      });
+    }
+
     res.json({ message: 'Turno cancelado correctamente' });
- 
+
   } catch (error) {
     console.error('Error al cancelar turno:', error);
     res.status(500).json({ message: 'Error al cancelar el turno' });

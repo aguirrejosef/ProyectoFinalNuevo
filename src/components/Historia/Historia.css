@@ -1,74 +1,249 @@
 .page-container {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
+  background-color: #f7f9fc;
 }
 
-/* Sección principal */
-.history-section {
+/* ------------------ Encabezado ------------------ */
+
+.historia-encabezado {
+  text-align: center;
+  padding: 44px 20px 30px;
+  background: #fff;
+  border-bottom: 1px solid #e6eaf1;
+}
+
+.historia-encabezado h1 {
+  margin: 0 0 6px;
+  font-size: 34px;
+  color: #0d3b66;
+}
+
+.historia-encabezado p {
+  margin: 0;
+  font-size: 17px;
+  color: #004AAD;
+  font-weight: 600;
+}
+
+/* ------------------ Contenedor general ------------------ */
+
+.historia-contenido {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 50px 20px 70px;
   display: flex;
-  flex-direction: row;
-  align-items: center; /* 👈 centrado vertical */
-  justify-content: center;
-  gap: 20px;
-  padding: 40px 20px;
-  background-color: #fff;
+  flex-direction: column;
+  gap: 50px;
 }
 
+/* ------------------ Intro con foto ------------------ */
 
-/* Imagen */
-.history-image {
-  width: 50%;
-  max-width: 600px;
-  border-radius: 10px;
+.historia-intro {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.historia-imagen {
+  width: 45%;
+  max-width: 480px;
+  border-radius: 16px;
   object-fit: cover;
+  box-shadow: 0 10px 30px rgba(13, 59, 102, 0.18);
 }
 
-/* Texto */
-.history-text {
-  width: 50%;
+.historia-intro-texto {
+  flex: 1;
   font-size: 16px;
-  color: #333;
+  font-weight: 500;
+  color: #2c2c2c;
   line-height: 1.6;
-  text-align: justify;
 }
 
-.history-text h2 {
+.historia-intro-texto p {
+  margin: 0 0 16px;
+}
+
+.historia-intro-texto p:last-child {
+  margin-bottom: 0;
+}
+
+/* ------------------ Misión (card destacada) ------------------ */
+
+.historia-mision {
+  background: linear-gradient(135deg, #0d3b66 0%, #004AAD 100%);
+  color: white;
+  border-radius: 18px;
+  padding: 36px 44px;
+  text-align: center;
+}
+
+.historia-mision h2 {
+  margin: 0 0 12px;
   font-size: 24px;
-  margin-bottom: 10px;
-  color: #005A99;
 }
 
-.history-text h3 {
-  font-size: 20px;
-  margin-top: 20px;
-  margin-bottom: 10px;
-  color: #003366;
+.historia-mision p {
+  margin: 0 auto;
+  max-width: 720px;
+  font-size: 16.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: #e8f0fb;
 }
 
-.history-text ul {
-  margin-left: 20px;
-  margin-bottom: 15px;
+/* ------------------ Secciones genéricas ------------------ */
+
+.historia-seccion h2 {
+  text-align: center;
+  color: #0d3b66;
+  font-size: 26px;
+  margin: 0 0 26px;
 }
 
-.history-text li {
-  margin-bottom: 8px;
+/* ------------------ Valores ------------------ */
+
+.historia-valores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
 }
 
-/* 📱 Responsive: en móviles se apila */
-@media (max-width: 768px) {
-  .history-section {
+.historia-valor-card {
+  background: #fff;
+  border: 2px solid #c3d3e8;
+  border-radius: 16px;
+  padding: 28px 22px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.historia-valor-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0, 74, 173, 0.15);
+}
+
+.historia-valor-icono {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #e3f0fd;
+  color: #004AAD;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.historia-valor-card h3 {
+  margin: 0 0 8px;
+  color: #0d3b66;
+  font-size: 18px;
+}
+
+.historia-valor-card p {
+  margin: 0;
+  color: #555;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ------------------ Lo que ofrecemos ------------------ */
+
+.historia-ofrecemos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.historia-ofrecemos-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 2px solid #c3d3e8;
+  border-radius: 14px;
+  padding: 18px 20px;
+  color: #333;
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.historia-ofrecemos-check {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #CBE825;
+  color: #0d3b66;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+/* ------------------ Compromiso (cierre) ------------------ */
+
+.historia-compromiso {
+  text-align: center;
+  padding: 20px 20px 0;
+}
+
+.historia-compromiso h2 {
+  color: #0d3b66;
+  font-size: 26px;
+  margin: 0 0 14px;
+}
+
+.historia-compromiso p {
+  max-width: 680px;
+  margin: 0 auto 26px;
+  color: #444;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.historia-boton-cta {
+  background: #004AAD;
+  color: white;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 14px 36px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.historia-boton-cta:hover {
+  background: #003580;
+  transform: scale(1.03);
+}
+
+/* ------------------ Responsive ------------------ */
+
+@media (max-width: 800px) {
+  .historia-intro {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
   }
 
-  .history-image,
-  .history-text {
+  .historia-imagen {
     width: 100%;
+    max-width: 100%;
   }
 
-  .history-text {
-    text-align: justify;
+  .historia-mision {
+    padding: 28px 24px;
   }
 }
 
+@media (max-width: 500px) {
+  .historia-encabezado h1 {
+    font-size: 27px;
+  }
+}

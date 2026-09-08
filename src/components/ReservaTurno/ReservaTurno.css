@@ -34,7 +34,7 @@
 }
 
 .label-fecha-reserva input:focus {
-    border-color: #1565c0;
+    border-color: #004AAD;
 }
 
 .label-paso-horario {
@@ -92,12 +92,12 @@
 
 .btn-horario-reserva:hover:not(:disabled) {
     background: #e3f0fd;
-    border-color: #1565c0;
+    border-color: #004AAD;
 }
 
 .horario-elegido {
-    background: #1565c0;
-    border-color: #1565c0;
+    background: #004AAD;
+    border-color: #004AAD;
     color: white;
 }
 
@@ -121,7 +121,7 @@
 }
 
 .btn-reservar {
-    background-color: #1565c0;
+    background-color: #004AAD;
     color: white;
     border: none;
     padding: 12px;
@@ -132,7 +132,7 @@
 }
 
 .btn-reservar:hover:not(:disabled) {
-    background-color: #0d47a1;
+    background-color: #003580;
 }
 
 .btn-reservar:disabled {
@@ -153,6 +153,268 @@
 .tarjeta-revision,
 .tarjeta-pago {
     max-width: 460px;
+}
+
+/* ------------------ Layout del paso de revisión ------------------ */
+
+.revision-layout {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 20px 0;
+    padding: 0 90px;
+}
+
+@media (max-width: 700px) {
+    .revision-layout {
+        padding: 0 20px;
+    }
+}
+
+.revision-header {
+    margin-bottom: 24px;
+}
+
+.revision-titulo {
+    margin: 0 0 6px;
+    color: #0d3b66;
+    font-size: 1.9rem;
+}
+
+.revision-subtitulo {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #667085;
+}
+
+.revision-columnas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+/* Card de resumen (club, fecha/turno/cancha, precios) */
+
+.revision-resumen-card {
+    flex: 1;
+    min-width: 300px;
+    max-width: 420px;
+    background: white;
+    border: 1px solid #e0e4ea;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    padding: 22px;
+}
+
+.revision-resumen-etiqueta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #1b7a3d;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #eef1f5;
+}
+
+.revision-resumen-club {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.revision-resumen-club-foto {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.revision-resumen-club h3 {
+    margin: 0 0 4px;
+    color: #0d3b66;
+    font-size: 1.1rem;
+}
+
+.revision-resumen-club p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #667085;
+}
+
+.revision-resumen-detalle {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 0;
+    border-top: 1px solid #eef1f5;
+    border-bottom: 1px solid #eef1f5;
+    margin-bottom: 16px;
+}
+
+.revision-resumen-fila {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.revision-resumen-fila-icono {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: #e3f0fd;
+    color: #004AAD;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.revision-resumen-fila-texto {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.revision-resumen-fila-label {
+    font-size: 0.78rem;
+    color: #667085;
+}
+
+.revision-resumen-precios {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.revision-resumen-precio-fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #444;
+}
+
+.revision-resumen-precio-destacada {
+    padding-top: 10px;
+    border-top: 1px dashed #d5dbe4;
+    color: #0d3b66;
+}
+
+.revision-resumen-precio-destacada span {
+    font-weight: 700;
+}
+
+.revision-resumen-precio-destacada p {
+    margin: 2px 0 0;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #667085;
+}
+
+.revision-resumen-precio-destacada strong {
+    font-size: 1.1rem;
+}
+
+/* Columna derecha: titular + info de pago + acciones */
+
+.revision-columna-derecha {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.revision-card {
+    background: white;
+    border: 1px solid #e0e4ea;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    padding: 22px;
+}
+
+.revision-card-titulo {
+    margin: 0 0 16px;
+    color: #0d3b66;
+    font-size: 1.05rem;
+}
+
+.revision-titular-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+}
+
+.revision-titular-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #444;
+}
+
+.revision-titular-grid input {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    outline: none;
+    font-weight: normal;
+}
+
+.revision-titular-grid input:focus {
+    border-color: #004AAD;
+}
+
+.revision-nota-voucher {
+    margin: 14px 0 0;
+    font-size: 0.78rem;
+    color: #888;
+}
+
+.revision-info-pago {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #e3f0fd;
+    color: #004AAD;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 0.85rem;
+}
+
+.revision-info-pago strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #0d3b66;
+}
+
+.revision-info-pago p {
+    margin: 0;
+    color: #245a94;
+}
+
+.revision-acciones {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 14px;
+}
+
+.btn-continuar-revision {
+    padding: 14px 40px;
+    border-radius: 30px;
+    font-size: 1rem;
 }
 
 .reserva-subtitulo {
@@ -205,57 +467,22 @@
     font-size: 1rem;
 }
 
-.titular-reserva {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.titular-reserva label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #444;
-}
-
-.titular-reserva input {
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 0.9rem;
-    outline: none;
-    font-weight: normal;
-}
-
-.titular-reserva input:focus {
-    border-color: #1565c0;
-}
-
-.botones-revision,
 .botones-pago {
     display: flex;
     gap: 10px;
 }
 
-.botones-revision .btn-reservar {
-    flex: 1;
-}
-
 .btn-volver-revision {
-    flex: 1;
-    background: #f5f7fa;
-    color: #0d3b66;
-    border: 1px solid #d5dbe4;
-    padding: 12px;
-    border-radius: 8px;
+    background: none;
+    color: #667085;
+    border: none;
+    padding: 12px 10px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 .btn-volver-revision:hover {
-    background: #e3f0fd;
+    text-decoration: underline;
 }
 
 .cuenta-regresiva {

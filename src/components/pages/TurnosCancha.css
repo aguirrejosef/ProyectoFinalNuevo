@@ -7,7 +7,7 @@
 .btn-volver-canchas {
   background: none;
   border: none;
-  color: #1565c0;
+  color: #004AAD;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
@@ -72,7 +72,7 @@
  
 .estado-reservado {
   background: #e3f0fd;
-  color: #1565c0;
+  color: #004AAD;
 }
  
 .estado-completado {

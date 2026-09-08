@@ -43,7 +43,7 @@
 }
 
 .btn-nueva-reserva {
-  background-color: #1565c0;
+  background-color: #004AAD;
   color: white;
   border: none;
   padding: 10px 16px;
@@ -54,7 +54,7 @@
 }
 
 .btn-nueva-reserva:hover {
-  background-color: #0d47a1;
+  background-color: #003580;
 }
 
 .btn-cancelar-turno-detalle {
@@ -99,8 +99,8 @@
 }
  
 .tab-turno.tab-activa {
-  color: #1565c0;
-  border-bottom-color: #1565c0;
+  color: #004AAD;
+  border-bottom-color: #004AAD;
 }
  
 .mensaje-turnos {
@@ -148,12 +148,12 @@
 }
  
 .tarjeta-turno:hover {
-  border-color: #1565c0;
-  box-shadow: 0 2px 8px rgba(21, 101, 192, 0.15);
+  border-color: #004AAD;
+  box-shadow: 0 2px 8px rgba(0, 74, 173, 0.15);
 }
  
 .tarjeta-seleccionada {
-  border-color: #1565c0;
+  border-color: #004AAD;
   background: #eaf2fc;
 }
  
@@ -179,7 +179,7 @@
  
 .estado-reservado {
   background: #e3f0fd;
-  color: #1565c0;
+  color: #004AAD;
 }
  
 .estado-completado {

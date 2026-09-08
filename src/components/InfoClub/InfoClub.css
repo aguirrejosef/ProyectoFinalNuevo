@@ -63,7 +63,7 @@
 
 .panel-info-header span svg:first-child {
     margin-right: 6px;
-    color: #1565c0;
+    color: #004AAD;
 }
 
 .panel-info-flecha {
@@ -100,7 +100,7 @@
 }
 
 .icono-servicio-info {
-    color: #1565c0;
+    color: #004AAD;
 }
 
 @media (max-width: 900px) {

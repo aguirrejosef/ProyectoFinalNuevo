@@ -38,33 +38,19 @@ const ClubList = () => {
 
  return (
     <div className="club-list">
-      {clubes.map((club) => {
-        // Aquí puedes asignar la imagen de acuerdo a alguna propiedad del club
-        let imagen = '/imagenes/cards/ITALIA PADEL.jpg'; // Valor por defecto (puedes cambiarlo si es necesario)
-
-        // Asigna la imagen correcta según el nombre del club
-        if (club.nombre === 'Italia Padel') {
-          imagen = '/imagenes/cards/ITALIA PADEL.jpg'; // Imagen para ITALIA PADEL
-        } else if (club.nombre === 'Mad Padel') {
-          imagen = '/imagenes/cards/MAD PADEL.jpg'; // Imagen para MAD PADEL
-        } else if (club.nombre === 'Alemania Padel') {
-          imagen = '/imagenes/cards/ALEMANIAPADEL.jpg'; // Imagen para ALEMANIA PADEL
-        }
-
-        return (
-          <Card
-            key={club.id_club}
-            id={club.id_club}
-            imagen={imagen}
-            titulo={club.nombre}
-            direccion={club.direccion}
-            localidad={club.localidad}
-            telefono={club.telefono}
-            cantidadCanchas={club.cantidad_canchas}
-            precioDesde={club.precio_desde}
-          />
-        );
-      })}
+      {clubes.map((club) => (
+        <Card
+          key={club.id_club}
+          id={club.id_club}
+          imagen={club.foto_dueno || '/imagenes/padel.jpg'}
+          titulo={club.nombre}
+          direccion={club.direccion}
+          localidad={club.localidad}
+          telefono={club.telefono}
+          cantidadCanchas={club.cantidad_canchas}
+          precioDesde={club.precio_desde}
+        />
+      ))}
     </div>
   );
 };

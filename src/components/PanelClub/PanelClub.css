@@ -36,12 +36,12 @@
 }
 
 .panel-club-header p strong {
-  color: #1565c0;
+  color: #004AAD;
 }
 
 .panel-club-badge-plan {
   background: #e3f0fd;
-  color: #1565c0;
+  color: #004AAD;
   font-weight: 700;
   font-size: 14.5px;
   padding: 8px 16px;
@@ -74,7 +74,7 @@
 
 .kpi-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(21, 101, 192, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 74, 173, 0.12);
 }
 
 .kpi-icono {
@@ -146,7 +146,7 @@
 
 .item-turno-hora {
   font-weight: 700;
-  color: #1565c0;
+  color: #004AAD;
   font-size: 16.5px;
   min-width: 135px;
 }
@@ -157,13 +157,24 @@
   flex: 1;
 }
 
+.item-turno-telefono {
+  color: #004AAD;
+  font-size: 14.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.item-turno-telefono:hover {
+  text-decoration: underline;
+}
+
 .item-turno-cancha {
   color: #777;
   font-size: 16px;
 }
 
 .btn-cancelar-turno-hoy {
-  background: #1565c0;
+  background: #004AAD;
   color: #fff;
   border: none;
   font-size: 13.5px;
@@ -176,10 +187,107 @@
 }
 
 .btn-cancelar-turno-hoy:hover {
-  background: #0d47a1;
+  background: #003580;
 }
 
 .btn-cancelar-turno-hoy:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ------------------ Modal: cancelar turno con motivo ------------------ */
+
+.overlay-modal-cancelar {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 59, 102, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-cancelar-turno {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.modal-cancelar-turno h3 {
+  margin: 0 0 8px;
+  color: #0d3b66;
+}
+
+.modal-cancelar-turno > p {
+  margin: 0 0 18px;
+  color: #444;
+  font-size: 0.9rem;
+}
+
+.label-motivo-cancelacion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.label-motivo-cancelacion textarea {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.label-motivo-cancelacion textarea:focus {
+  border-color: #004AAD;
+}
+
+.botones-modal-cancelar {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-volver-modal-cancelar {
+  flex: 1;
+  background: #f5f7fa;
+  color: #0d3b66;
+  border: 1px solid #d5dbe4;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-volver-modal-cancelar:hover {
+  background: #e3f0fd;
+}
+
+.btn-confirmar-modal-cancelar {
+  flex: 1;
+  background: #c62828;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-confirmar-modal-cancelar:hover:not(:disabled) {
+  background: #a91f1f;
+}
+
+.btn-confirmar-modal-cancelar:disabled {
   opacity: 0.6;
   cursor: default;
 }

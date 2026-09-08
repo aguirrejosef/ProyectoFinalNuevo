@@ -5,6 +5,7 @@ import Footer from '../Footer/Footer'
 import InfoClub from '../InfoClub/InfoClub'
 import ReservaTurno from '../ReservaTurno/ReservaTurno'
 import { apiFetch } from '../../api'
+import { ordenarCanchasPorNombre } from '../../utils/ordenarNatural'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLocationDot } from '@fortawesome/free-solid-svg-icons'
 import "./Club.css"
@@ -17,6 +18,7 @@ function Club() {
   const [fotos, setFotos] = useState([]);
   const [servicios, setServicios] = useState([]);
   const [canchaSeleccionada, setCanchaSeleccionada] = useState(null);
+  const [pasoReserva, setPasoReserva] = useState('eligiendo');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [fotoIndex, setFotoIndex] = useState(0);
@@ -47,7 +49,7 @@ function Club() {
         const dataFotos = await resFotos.json();
         const dataServicios = await resServicios.json();
 
-        setCanchas(Array.isArray(dataCanchas) ? dataCanchas : []);
+        setCanchas(Array.isArray(dataCanchas) ? ordenarCanchasPorNombre(dataCanchas) : []);
         setFotos(Array.isArray(dataFotos) ? dataFotos : []);
         setServicios(Array.isArray(dataServicios) ? dataServicios : []);
 
@@ -147,37 +149,49 @@ function Club() {
       </div>
 
       <div className="seccion-canchas-club">
-        <h2 className="titulo-seccion-canchas">Elegí tu turno</h2>
+        {pasoReserva === 'eligiendo' && (
+          <>
+            <h2 className="titulo-seccion-canchas">Elegí tu turno</h2>
 
-        {canchas.length === 0 && (
-          <p className="mensaje-club">Este club todavía no cargó canchas.</p>
-        )}
+            {canchas.length === 0 && (
+              <p className="mensaje-club">Este club todavía no cargó canchas.</p>
+            )}
 
-        {canchas.length > 0 && (
-          <div className="grid-canchas-club">
-            {canchas
-              .filter((c) => c.estado === 'disponible')
-              .map((c) => (
-                <button
-                  type="button"
-                  key={c.id_cancha}
-                  className={`tarjeta-cancha-club ${canchaSeleccionada === c.id_cancha ? 'tarjeta-cancha-club-elegida' : ''}`}
-                  onClick={() => setCanchaSeleccionada(c.id_cancha)}
-                >
-                  <span className="tarjeta-cancha-club-nombre">{c.nombre}</span>
-                  {c.tipo && <span className="tarjeta-cancha-club-tipo">{c.tipo}</span>}
-                  {formatearPrecio(c.precio) && (
-                    <span className="tarjeta-cancha-club-precio">{formatearPrecio(c.precio)}</span>
-                  )}
-                </button>
-              ))}
-          </div>
+            {canchas.length > 0 && (
+              <div className="grid-canchas-club">
+                {canchas.map((c) => {
+                  const disponible = c.estado === 'disponible';
+                  return (
+                    <button
+                      type="button"
+                      key={c.id_cancha}
+                      disabled={!disponible}
+                      title={disponible ? undefined : 'Esta cancha no está disponible en este momento'}
+                      className={`tarjeta-cancha-club ${canchaSeleccionada === c.id_cancha ? 'tarjeta-cancha-club-elegida' : ''} ${!disponible ? 'tarjeta-cancha-club-no-disponible' : ''}`}
+                      onClick={() => disponible && setCanchaSeleccionada(c.id_cancha)}
+                    >
+                      {!disponible && (
+                        <span className="tarjeta-cancha-club-badge-no-disponible">No disponible</span>
+                      )}
+                      <span className="tarjeta-cancha-club-nombre">{c.nombre}</span>
+                      {c.tipo && <span className="tarjeta-cancha-club-tipo">{c.tipo}</span>}
+                      {disponible && formatearPrecio(c.precio) && (
+                        <span className="tarjeta-cancha-club-precio">{formatearPrecio(c.precio)}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
 
         {canchaSeleccionada && (
           <ReservaTurno
             club={club}
             cancha={canchas.find((c) => c.id_cancha === canchaSeleccionada)}
+            onCambiarPaso={setPasoReserva}
+            fotoClub={fotos[0]?.url}
           />
         )}
       </div>

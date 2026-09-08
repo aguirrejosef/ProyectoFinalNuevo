@@ -28,13 +28,13 @@ const MENSAJES_VACIO = {
 function IconoVacio() {
     return (
         <svg width="90" height="90" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="20" y="12" width="50" height="66" rx="8" stroke="#1565c0" strokeWidth="3" />
-            <path d="M35 12 C35 8 39 5 45 5 C51 5 55 8 55 12" stroke="#1565c0" strokeWidth="3" fill="none" />
-            <circle cx="37" cy="55" r="1.8" fill="#1565c0" />
-            <circle cx="53" cy="55" r="1.8" fill="#1565c0" />
-            <path d="M35 65 Q45 60 55 65" stroke="#1565c0" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <text x="60" y="32" fontSize="15" fill="#1565c0" fontWeight="bold">Z</text>
-            <text x="69" y="22" fontSize="11" fill="#1565c0" fontWeight="bold">z</text>
+            <rect x="20" y="12" width="50" height="66" rx="8" stroke="#004AAD" strokeWidth="3" />
+            <path d="M35 12 C35 8 39 5 45 5 C51 5 55 8 55 12" stroke="#004AAD" strokeWidth="3" fill="none" />
+            <circle cx="37" cy="55" r="1.8" fill="#004AAD" />
+            <circle cx="53" cy="55" r="1.8" fill="#004AAD" />
+            <path d="M35 65 Q45 60 55 65" stroke="#004AAD" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <text x="60" y="32" fontSize="15" fill="#004AAD" fontWeight="bold">Z</text>
+            <text x="69" y="22" fontSize="11" fill="#004AAD" fontWeight="bold">z</text>
         </svg>
     );
 }

@@ -129,8 +129,11 @@ function Login() {
             } else if (data.rol === 2) {
             navigate('/canchas');
             } else if (data.rol === 3 && !perfilCompletoDesdeLocalStorage()) {
-            alert('Te faltan completar algunos datos de tu perfil (apellido, DNI y/o teléfono). Completalos para poder reservar turnos.');
-            navigate('/mi-perfil');
+            navigate('/mi-perfil', {
+                state: {
+                    avisoPerfilIncompleto: 'Te faltan completar algunos datos de tu perfil (apellido, DNI y/o teléfono). Completalos para poder reservar turnos.'
+                }
+            });
             } else {
             navigate('/');
             }
@@ -164,7 +167,14 @@ function Login() {
 
                     <div className="grid-item-login">
 
-                        <img src={logo} alt="SUP - Sale un Padel" className="logo-login" />
+                        <button
+                            type="button"
+                            className="btn-logo-login"
+                            onClick={() => navigate('/')}
+                            aria-label="Ir a la página principal"
+                        >
+                            <img src={logo} alt="SUP - Sale un Padel" className="logo-login" />
+                        </button>
 
                        <h2 className="titulo-login">
     Iniciar sesión

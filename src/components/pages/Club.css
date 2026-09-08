@@ -135,16 +135,41 @@
     width: 160px;
     min-height: 110px;
     box-sizing: border-box;
+    position: relative;
     transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .tarjeta-cancha-club:hover {
-    border-color: #1565c0;
+    border-color: #004AAD;
 }
 
 .tarjeta-cancha-club-elegida {
-    border-color: #1565c0;
-    box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.15);
+    border-color: #004AAD;
+    box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.15);
+}
+
+.tarjeta-cancha-club-no-disponible {
+    cursor: not-allowed;
+    opacity: 0.55;
+    background: #f5f6f8;
+}
+
+.tarjeta-cancha-club-no-disponible:hover {
+    border-color: #e0e4ea;
+}
+
+.tarjeta-cancha-club-badge-no-disponible {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #c62828;
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
 }
 
 .tarjeta-cancha-club-nombre {

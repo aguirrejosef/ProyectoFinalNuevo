@@ -38,7 +38,7 @@ function Home() {
         />
         <Cards/>
         <div className="ver-canchas">
-          <button className='btn-ver-canchas' onClick={() => navigate("/canchas")}>Ver todas los clubes</button>
+          <button className='btn-ver-canchas' onClick={() => navigate("/canchas")}>Ver todos los clubes</button>
         </div>
         <div className="contenedor-btnFlotanteWsp">
           <BtnFlotanteWp

@@ -122,7 +122,7 @@
 }
 
 .nav-btn:hover {
-    background-color: #fafaf8;
+    background-color: #004AAD;
     color: #ffffff;
     border-color: #ffffff;
     transform: scale(1.05);
@@ -226,9 +226,9 @@
 }
 
 .nombre-usuario-navbar:hover {
-    background-color: #CBE825;
-    color: #fdfeff;
-    border-color: #CBE825;
+    background-color: #004AAD;
+    color: #ffffff;
+    border-color: #ffffff;
     transform: scale(1.05);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
