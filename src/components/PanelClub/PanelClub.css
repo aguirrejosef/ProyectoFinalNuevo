@@ -51,6 +51,43 @@
   height: fit-content;
 }
 
+.panel-club-header-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.panel-club-badge-suscripcion {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+  height: fit-content;
+}
+
+.badge-suscripcion-activa {
+  background: #e3f7e9;
+  color: #1b7a3d;
+}
+
+.badge-suscripcion-pausada {
+  background: #fff4e0;
+  color: #b06a00;
+}
+
+.badge-suscripcion-cancelada {
+  background: #fdecea;
+  color: #c62828;
+}
+
+.badge-suscripcion-por-vencer {
+  background: #fdecea;
+  color: #c62828;
+  font-weight: 800;
+}
+
 /* ------------------ KPIs ------------------ */
 
 .panel-club-kpis {
@@ -75,6 +112,33 @@
 .kpi-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 74, 173, 0.12);
+}
+
+.kpi-card-clickeable {
+  cursor: pointer;
+}
+
+.kpi-card-activa {
+  border-color: #004AAD;
+  background: #f0f7ff;
+}
+
+.kpi-card-destacada {
+  background: #0d3b66;
+  border-color: #0d3b66;
+}
+
+.kpi-card-destacada .kpi-icono {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.kpi-card-destacada .kpi-textos strong,
+.kpi-card-destacada .kpi-textos span {
+  color: #fff;
+}
+
+.kpi-card-destacada .kpi-textos span {
+  opacity: 0.85;
 }
 
 .kpi-icono {
@@ -105,6 +169,80 @@
   font-size: 15px;
 }
 
+/* ------------------ Resumen descargable ------------------ */
+
+.panel-club-resumen-descargable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: #fff;
+  border: 2px solid #c3d3e8;
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+}
+
+.panel-club-resumen-descargable-texto h2 {
+  margin: 0 0 4px;
+  color: #0d3b66;
+  font-size: 18px;
+}
+
+.panel-club-resumen-descargable-texto p {
+  margin: 0;
+  color: #777;
+  font-size: 14px;
+}
+
+.panel-club-resumen-descargable-acciones {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.select-periodo-resumen {
+  border: 1px solid #c3d3e8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #0d3b66;
+  background: #fff;
+}
+
+.btn-descargar-resumen {
+  background: #004AAD;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+}
+
+.btn-descargar-resumen:hover:not(:disabled) {
+  background: #003580;
+}
+
+.btn-descargar-resumen:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-descargar-excel {
+  background: #1b7a3d;
+}
+
+.btn-descargar-excel:hover:not(:disabled) {
+  background: #146530;
+}
+
 /* ------------------ Turnos de hoy ------------------ */
 
 .panel-club-turnos-hoy {
@@ -118,7 +256,155 @@
 .panel-club-turnos-hoy h2 {
   color: #0d3b66;
   font-size: 19px;
-  margin: 0 0 16px 0;
+  margin: 0;
+}
+
+.panel-club-turnos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.panel-club-turnos-header-acciones {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.toggle-vista-turnos {
+  display: flex;
+  border: 1px solid #c3d3e8;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.toggle-vista-turnos button {
+  background: #fff;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.toggle-vista-turnos button.activo {
+  background: #004AAD;
+  color: #fff;
+}
+
+.btn-ver-todos-turnos {
+  background: none;
+  border: none;
+  color: #004AAD;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.btn-orden-turnos {
+  background: #f1f4f8;
+  border: 1px solid #c3d3e8;
+  color: #0d3b66;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+}
+
+.btn-orden-turnos:hover {
+  background: #e3f0fd;
+}
+
+.item-turno-estado-badge {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.estado-badge-reservado {
+  background: #e3f0fd;
+  color: #004AAD;
+}
+
+.estado-badge-completado {
+  background: #e3f7e9;
+  color: #1b7a3d;
+}
+
+.estado-badge-cancelado {
+  background: #fdecea;
+  color: #c62828;
+}
+
+.estado-badge-pendiente_pago {
+  background: #fff4e0;
+  color: #b06a00;
+}
+
+.buscador-turnos-periodo {
+  padding: 10px 16px;
+  border: 1px solid #c3d3e8;
+  border-radius: 20px;
+  font-size: 14px;
+  min-width: 220px;
+  outline: none;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.buscador-turnos-periodo:focus {
+  border-color: #004AAD;
+  box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.15);
+}
+
+.item-turno-fecha {
+  font-weight: 700;
+  color: #0d3b66;
+  font-size: 14px;
+  min-width: 70px;
+  text-transform: capitalize;
+}
+
+.paginado-turnos-periodo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 18px;
+  font-size: 14px;
+  color: #555;
+}
+
+.paginado-turnos-periodo button {
+  padding: 8px 16px;
+  border: 1px solid #c3d3e8;
+  border-radius: 20px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.paginado-turnos-periodo button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.paginado-turnos-periodo button:not(:disabled):hover {
+  background: #e3f0fd;
+  border-color: #004AAD;
 }
 
 .panel-club-vacio {
@@ -171,6 +457,35 @@
 .item-turno-cancha {
   color: #777;
   font-size: 16px;
+}
+
+.item-turno-resto-cobrado {
+  color: #1b7a3d;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.btn-marcar-resto-cobrado {
+  background: #fff;
+  color: #1b7a3d;
+  border: 1px solid #1b7a3d;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 9px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+}
+
+.btn-marcar-resto-cobrado:hover:not(:disabled) {
+  background: #eaf6ee;
+}
+
+.btn-marcar-resto-cobrado:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .btn-cancelar-turno-hoy {
@@ -302,4 +617,10 @@
   .panel-club-contenedor {
     padding: 24px 16px 40px;
   }
+
+  .panel-club-resumen-descargable {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
+

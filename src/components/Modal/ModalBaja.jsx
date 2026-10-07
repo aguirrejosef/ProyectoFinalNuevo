@@ -1,13 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './ModalBaja.css';
 
-const ModalBaja = ({ show, onAccept, onCancel }) => {
+const ModalBaja = ({ show, onAccept, onCancel, mensaje, pedirMotivo }) => {
+    const [motivo, setMotivo] = useState('');
+
+    const handleAceptar = () => {
+        onAccept(pedirMotivo ? motivo.trim() : undefined);
+    };
+
     return (
         <div className={`modal ${show ? 'show' : ''}`}>
             <div className="modal-content">
-                <p>¿Confirmar la baja?</p>
+                <p>{mensaje || '¿Confirmar la baja?'}</p>
+
+                {pedirMotivo && (
+                    <label className="modal-baja-label-motivo">
+                        Motivo de la baja (se lo vamos a informar al dueño del club)
+                        <textarea
+                            className="modal-baja-motivo"
+                            value={motivo}
+                            onChange={(e) => setMotivo(e.target.value)}
+                            placeholder="Ej: falta de pago reiterada, incumplimiento de normas, pedido del propio club, etc."
+                            rows={4}
+                        />
+                    </label>
+                )}
+
                 <div className="modal-buttons">
-                    <button className="modal-button accept" onClick={onAccept}>Aceptar</button>
+                    <button
+                        className="modal-button accept"
+                        onClick={handleAceptar}
+                        disabled={pedirMotivo && !motivo.trim()}
+                    >
+                        Aceptar
+                    </button>
                     <button className="modal-button cancel" onClick={onCancel}>Cancelar</button>
                 </div>
             </div>

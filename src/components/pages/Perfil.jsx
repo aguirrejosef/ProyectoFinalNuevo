@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
+import Footer from '../Footer/Footer';
 import './Perfil.css';
 import { apiFetch } from '../../api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -75,8 +76,10 @@ function Perfil() {
         nombre: '',
         direccion: '',
         localidad: '',
+        provincia: '',
         telefono: '',
-        horarios_atencion: ''
+        horarios_atencion: '',
+        hora_inicio_nocturno: ''
     });
     const [editandoClub, setEditandoClub] = useState(false);
     const [guardandoClub, setGuardandoClub] = useState(false);
@@ -179,8 +182,10 @@ function Perfil() {
                     nombre: data.nombre || '',
                     direccion: data.direccion || '',
                     localidad: data.localidad || '',
+                    provincia: data.provincia || '',
                     telefono: data.telefono || '',
-                    horarios_atencion: data.horarios_atencion || ''
+                    horarios_atencion: data.horarios_atencion || '',
+                    hora_inicio_nocturno: data.hora_inicio_nocturno ? data.hora_inicio_nocturno.slice(0, 5) : '19:00'
                 });
 
                 cargarFotos(data.id_club);
@@ -599,8 +604,8 @@ function Perfil() {
     const bloqueFormulario = (
         <div className="tarjeta-perfil">
 
-            <CampoPerfil icon={faUser} label="Nombre" name="nombre" value={form.nombre} editando={editando} onChange={handleChange} />
-            <CampoPerfil icon={faUser} label="Apellido" name="apellido" value={form.apellido} editando={editando} onChange={handleChange} />
+            <CampoPerfil icon={faUser} label={esClub ? 'Nombre del dueño' : 'Nombre'} name="nombre" value={form.nombre} editando={editando} onChange={handleChange} />
+            <CampoPerfil icon={faUser} label={esClub ? 'Apellido del dueño' : 'Apellido'} name="apellido" value={form.apellido} editando={editando} onChange={handleChange} />
             <CampoPerfil icon={faIdCard} label="Nombre de usuario" name="usuario" value={form.usuario} editando={editando} onChange={handleChange} />
             <CampoPerfil icon={faIdCard} label="DNI" name="dni" value={form.dni} editando={editando} onChange={handleChange} />
             <CampoPerfil icon={faEnvelope} label="Correo" name="correo" value={form.correo} editando={editando} onChange={handleChange} type="email" />
@@ -872,6 +877,11 @@ function Perfil() {
                                     </fieldset>
 
                                     <fieldset className="campo">
+                                        <legend>Provincia</legend>
+                                        <input type="text" name="provincia" value={formClub.provincia} onChange={handleChangeClub} />
+                                    </fieldset>
+
+                                    <fieldset className="campo">
                                         <legend>Teléfono del club</legend>
                                         <input type="tel" name="telefono" value={formClub.telefono} onChange={handleChangeClub} />
                                     </fieldset>
@@ -885,6 +895,19 @@ function Perfil() {
                                             rows={4}
                                             placeholder={'Ej:\nLunes a Viernes: 7:00 a 23:00\nSábados: 8:00 a 20:00\nDomingos: 9:00 a 22:00'}
                                         />
+                                    </fieldset>
+
+                                    <fieldset className="campo">
+                                        <legend>Horario nocturno (cambio de precio por luces)</legend>
+                                        <input
+                                            type="time"
+                                            name="hora_inicio_nocturno"
+                                            value={formClub.hora_inicio_nocturno}
+                                            onChange={handleChangeClub}
+                                        />
+                                        <p className="ayuda-precio-nocturno">
+                                            A partir de esta hora se cobra el precio nocturno de las canchas que lo tengan configurado (en "Mis Canchas").
+                                        </p>
                                     </fieldset>
 
                                     {mensajeClub && <p className="mensaje-perfil">{mensajeClub}</p>}
@@ -931,6 +954,8 @@ function Perfil() {
                                                     {formClub.direccion}
                                                     {formClub.direccion && formClub.localidad ? ', ' : ''}
                                                     {formClub.localidad}
+                                                    {formClub.provincia && (formClub.direccion || formClub.localidad) ? ', ' : ''}
+                                                    {formClub.provincia}
                                                 </p>
                                             </div>
                                         )}
@@ -1079,6 +1104,8 @@ function Perfil() {
                 )}
 
             </div>
+
+            <Footer />
         </>
     );
 }

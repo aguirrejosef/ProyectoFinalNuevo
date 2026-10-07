@@ -1,0 +1,143 @@
+.calendario-turnos {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.calendario-panel {
+  border: 1px solid #e0e4ea;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.calendario-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.calendario-header strong {
+  color: #0d3b66;
+  font-size: 15px;
+  text-transform: capitalize;
+}
+
+.calendario-header button {
+  background: #f1f4f8;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  color: #0d3b66;
+}
+
+.calendario-header button:hover {
+  background: #e3f0fd;
+}
+
+.calendario-grilla-dias {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendario-dia-semana {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  padding-bottom: 6px;
+}
+
+.calendario-celda-vacia {
+  aspect-ratio: 1;
+}
+
+.calendario-celda-dia {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  background: #f8fafc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.calendario-celda-dia:hover {
+  background: #e3f0fd;
+}
+
+.calendario-numero-dia {
+  font-size: 13px;
+  color: #333;
+  font-weight: 600;
+}
+
+.calendario-dia-hoy .calendario-numero-dia {
+  color: #004AAD;
+}
+
+.calendario-dia-hoy {
+  border-color: #004AAD;
+}
+
+.calendario-dia-seleccionado {
+  background: #004AAD;
+}
+
+.calendario-dia-seleccionado .calendario-numero-dia {
+  color: #fff;
+}
+
+.calendario-punto-turnos {
+  font-size: 10px;
+  font-weight: 700;
+  background: #1b7a3d;
+  color: #fff;
+  border-radius: 20px;
+  padding: 1px 6px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.calendario-dia-seleccionado .calendario-punto-turnos {
+  background: #fff;
+  color: #004AAD;
+}
+
+.calendario-mensaje-sutil {
+  text-align: center;
+  color: #999;
+  font-size: 12.5px;
+  margin: 10px 0 0;
+}
+
+.calendario-dia-detalle {
+  border: 1px solid #e0e4ea;
+  border-radius: 14px;
+  padding: 18px 20px;
+  min-height: 300px;
+}
+
+.calendario-dia-detalle h3 {
+  color: #0d3b66;
+  font-size: 16px;
+  margin: 0 0 16px;
+  text-transform: capitalize;
+}
+
+@media (max-width: 760px) {
+  .calendario-turnos {
+    grid-template-columns: 1fr;
+  }
+}

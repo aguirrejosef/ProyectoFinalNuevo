@@ -5,8 +5,10 @@ import Footer from '../Footer/Footer';
 import { apiFetch } from '../../api';
 import './ReservaConfirmacion.css';
 
-const INTENTOS_MAXIMOS = 15;
-const ESPERA_ENTRE_INTENTOS_MS = 3000;
+// Mercado Pago se abre en otra pestaña y el usuario puede tardar en pagar
+// ahí, así que esperamos varios minutos en vez de solo unos segundos.
+const INTENTOS_MAXIMOS = 120;
+const ESPERA_ENTRE_INTENTOS_MS = 5000;
 
 function RegistroClubConfirmacion() {
     const [searchParams] = useSearchParams();
@@ -60,8 +62,8 @@ function RegistroClubConfirmacion() {
 
     const contenidoPorEstado = {
         cargando: {
-            titulo: 'Confirmando el pago de tu plan...',
-            texto: 'Esto puede tardar unos segundos.'
+            titulo: 'Esperando el pago de tu plan...',
+            texto: 'Completá el pago en la pestaña de Mercado Pago que se abrió. En cuanto lo confirmes, esta pantalla se va a actualizar sola.'
         },
         aprobado: {
             titulo: '¡Tu club ya está registrado! 🎉',

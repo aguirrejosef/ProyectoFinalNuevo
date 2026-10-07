@@ -4,11 +4,6 @@
     text-align: center;
 }
 
-.grid-listaTablaAdmin {
-    display: grid;
-    grid-template-columns: repeat(2,1fr);
-}
-
 .botones-alternancia {
     margin: 20px;
     text-align: center;
@@ -25,3 +20,230 @@
     box-shadow: 0 0 3px 3px rgb(0,0,0,0.3);
     transition: all 300ms ease;
   }
+
+.contenedor-lista-admin {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 10px 40px 50px;
+  box-sizing: border-box;
+}
+
+.controles-lista-admin {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.buscador-lista-admin {
+  flex: 1;
+  min-width: 240px;
+  padding: 15px 22px;
+  border: 1px solid #d5dbe4;
+  border-radius: 30px;
+  font-size: 18px;
+  outline: none;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.buscador-lista-admin:focus {
+  border-color: #004AAD;
+  box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.15);
+}
+
+.filtro-lista-admin {
+  padding: 15px 22px;
+  border: 1px solid #d5dbe4;
+  border-radius: 30px;
+  font-size: 18px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.mensaje-lista-admin {
+  text-align: center;
+  color: #777;
+  padding: 30px 0;
+}
+
+.tabla-clubes-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 14px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
+}
+
+.tabla-clubes-admin {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  min-width: 780px;
+}
+
+.tabla-clubes-admin thead tr {
+  background: #0d3b66;
+}
+
+.tabla-clubes-admin thead th {
+  text-align: left;
+  color: #fff;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 18px 16px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tabla-clubes-admin thead th.centrado {
+  text-align: center;
+}
+
+.tabla-clubes-admin tbody tr {
+  border-bottom: 1px solid #eef1f5;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.tabla-clubes-admin tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.tabla-clubes-admin tbody tr:hover {
+  background: #e3f0fd;
+}
+
+.tabla-clubes-admin tbody td {
+  padding: 18px 16px;
+  font-size: 19px;
+  color: #222;
+  vertical-align: middle;
+}
+
+.tabla-clubes-admin tbody td strong {
+  font-size: 20px;
+  color: #0d3b66;
+}
+
+.tabla-clubes-admin tbody td.centrado {
+  text-align: center;
+}
+
+.dato-secundario {
+  color: #888;
+  font-size: 15px;
+}
+
+.badge-suscripcion {
+  display: inline-block;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 8px 18px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.badge-suscripcion-activa {
+  background: #c8f2d6;
+  color: #0f6b30;
+}
+
+.badge-suscripcion-pausada {
+  background: #ffe6b8;
+  color: #92500a;
+}
+
+.badge-suscripcion-cancelada {
+  background: #fbd4d0;
+  color: #a81f1f;
+}
+
+.badge-suscripcion-mora {
+  background: #fde2cf;
+  color: #a84b11;
+}
+
+.fila-club-baja {
+  opacity: 0.7;
+}
+
+.badge-estado-club {
+  display: inline-block;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 8px 18px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.badge-estado-club-activo {
+  background: #c8f2d6;
+  color: #0f6b30;
+}
+
+.badge-estado-club-baja {
+  background: #dcdcdc;
+  color: #333;
+}
+
+.btn-accion-tabla {
+  border: none;
+  border-radius: 20px;
+  padding: 12px 22px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-accion-baja {
+  background: #c62828;
+  color: white;
+}
+
+.btn-accion-reactivar {
+  background: #1b7a3d;
+  color: white;
+}
+
+.btn-accion-tabla:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.paginado-lista-admin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 20px;
+  font-size: 15.5px;
+  color: #555;
+}
+
+.paginado-lista-admin button {
+  padding: 9px 18px;
+  border: 1px solid #d5dbe4;
+  border-radius: 20px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.paginado-lista-admin button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.paginado-lista-admin button:not(:disabled):hover {
+  background: #e3f0fd;
+  border-color: #004AAD;
+}
+
+@media (max-width: 768px) {
+  .contenedor-lista-admin {
+    padding: 10px 16px 40px;
+  }
+}

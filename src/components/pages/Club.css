@@ -91,6 +91,25 @@
     font-size: 0.95rem;
 }
 
+.resumen-resenas-club {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 6px 0 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0d3b66;
+}
+
+.resumen-resenas-estrella {
+    color: #f5a623;
+}
+
+.resumen-resenas-cantidad {
+    font-weight: 400;
+    color: #999;
+}
+
 .btn-ver-en-mapa {
     background: none;
     border: none;
@@ -186,6 +205,12 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: #1b7a3d;
+}
+
+.tarjeta-cancha-club-precio-noche {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #667085;
 }
 
 @media (max-width: 700px) {

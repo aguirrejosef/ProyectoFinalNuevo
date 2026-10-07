@@ -1,5 +1,97 @@
-.modal-buttons{
+.modal {
+    display: none;
+}
+
+.modal.show {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 59, 102, 0.55);
+    padding: 20px;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 18px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 460px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+    text-align: center;
+}
+
+.modal-content p {
+    margin: 0 0 28px;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #0d3b66;
+}
+
+.modal-baja-label-motivo {
+    display: block;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 24px;
+}
+
+.modal-baja-motivo {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 8px;
+    padding: 12px 14px;
+    border: 1px solid #d5dbe4;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+}
+
+.modal-baja-motivo:focus {
+    border-color: #004AAD;
+    box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.15);
+}
+
+.modal-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+    filter: none;
+}
+
+.modal-buttons {
     display: grid;
-    grid-template-columns: repeat(2,1fr);
-    justify-items: center;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    justify-items: stretch;
+}
+
+.modal-button {
+    border: none;
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 120ms ease, filter 120ms ease;
+}
+
+.modal-button:hover {
+    filter: brightness(0.92);
+}
+
+.modal-button.accept {
+    background: #c62828;
+    color: white;
+}
+
+.modal-button.cancel {
+    background: #eef1f5;
+    color: #333;
 }

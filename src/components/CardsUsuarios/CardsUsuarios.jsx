@@ -1,33 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './CardsUsuarios.css';
 import { apiFetch } from '../../api';
 
 const UMBRAL_CLIENTE_FRECUENTE = 5;
+const LIMITE_ADMIN = 12;
 
 const Usuarios = () => {
+  const rol = localStorage.getItem('rol');
+  const miId = Number(localStorage.getItem('id'));
+  const esClub = Number(rol) === 2;
+
+  // ------------------ Vista CLUB: listado completo, orden y búsqueda en el cliente ------------------
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
-
-  // Orden de la tabla
   const [campoOrden, setCampoOrden] = useState('total_turnos');
   const [direccionOrden, setDireccionOrden] = useState('desc');
-
-  // Detalle de cliente (historial de turnos)
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [turnosCliente, setTurnosCliente] = useState([]);
   const [cargandoTurnos, setCargandoTurnos] = useState(false);
 
-  const rol = localStorage.getItem('rol');
+  // ------------------ Vista ADMIN: búsqueda, filtro y paginado reales en el backend ------------------
+  const [usuariosAdmin, setUsuariosAdmin] = useState([]);
+  const [cargandoAdmin, setCargandoAdmin] = useState(true);
+  const [totalAdmin, setTotalAdmin] = useState(0);
+  const [paginaAdmin, setPaginaAdmin] = useState(1);
+  const [totalPaginasAdmin, setTotalPaginasAdmin] = useState(1);
+  const [busquedaAdminInput, setBusquedaAdminInput] = useState('');
+  const [busquedaAdmin, setBusquedaAdmin] = useState('');
+  const [estadoFiltroAdmin, setEstadoFiltroAdmin] = useState('todos');
+  const [procesandoId, setProcesandoId] = useState(null);
+  const [campoOrdenAdmin, setCampoOrdenAdmin] = useState('fecha_registro');
+  const [direccionOrdenAdmin, setDireccionOrdenAdmin] = useState('desc');
 
   useEffect(() => {
+    if (!esClub) return;
+
     const fetchUsuarios = async () => {
       try {
         const response = await apiFetch('/usuarios');
-
         const data = await response.json();
         setUsuarios(data);
-
       } catch (error) {
         console.error(error);
       } finally {
@@ -36,14 +49,47 @@ const Usuarios = () => {
     };
 
     fetchUsuarios();
-  }, []);
+  }, [esClub]);
 
-  const getRol = (idRol) => {
-    if (idRol === 1) return 'Admin';
-    if (idRol === 2) return 'Club';
-    if (idRol === 3) return 'Cliente';
-    return 'Desconocido';
-  };
+  // Buscador del admin con debounce
+  useEffect(() => {
+    if (esClub) return;
+    const timer = setTimeout(() => {
+      setBusquedaAdmin(busquedaAdminInput.trim());
+      setPaginaAdmin(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [busquedaAdminInput, esClub]);
+
+  const cargarUsuariosAdmin = useCallback(async () => {
+    if (esClub) return;
+    setCargandoAdmin(true);
+    try {
+      const params = new URLSearchParams({
+        pagina: String(paginaAdmin),
+        limite: String(LIMITE_ADMIN),
+        rol: '3',
+        estado: estadoFiltroAdmin,
+        campo: campoOrdenAdmin,
+        direccion: direccionOrdenAdmin
+      });
+      if (busquedaAdmin) params.set('busqueda', busquedaAdmin);
+
+      const res = await apiFetch(`/usuarios/buscar?${params.toString()}`);
+      const data = await res.json();
+      setUsuariosAdmin(Array.isArray(data.usuarios) ? data.usuarios : []);
+      setTotalAdmin(data.total || 0);
+      setTotalPaginasAdmin(data.totalPaginas || 1);
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+    } finally {
+      setCargandoAdmin(false);
+    }
+  }, [esClub, paginaAdmin, busquedaAdmin, estadoFiltroAdmin, campoOrdenAdmin, direccionOrdenAdmin]);
+
+  useEffect(() => {
+    cargarUsuariosAdmin();
+  }, [cargarUsuariosAdmin]);
 
   const formatearFecha = (fecha) => {
     if (!fecha) return null;
@@ -81,7 +127,7 @@ const Usuarios = () => {
     return 'estado-badge';
   };
 
-  // ------------------ Abrir / cerrar detalle de cliente ------------------
+  // ------------------ Abrir / cerrar detalle de cliente (vista club) ------------------
   const handleAbrirDetalle = async (user) => {
     setClienteSeleccionado(user);
     setCargandoTurnos(true);
@@ -105,7 +151,56 @@ const Usuarios = () => {
     setTurnosCliente([]);
   };
 
-  // ------------------ Orden de columnas ------------------
+  // ------------------ Dar de baja / reactivar usuario (solo admin) ------------------
+  const handleCambiarEstadoUsuario = async (user) => {
+    const nuevoActivo = user.activo === 0 ? 1 : 0;
+    setProcesandoId(user.id_usuario);
+
+    try {
+      const res = await apiFetch(`/usuarios/${user.id_usuario}/estado`, {
+        method: 'PUT',
+        body: JSON.stringify({ activo: nuevoActivo })
+      });
+
+      if (res.ok) {
+        setUsuariosAdmin((actuales) =>
+          actuales.map((u) => (u.id_usuario === user.id_usuario ? { ...u, activo: nuevoActivo } : u))
+        );
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || 'No se pudo cambiar el estado del usuario');
+      }
+    } catch (error) {
+      console.error('Error al cambiar estado del usuario:', error);
+      alert('Ocurrió un error al conectar con el servidor');
+    } finally {
+      setProcesandoId(null);
+    }
+  };
+
+  const handleFiltroEstadoAdmin = (valor) => {
+    setEstadoFiltroAdmin(valor);
+    setPaginaAdmin(1);
+  };
+
+  // El orden acá lo resuelve el backend (la tabla está paginada), no se
+  // puede ordenar solo lo que ya se descargó como en la vista club.
+  const handleOrdenarAdmin = (campo) => {
+    if (campoOrdenAdmin === campo) {
+      setDireccionOrdenAdmin(direccionOrdenAdmin === 'asc' ? 'desc' : 'asc');
+    } else {
+      setCampoOrdenAdmin(campo);
+      setDireccionOrdenAdmin(campo === 'fecha_registro' ? 'desc' : 'asc');
+    }
+    setPaginaAdmin(1);
+  };
+
+  const flechaColumnaAdmin = (campo) => {
+    if (campoOrdenAdmin !== campo) return <span className="th-arrow th-arrow-inactiva">▾</span>;
+    return <span className="th-arrow th-arrow-activa">{direccionOrdenAdmin === 'asc' ? '▴' : '▾'}</span>;
+  };
+
+  // ------------------ Orden de columnas (vista club) ------------------
   const handleOrdenar = (campo) => {
     if (campoOrden === campo) {
       setDireccionOrden(direccionOrden === 'asc' ? 'desc' : 'asc');
@@ -152,10 +247,10 @@ const Usuarios = () => {
     return 0;
   });
 
-  if (loading) return <div className="usuarios-cargando">Cargando...</div>;
-
   // ------------------ Vista CLUB: tabla de clientes con estadísticas ------------------
-  if (Number(rol) === 2) {
+  if (esClub) {
+    if (loading) return <div className="usuarios-cargando">Cargando...</div>;
+
     return (
       <div className="usuarios-contenedor">
 
@@ -323,54 +418,119 @@ const Usuarios = () => {
     );
   }
 
-  // ------------------ Vista genérica (admin u otros roles) ------------------
-  const claseRol = (idRol) => {
-    if (idRol === 1) return 'badge-rol-usuario badge-rol-admin';
-    if (idRol === 2) return 'badge-rol-usuario badge-rol-club';
-    return 'badge-rol-usuario badge-rol-cliente';
-  };
-
+  // ------------------ Vista genérica (admin): tabla de clientes, con búsqueda, filtro y paginado reales ------------------
   return (
-    <div className="users-list">
-      <div className="usuarios-buscador usuarios-buscador-generico">
+    <div className="usuarios-contenedor">
+      <h1 className="titulo-tabla-admin">Listado de Clientes</h1>
+
+      <div className="controles-lista-admin">
         <input
           type="text"
+          className="buscador-lista-admin"
           placeholder="Buscar por nombre, usuario o correo..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          value={busquedaAdminInput}
+          onChange={(e) => setBusquedaAdminInput(e.target.value)}
         />
+        <select className="filtro-lista-admin" value={estadoFiltroAdmin} onChange={(e) => handleFiltroEstadoAdmin(e.target.value)}>
+          <option value="todos">Todos los estados</option>
+          <option value="activo">Activos</option>
+          <option value="baja">Dados de baja</option>
+        </select>
       </div>
 
-      <div className="grid-usuarios-generico">
-        {usuariosOrdenados.map((user) => {
-          const nombreCompleto = user.nombre
-            ? `${user.nombre} ${user.apellido || ''}`.trim()
-            : user.usuario;
+      {cargandoAdmin && <p className="usuarios-vacio">Cargando...</p>}
+      {!cargandoAdmin && usuariosAdmin.length === 0 && <p className="usuarios-vacio">No se encontraron clientes.</p>}
 
-          return (
-            <div key={user.id_usuario} className="tarjeta-usuario-generico">
-              <div className="tarjeta-usuario-frente">
-                {user.foto ? (
-                  <img src={user.foto} alt={nombreCompleto} className="foto-usuario-generico" />
-                ) : (
-                  <div className="foto-usuario-generico foto-usuario-generico-inicial">
-                    {iniciales(user)}
-                  </div>
-                )}
-                <h3>{nombreCompleto}</h3>
-                <span className="usuario-arroba">@{user.usuario}</span>
-                <span className={claseRol(user.id_rol)}>{getRol(user.id_rol)}</span>
-              </div>
+      {!cargandoAdmin && usuariosAdmin.length > 0 && (
+        <div className="tabla-usuarios-admin-wrap">
+          <table className="tabla-usuarios-admin">
+            <thead>
+              <tr>
+                <th className="th-ordenable" onClick={() => handleOrdenarAdmin('apellido')}>
+                  Cliente {flechaColumnaAdmin('apellido')}
+                </th>
+                <th className="col-oculto-movil">Contacto</th>
+                <th className="col-oculto-movil th-ordenable" onClick={() => handleOrdenarAdmin('fecha_registro')}>
+                  En la plataforma desde {flechaColumnaAdmin('fecha_registro')}
+                </th>
+                <th className="centrado">Estado</th>
+                <th className="centrado">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usuariosAdmin.map((user) => {
+                const nombreCompleto = user.nombre
+                  ? `${user.nombre} ${user.apellido || ''}`.trim()
+                  : user.usuario;
 
-              <div className="tarjeta-usuario-detalle">
-                <p>✉️ {user.correo || 'Sin correo'}</p>
-                <p>📞 {user.telefono || 'Sin teléfono'}</p>
-                <p>🗓️ En la plataforma desde {formatearMesAno(user.fecha_registro)}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                const usuarioActivo = user.activo !== 0;
+
+                return (
+                  <tr key={user.id_usuario} className={!usuarioActivo ? 'fila-usuario-baja' : ''}>
+                    <td>
+                      <div className="col-cliente">
+                        <div className="avatar-tabla">
+                          {user.foto ? (
+                            <img src={user.foto} alt={nombreCompleto} />
+                          ) : (
+                            <span>{iniciales(user)}</span>
+                          )}
+                        </div>
+                        <div className="nombre-cliente">
+                          <strong>{nombreCompleto}</strong>
+                          <span>@{user.usuario}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="col-oculto-movil">
+                      {user.correo && (
+                        <a className="contacto-linea" href={`mailto:${user.correo}`}>✉️ {user.correo}</a>
+                      )}
+                      {user.telefono && (
+                        <a className="contacto-linea" href={`tel:${user.telefono}`}>📞 {user.telefono}</a>
+                      )}
+                    </td>
+
+                    <td className="col-oculto-movil">{formatearMesAno(user.fecha_registro)}</td>
+
+                    <td className="centrado">
+                      <span className={`badge-estado-usuario-tabla ${usuarioActivo ? 'badge-estado-usuario-activo' : 'badge-estado-usuario-baja'}`}>
+                        {usuarioActivo ? 'Activo' : 'Dado de baja'}
+                      </span>
+                    </td>
+
+                    <td className="centrado">
+                      {user.id_usuario !== miId ? (
+                        <button
+                          type="button"
+                          className={`btn-estado-usuario ${usuarioActivo ? 'btn-dar-baja' : 'btn-reactivar'}`}
+                          disabled={procesandoId === user.id_usuario}
+                          onClick={() => handleCambiarEstadoUsuario(user)}
+                        >
+                          {procesandoId === user.id_usuario
+                            ? 'Procesando...'
+                            : usuarioActivo ? 'Dar de baja' : 'Reactivar'}
+                        </button>
+                      ) : (
+                        <span className="dato-secundario">Vos</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!cargandoAdmin && totalPaginasAdmin > 1 && (
+        <div className="paginado-lista-admin">
+          <button type="button" disabled={paginaAdmin <= 1} onClick={() => setPaginaAdmin((p) => p - 1)}>‹ Anterior</button>
+          <span>Página {paginaAdmin} de {totalPaginasAdmin} ({totalAdmin} usuarios)</span>
+          <button type="button" disabled={paginaAdmin >= totalPaginasAdmin} onClick={() => setPaginaAdmin((p) => p + 1)}>Siguiente ›</button>
+        </div>
+      )}
     </div>
   );
 };

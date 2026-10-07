@@ -7,6 +7,7 @@ import Cards from '../Cards/Cards'
 import BtnFlotanteWp from '../Button/BtnFlotanteWp/BtnFlotanteWp'
 import Footer from '../Footer/Footer'
 import PanelClub from '../PanelClub/PanelClub'
+import GuardiaSuscripcionClub from '../GuardiaSuscripcionClub/GuardiaSuscripcionClub'
 import { useNavigate } from 'react-router-dom'
 
 function Home() {
@@ -18,11 +19,17 @@ function Home() {
   if (Number(rol) === 2) {
     return (
       <div className="home-pagina">
-        <NavBar/>
+        <div className="no-imprimir">
+          <NavBar/>
+        </div>
         <main className="home-contenido">
-          <PanelClub/>
+          <GuardiaSuscripcionClub>
+            <PanelClub/>
+          </GuardiaSuscripcionClub>
         </main>
-        <Footer/>
+        <div className="no-imprimir">
+          <Footer/>
+        </div>
       </div>
     );
   }

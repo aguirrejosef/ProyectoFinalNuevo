@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './FormRegistro.css';
 import Modal from '../Modal/Modal';
 import { apiFetch } from '../../api';
@@ -14,7 +14,8 @@ const formatearPrecioPlan = (precio) => `$${precio.toLocaleString('es-AR')}/mes`
  
 function FormRegistro() {
   const location = useLocation();
- 
+  const navigate = useNavigate();
+
   const [nombreClub, setNombreClub] = useState('');
   const [telefono, setTelefono] = useState('');
   const [provincia, setProvincia] = useState('');
@@ -87,9 +88,11 @@ function FormRegistro() {
       const data = await response.json();
 
       if (response.ok && data.init_point) {
-        // Vamos directo al checkout de Mercado Pago a autorizar el pago del plan.
-        // El club recién se crea de verdad cuando el pago queda aprobado.
-        window.location.href = data.init_point;
+        // Abrimos Mercado Pago en una pestaña nueva y nos quedamos en la
+        // pantalla de confirmación (que consulta el estado del registro
+        // sola), igual que al pagar la seña de una reserva.
+        window.open(data.init_point, '_blank');
+        navigate(`/registro-club/confirmacion?registro=${data.id_registro}`);
         return;
       }
 

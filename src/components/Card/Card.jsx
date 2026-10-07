@@ -2,7 +2,7 @@ import React from 'react'
 import './Card.css'
 import { useNavigate } from 'react-router-dom'
 
-function Card({ imagen, titulo, id, direccion, localidad, cantidadCanchas, precioDesde }) {
+function Card({ imagen, titulo, id, direccion, localidad, cantidadCanchas, precioDesde, promedioResenas, cantidadResenas }) {
 
   const navigate = useNavigate();
 
@@ -18,6 +18,11 @@ function Card({ imagen, titulo, id, direccion, localidad, cantidadCanchas, preci
         <img src={imagen} alt={titulo} className="card-img" />
         <div className="card-contenido">
           <h2 className="card-titulo">{titulo}</h2>
+          {cantidadResenas > 0 && (
+            <p className="card-rating">
+              <span className="card-rating-estrella">★</span> {promedioResenas} <span className="card-rating-cantidad">({cantidadResenas})</span>
+            </p>
+          )}
           <div className='card-descripcion'>
             <p className="card-detalle">📍 Dirección: {direccion}</p>
             <p className="card-detalle">🏙️ Localidad: {localidad}</p>

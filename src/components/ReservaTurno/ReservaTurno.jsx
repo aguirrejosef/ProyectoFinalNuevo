@@ -56,7 +56,7 @@ function formatearCuentaRegresiva(segundos) {
     return `${m}:${s}`;
 }
 
-function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
+function ReservaTurno({ club, cancha, onCambiarPaso }) {
     const navigate = useNavigate();
     const hayToken = !!localStorage.getItem('token');
 
@@ -85,6 +85,7 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
     const [reserva, setReserva] = useState(null); // { id_turno, monto_sena, expira_en, init_point }
     const [segundos, setSegundos] = useState(0);
     const [cancelando, setCancelando] = useState(false);
+    const [mostrandoConfirmacionFinal, setMostrandoConfirmacionFinal] = useState(false);
 
     useEffect(() => {
         if (!cancha) return;
@@ -136,7 +137,10 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
         (h) => h.hora_inicio === horaInicioElegida && h.minutos === duracionElegida
     );
 
-    const precioPorHora = cancha.precio ? Number(cancha.precio) : null;
+    // El precio por hora depende del horario elegido (de día o nocturno, si
+    // el club y la cancha lo tienen configurado); lo calcula el backend y
+    // viene incluido en cada combinación de disponibilidad.
+    const precioPorHora = combinacionElegida?.precio_hora ? Number(combinacionElegida.precio_hora) : null;
     const precioTotalEstimado = precioPorHora && duracionElegida ? precioPorHora * (duracionElegida / 60) : null;
     const montoSenaEstimado = precioTotalEstimado ? Math.round(precioTotalEstimado * 0.5) : null;
 
@@ -158,6 +162,15 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
         }
 
         setPaso('revision');
+    };
+
+    const handleAbrirConfirmacionFinal = () => {
+        setMostrandoConfirmacionFinal(true);
+    };
+
+    const handleCerrarConfirmacionFinal = () => {
+        if (confirmando) return;
+        setMostrandoConfirmacionFinal(false);
     };
 
     const handleConfirmarReserva = async () => {
@@ -207,13 +220,19 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
             setMensaje('Error al conectar con el servidor');
         } finally {
             setConfirmando(false);
+            setMostrandoConfirmacionFinal(false);
         }
     };
 
     const handleIrAPagar = () => {
-        if (reserva?.init_point) {
-            window.location.href = reserva.init_point;
-        }
+        if (!reserva?.init_point) return;
+
+        // Abrimos Mercado Pago en una pestaña nueva y nos quedamos en la
+        // pantalla de confirmación (que ya consulta el estado del pago solo).
+        // Así no dependemos de que Mercado Pago nos redirija de vuelta, algo
+        // que solo funciona si el sitio tiene una URL pública.
+        window.open(reserva.init_point, '_blank');
+        navigate(`/reserva-confirmacion?turno=${reserva.id_turno}`);
     };
 
     const handleCancelarReserva = async () => {
@@ -245,72 +264,72 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
 
     // ------------------ Paso 2: revisión antes de pagar ------------------
     if (paso === 'revision') {
+        const precioRestante = precioTotalEstimado && montoSenaEstimado
+            ? precioTotalEstimado - montoSenaEstimado
+            : null;
+
         return (
             <div className="revision-layout">
+                <div className="revision-stepper">
+                    <div className="revision-paso revision-paso-hecho">
+                        <span className="revision-paso-circulo">✓</span>
+                        <span className="revision-paso-label">Club</span>
+                    </div>
+                    <span className="revision-paso-linea revision-paso-linea-hecha"></span>
+                    <div className="revision-paso revision-paso-hecho">
+                        <span className="revision-paso-circulo">✓</span>
+                        <span className="revision-paso-label">Día y turno</span>
+                    </div>
+                    <span className="revision-paso-linea"></span>
+                    <div className="revision-paso revision-paso-actual">
+                        <span className="revision-paso-circulo">3</span>
+                        <span className="revision-paso-label">Confirmar</span>
+                    </div>
+                </div>
+
                 <div className="revision-header">
-                    <h2 className="revision-titulo">¡Ya casi terminamos!</h2>
+                    <h2 className="revision-titulo">Último punto antes de reservar</h2>
                     <p className="revision-subtitulo">
-                        Para completar tu reserva en {club?.nombre}, por favor chequeá tus datos y luego confirmá.
+                        Revisá tus datos y confirmamos tu cancha en {club?.nombre}.
                     </p>
                 </div>
 
                 <div className="revision-columnas">
 
-                    <div className="revision-resumen-card">
-                        <div className="revision-resumen-etiqueta">
-                            <FontAwesomeIcon icon={faTableTennisPaddleBall} /> Pádel
+                    <div className="revision-ticket">
+                        <div className="revision-ticket-header">
+                            <span className="revision-ticket-etiqueta">
+                                <FontAwesomeIcon icon={faTableTennisPaddleBall} /> Pase de cancha
+                            </span>
+                            <h3>{club?.nombre}</h3>
+                            {club?.direccion && (
+                                <p>
+                                    <FontAwesomeIcon icon={faLocationDot} />{' '}
+                                    {club.direccion}{club.localidad ? `, ${club.localidad}` : ''}
+                                </p>
+                            )}
                         </div>
 
-                        <div className="revision-resumen-club">
-                            {fotoClub && <img src={fotoClub} alt={club?.nombre} className="revision-resumen-club-foto" />}
-                            <div>
-                                <h3>{club?.nombre}</h3>
-                                {club?.direccion && (
-                                    <p>
-                                        <FontAwesomeIcon icon={faLocationDot} />{' '}
-                                        {club.direccion}{club.localidad ? `, ${club.localidad}` : ''}
-                                    </p>
-                                )}
-                            </div>
+                        <div className="revision-ticket-recorte">
+                            <span className="revision-ticket-notch revision-ticket-notch-izq"></span>
+                            <span className="revision-ticket-notch revision-ticket-notch-der"></span>
                         </div>
 
-                        <div className="revision-resumen-detalle">
-                            <div className="revision-resumen-fila">
-                                <span className="revision-resumen-fila-icono"><FontAwesomeIcon icon={faCalendarCheck} /></span>
-                                <div className="revision-resumen-fila-texto">
-                                    <span className="revision-resumen-fila-label">Fecha</span>
-                                    <strong>{formatearFechaLarga(fecha)}</strong>
-                                </div>
+                        <div className="revision-ticket-datos">
+                            <div className="revision-ticket-dato">
+                                <span className="revision-ticket-dato-icono"><FontAwesomeIcon icon={faCalendarCheck} /></span>
+                                <span className="revision-ticket-dato-label">Fecha</span>
+                                <strong>{formatearFechaLarga(fecha)}</strong>
                             </div>
-
-                            <div className="revision-resumen-fila">
-                                <span className="revision-resumen-fila-icono"><FontAwesomeIcon icon={faClock} /></span>
-                                <div className="revision-resumen-fila-texto">
-                                    <span className="revision-resumen-fila-label">Turno</span>
-                                    <strong>{formatearHora(combinacionElegida?.hora_inicio)} a {formatearHora(combinacionElegida?.hora_fin)} hs ({formatearDuracion(duracionElegida)})</strong>
-                                </div>
+                            <div className="revision-ticket-dato">
+                                <span className="revision-ticket-dato-icono"><FontAwesomeIcon icon={faClock} /></span>
+                                <span className="revision-ticket-dato-label">Turno</span>
+                                <strong>{formatearHora(combinacionElegida?.hora_inicio)} - {formatearHora(combinacionElegida?.hora_fin)}</strong>
                             </div>
-
-                            <div className="revision-resumen-fila">
-                                <span className="revision-resumen-fila-icono"><FontAwesomeIcon icon={faTableTennisPaddleBall} /></span>
-                                <div className="revision-resumen-fila-texto">
-                                    <span className="revision-resumen-fila-label">{cancha.nombre}</span>
-                                    {cancha.tipo && <strong>{cancha.tipo}</strong>}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="revision-resumen-precios">
-                            <div className="revision-resumen-precio-fila">
-                                <span>Precio de la cancha</span>
-                                <strong>{formatearPrecio(precioTotalEstimado)}</strong>
-                            </div>
-                            <div className="revision-resumen-precio-fila revision-resumen-precio-destacada">
-                                <div>
-                                    <span>Ahora pagás</span>
-                                    <p>Adelanto para reservar la cancha</p>
-                                </div>
-                                <strong>{formatearPrecio(montoSenaEstimado)}</strong>
+                            <div className="revision-ticket-dato">
+                                <span className="revision-ticket-dato-icono"><FontAwesomeIcon icon={faTableTennisPaddleBall} /></span>
+                                <span className="revision-ticket-dato-label">Cancha</span>
+                                <strong>{cancha.nombre}</strong>
                             </div>
                         </div>
                     </div>
@@ -318,8 +337,9 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
                     <div className="revision-columna-derecha">
                         <div className="revision-card">
                             <h3 className="revision-card-titulo">Titular de la reserva</h3>
+                            <p className="revision-nota-voucher">Te enviaremos el comprobante de la reserva por email.</p>
                             <div className="revision-titular-grid">
-                                <label>
+                                <label className="revision-campo-ancho">
                                     <span><FontAwesomeIcon icon={faUser} /> Nombre y apellido</span>
                                     <input
                                         type="text"
@@ -344,16 +364,28 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
                                     />
                                 </label>
                             </div>
-                            <p className="revision-nota-voucher">Se te enviará el comprobante de la reserva por email.</p>
                         </div>
 
                         <div className="revision-card">
-                            <h3 className="revision-card-titulo">Sobre el pago</h3>
                             <div className="revision-info-pago">
                                 <FontAwesomeIcon icon={faCircleInfo} />
                                 <div>
-                                    <strong>Estás por pagar la seña</strong>
+                                    <strong>Estás pagando la seña</strong>
                                     <p>El resto de la reserva se abona directamente en el club.</p>
+                                </div>
+                            </div>
+                            <div className="revision-pago-desglose">
+                                <div>
+                                    <span>Cancha</span>
+                                    <strong>{formatearPrecio(precioTotalEstimado)}</strong>
+                                </div>
+                                <div className="revision-pago-desglose-destacado">
+                                    <span>Seña ahora</span>
+                                    <strong>{formatearPrecio(montoSenaEstimado)}</strong>
+                                </div>
+                                <div>
+                                    <span>Resto en club</span>
+                                    <strong>{formatearPrecio(precioRestante)}</strong>
                                 </div>
                             </div>
                         </div>
@@ -362,15 +394,43 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
 
                         <div className="revision-acciones">
                             <button type="button" className="btn-volver-revision" onClick={() => setPaso('eligiendo')}>
-                                Volver
+                                ← Volver
                             </button>
-                            <button type="button" className="btn-reservar btn-continuar-revision" onClick={handleConfirmarReserva} disabled={confirmando}>
-                                {confirmando ? 'Generando el pago...' : 'Continuar'}
+                            <button type="button" className="btn-reservar btn-continuar-revision" onClick={handleAbrirConfirmacionFinal}>
+                                Confirmar reserva →
                             </button>
                         </div>
                     </div>
 
                 </div>
+
+                {mostrandoConfirmacionFinal && (
+                    <div className="overlay-modal" onClick={handleCerrarConfirmacionFinal}>
+                        <div className="modal-cancha" onClick={(e) => e.stopPropagation()}>
+                            <h3>¿Confirmar esta reserva?</h3>
+                            <p>
+                                Vas a pagar la seña de <strong>{formatearPrecio(montoSenaEstimado)}</strong> para
+                                reservar {cancha.nombre} el {formatearFechaLarga(fecha)} de{' '}
+                                {formatearHora(combinacionElegida?.hora_inicio)} a {formatearHora(combinacionElegida?.hora_fin)}.
+                            </p>
+                            <p className="aviso-politica-sena">
+                                Si el turno se cancela por algún motivo, tenés 24 horas desde la cancelación para
+                                reclamar la devolución de la seña; pasado ese plazo, la seña queda sin efecto.
+                            </p>
+
+                            {mensaje && <p className="error-modal-cancha">{mensaje}</p>}
+
+                            <div className="modal-cancha-botones">
+                                <button type="button" className="btn-modal-cancelar" onClick={handleCerrarConfirmacionFinal} disabled={confirmando}>
+                                    Volver
+                                </button>
+                                <button type="button" className="btn-modal-guardar" onClick={handleConfirmarReserva} disabled={confirmando}>
+                                    {confirmando ? 'Generando el pago...' : 'Sí, confirmar y pagar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -489,6 +549,11 @@ function ReservaTurno({ club, cancha, onCambiarPaso, fotoClub }) {
                                         >
                                             <span className="duracion-principal">{formatearDuracion(minutos)}</span>
                                             <span className="duracion-hasta">hasta {formatearHora(combo.hora_fin)}</span>
+                                            {combo.precio_hora && (
+                                                <span className="duracion-precio">
+                                                    {formatearPrecio(Number(combo.precio_hora) * (minutos / 60))}
+                                                </span>
+                                            )}
                                         </button>
                                     );
                                 })}

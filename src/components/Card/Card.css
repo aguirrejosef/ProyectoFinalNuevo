@@ -39,6 +39,22 @@
     color: #004AAD;
   }
 
+  .card-rating {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0d3b66;
+  }
+
+  .card-rating-estrella {
+    color: #f5a623;
+  }
+
+  .card-rating-cantidad {
+    font-weight: 400;
+    color: #999;
+  }
+
 .card-descripcion {
     display: flex;
     flex-direction: column;

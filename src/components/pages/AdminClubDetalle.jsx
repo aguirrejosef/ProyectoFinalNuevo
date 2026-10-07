@@ -71,7 +71,9 @@ function AdminClubDetalle() {
         );
     }
 
-    const estado = ETIQUETA_ESTADO[club.estado_suscripcion] || null;
+    const estado = club.en_mora
+        ? { texto: 'Falta de pago', clase: 'badge-suscripcion-mora' }
+        : ETIQUETA_ESTADO[club.estado_suscripcion] || null;
     const precioPlan = club.plan && PRECIOS_PLANES[club.plan] ? PRECIOS_PLANES[club.plan] : null;
 
     return (
@@ -93,6 +95,13 @@ function AdminClubDetalle() {
                         </div>
                         {estado && <span className={`badge-suscripcion ${estado.clase}`}>{estado.texto}</span>}
                     </div>
+
+                    {club.activo === 0 && (
+                        <div className="aviso-baja-detalle-club">
+                            <strong>Dado de baja el {formatearFecha(club.dado_de_baja_en)}</strong>
+                            {club.motivo_baja && <p>Motivo: "{club.motivo_baja}"</p>}
+                        </div>
+                    )}
 
                     <div className="grid-detalle-club">
                         <div className="seccion-detalle-club">
@@ -129,7 +138,7 @@ function AdminClubDetalle() {
 
                         <div className="seccion-detalle-club">
                             <h3>Dueño de la cuenta</h3>
-                            <p>{club.dueno || '-'}</p>
+                            <p>{`${club.nombre_dueno || ''} ${club.apellido_dueno || ''}`.trim() || club.dueno || '-'}</p>
                             <p>{club.correo_dueno || '-'}</p>
                             <p>{club.telefono_dueno || '-'}</p>
                         </div>

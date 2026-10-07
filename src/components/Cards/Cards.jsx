@@ -43,6 +43,8 @@ function Cards() {
             localidad={club.localidad}
             cantidadCanchas={club.cantidad_canchas}
             precioDesde={club.precio_desde}
+            promedioResenas={club.promedio_resenas}
+            cantidadResenas={club.cantidad_resenas}
           />
         </div>
       ))}

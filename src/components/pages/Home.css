@@ -104,7 +104,7 @@
 .home-pagina {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  flex: 1;
 }
  
 .home-contenido {

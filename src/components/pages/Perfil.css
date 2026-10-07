@@ -160,6 +160,13 @@
     border-color: #004AAD;
 }
 
+.ayuda-precio-nocturno {
+    color: #777;
+    font-size: 12.5px;
+    margin: 6px 0 0;
+    line-height: 1.4;
+}
+
 .select-perfil {
     border: none;
     outline: none;

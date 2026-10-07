@@ -1,0 +1,82 @@
+.guardia-suscripcion-overlay {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.guardia-suscripcion-tarjeta {
+  background: #fff;
+  border: 2px solid #fdecea;
+  border-radius: 18px;
+  padding: 40px 36px;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(198, 40, 40, 0.1);
+}
+
+.guardia-suscripcion-icono {
+  font-size: 42px;
+  display: block;
+  margin-bottom: 14px;
+}
+
+.guardia-suscripcion-tarjeta h2 {
+  color: #c62828;
+  font-size: 22px;
+  margin: 0 0 14px;
+}
+
+.guardia-suscripcion-tarjeta p {
+  color: #555;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.guardia-suscripcion-tarjeta p.guardia-suscripcion-motivo {
+  background: #f8fafc;
+  border-left: 3px solid #c62828;
+  padding: 10px 14px;
+  font-style: italic;
+  color: #333;
+  text-align: left;
+  font-size: 14px;
+  border-radius: 0 8px 8px 0;
+}
+
+.guardia-suscripcion-botones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.guardia-suscripcion-tarjeta button {
+  background: #004AAD;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 13px 28px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  width: 100%;
+  max-width: 260px;
+}
+
+.guardia-suscripcion-tarjeta button:hover {
+  background: #003580;
+}
+
+.guardia-suscripcion-tarjeta button.guardia-suscripcion-btn-secundario {
+  background: #f1f4f8;
+  color: #555;
+}
+
+.guardia-suscripcion-tarjeta button.guardia-suscripcion-btn-secundario:hover {
+  background: #e3e7ed;
+}

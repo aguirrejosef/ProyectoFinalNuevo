@@ -1,0 +1,140 @@
+.seccion-resenas {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.titulo-seccion-resenas {
+  color: #0d3b66;
+  font-size: 22px;
+  margin: 0 0 18px;
+}
+
+.mensaje-resenas-vacio {
+  color: #777;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.estrellas {
+  color: #d5dbe4;
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+.estrella-llena {
+  color: #f5a623;
+}
+
+.estrella-vacia {
+  color: #d5dbe4;
+}
+
+.estrellas-interactivas .estrella-llena,
+.estrellas-interactivas .estrella-vacia {
+  cursor: pointer;
+}
+
+.lista-resenas {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.item-resena {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.item-resena-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.item-resena-nombre {
+  font-weight: 700;
+  color: #0d3b66;
+  font-size: 14.5px;
+}
+
+.item-resena-fecha {
+  color: #999;
+  font-size: 12.5px;
+  margin-left: auto;
+}
+
+.btn-eliminar-resena {
+  background: none;
+  border: none;
+  color: #c62828;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.item-resena-comentario {
+  margin: 10px 0 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.form-resena {
+  background: #fff;
+  border: 1px solid #e0e4ea;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.form-resena h3 {
+  margin: 0 0 12px;
+  color: #0d3b66;
+  font-size: 16px;
+}
+
+.form-resena textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #d5dbe4;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.form-resena textarea:focus {
+  border-color: #004AAD;
+  box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.15);
+}
+
+.error-form-resena {
+  color: #c62828;
+  font-size: 13.5px;
+  margin: 10px 0 0;
+}
+
+.form-resena button[type="submit"] {
+  margin-top: 14px;
+  background: #004AAD;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  font-size: 14.5px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.form-resena button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

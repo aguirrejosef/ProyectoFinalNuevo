@@ -1,6 +1,36 @@
 .App {
   margin: 0;
   padding: 0;
-  /*width: 100%;
-  height: 100%;*/
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Para páginas cuyo contenido está envuelto en un solo <div> (la mayoría),
+   ese div también tiene que ser una columna de altura completa para que
+   el footer se empuje al fondo cuando el contenido es corto, en vez de
+   dejar hueco en blanco debajo al hacer zoom o achicar la ventana.
+   Se excluyen:
+   - el propio NavBar y Footer: en las páginas que no envuelven todo en un
+     div (usan un fragment <>), NavBar y Footer terminan siendo hijos
+     directos de .App, y esta regla no debe estirarlos a ellos.
+   - .contenedor-turnos (Mis Turnos): también es hijo directo de .App por
+     usar un fragment, pero ya tiene su propio layout en fila (lista +
+     detalle lado a lado) que esta regla no debe pisarle.
+   - .home-pagina (Home): ya tiene su propio min-height:100vh en Home.css.
+     Tener el 100vh calculado dos veces, en dos niveles anidados, puede
+     desincronizarse por redondeo al hacer zoom y dejar un hueco en blanco
+     debajo del footer; que sea la única fuente de esa altura acá. */
+.App > div:not(.contenedor):not(.contenedor-footer):not(.contenedor-turnos):not(.home-pagina) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* El footer siempre al fondo: si el contenido de la página es más bajo
+   que la pantalla, el margin-top:auto lo empuja abajo del todo; si el
+   contenido es más alto, simplemente queda después de él (scrollea normal). */
+.contenedor-footer {
+  margin-top: auto;
 }

@@ -20,6 +20,7 @@ import TurnosCancha from './components/pages/TurnosCancha';
 import ReservaConfirmacion from './components/pages/ReservaConfirmacion';
 import RegistroClubConfirmacion from './components/pages/RegistroClubConfirmacion';
 import AdminClubDetalle from './components/pages/AdminClubDetalle';
+import GuardiaSuscripcionClub from './components/GuardiaSuscripcionClub/GuardiaSuscripcionClub';
 
 // Bloquea el acceso a una ruta si no hay sesión, o si el rol no está permitido.
 function RutaPrivada({ rolesPermitidos, children }) {
@@ -61,11 +62,11 @@ function App() {
           <Route path="/historia" element={<Historia />} />
           <Route
             path="/usuario"
-            element={<RutaPrivada rolesPermitidos={[1, 2]}><Usuario /></RutaPrivada>}
+            element={<RutaPrivada rolesPermitidos={[1, 2]}><GuardiaSuscripcionClub><Usuario /></GuardiaSuscripcionClub></RutaPrivada>}
           />
           <Route
             path="/mi-perfil"
-            element={<RutaPrivada><Perfil /></RutaPrivada>}
+            element={<RutaPrivada><GuardiaSuscripcionClub><Perfil /></GuardiaSuscripcionClub></RutaPrivada>}
           />
           <Route
             path="/mis-turnos"
@@ -76,11 +77,11 @@ function App() {
           <Route path="/novedades" element={<Novedades />} />
           <Route
             path="/mis-canchas"
-            element={<RutaPrivada rolesPermitidos={[2]}><MisCanchas /></RutaPrivada>}
+            element={<RutaPrivada rolesPermitidos={[2]}><GuardiaSuscripcionClub><MisCanchas /></GuardiaSuscripcionClub></RutaPrivada>}
           />
           <Route
             path="/mis-canchas/:idCancha/turnos"
-            element={<RutaPrivada rolesPermitidos={[2]}><TurnosCancha /></RutaPrivada>}
+            element={<RutaPrivada rolesPermitidos={[2]}><GuardiaSuscripcionClub><TurnosCancha /></GuardiaSuscripcionClub></RutaPrivada>}
           />
           <Route
             path="/reserva-confirmacion"

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import NavBar from '../NavBar/NavBar'
 import Footer from '../Footer/Footer'
 import InfoClub from '../InfoClub/InfoClub'
+import Resenas from '../Resenas/Resenas'
 import ReservaTurno from '../ReservaTurno/ReservaTurno'
 import { apiFetch } from '../../api'
 import { ordenarCanchasPorNombre } from '../../utils/ordenarNatural'
@@ -135,6 +136,12 @@ function Club() {
 
       <div className="encabezado-club">
         <h1 className="nombre-club">{club.nombre}</h1>
+        {club.cantidad_resenas > 0 && (
+          <p className="resumen-resenas-club">
+            <span className="resumen-resenas-estrella">★</span> {club.promedio_resenas}
+            <span className="resumen-resenas-cantidad"> ({club.cantidad_resenas} reseña{club.cantidad_resenas === 1 ? '' : 's'})</span>
+          </p>
+        )}
         {(club.direccion || club.localidad) && (
           <p className="direccion-club">
             <FontAwesomeIcon icon={faLocationDot} />
@@ -178,6 +185,11 @@ function Club() {
                       {disponible && formatearPrecio(c.precio) && (
                         <span className="tarjeta-cancha-club-precio">{formatearPrecio(c.precio)}</span>
                       )}
+                      {disponible && formatearPrecio(c.precio_nocturno) && (
+                        <span className="tarjeta-cancha-club-precio-noche">
+                          Noche: {formatearPrecio(c.precio_nocturno)}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -191,7 +203,6 @@ function Club() {
             club={club}
             cancha={canchas.find((c) => c.id_cancha === canchaSeleccionada)}
             onCambiarPaso={setPasoReserva}
-            fotoClub={fotos[0]?.url}
           />
         )}
       </div>
@@ -203,6 +214,8 @@ function Club() {
         horariosAtencion={club.horarios_atencion}
         servicios={servicios}
       />
+
+      <Resenas idClub={id} />
 
       <Footer />
     </div>

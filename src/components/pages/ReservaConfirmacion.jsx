@@ -5,8 +5,12 @@ import Footer from '../Footer/Footer';
 import { apiFetch } from '../../api';
 import './ReservaConfirmacion.css';
 
-const INTENTOS_MAXIMOS = 15;
-const ESPERA_ENTRE_INTENTOS_MS = 3000;
+// Mercado Pago se abre en otra pestaña y el usuario puede tardar en pagar
+// ahí, así que esperamos varios minutos (parecido al tiempo que se sostiene
+// la reserva) en vez de solo unos segundos.
+const INTENTOS_MAXIMOS = 120;
+const ESPERA_ENTRE_INTENTOS_MS = 5000;
+const ESPERA_REDIRECCION_MS = 2500;
 
 function ReservaConfirmacion() {
     const [searchParams] = useSearchParams();
@@ -53,14 +57,21 @@ function ReservaConfirmacion() {
         return () => { cancelado = true; };
     }, [idTurno]);
 
+    useEffect(() => {
+        if (estado !== 'pagado') return;
+
+        const timer = setTimeout(() => navigate('/mis-turnos'), ESPERA_REDIRECCION_MS);
+        return () => clearTimeout(timer);
+    }, [estado, navigate]);
+
     const contenidoPorEstado = {
         cargando: {
-            titulo: 'Confirmando tu pago...',
-            texto: 'Esto puede tardar unos segundos.'
+            titulo: 'Esperando tu pago...',
+            texto: 'Completá el pago en la pestaña de Mercado Pago que se abrió. En cuanto lo confirmes, esta pantalla se va a actualizar sola.'
         },
         pagado: {
             titulo: '¡Reserva confirmada! 🎉',
-            texto: 'Ya podés ver el turno en Mis Reservas.'
+            texto: 'Te llevamos a Mis Reservas en un momento...'
         },
         rechazado: {
             titulo: 'El pago no se completó',

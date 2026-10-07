@@ -21,7 +21,7 @@ function MisCanchas() {
     const [fotosConError, setFotosConError] = useState(new Set());
 
     const [agregandoCancha, setAgregandoCancha] = useState(false);
-    const [nuevaCancha, setNuevaCancha] = useState({ nombre: '', tipo: '', foto: '', precio: '' });
+    const [nuevaCancha, setNuevaCancha] = useState({ nombre: '', tipo: '', foto: '', precio: '', precio_nocturno: '' });
     const [subiendoFoto, setSubiendoFoto] = useState(false);
 
     const handleErrorFoto = (idCancha) => {
@@ -61,7 +61,7 @@ function MisCanchas() {
 
             setClub(dataClub);
 
-            const resCanchas = await apiFetch(`/club/canchas?id_club=${dataClub.id_club}`);
+            const resCanchas = await apiFetch('/club/mis-canchas');
             const dataCanchas = await resCanchas.json();
 
             if (!resCanchas.ok) {
@@ -70,7 +70,10 @@ function MisCanchas() {
                 return;
             }
 
-            setCanchas(ordenarCanchasPorNombre(dataCanchas));
+            // Las activas primero (ordenadas por nombre), las dadas de baja al final.
+            const activas = ordenarCanchasPorNombre(dataCanchas.filter((c) => c.activo !== 0));
+            const inactivas = ordenarCanchasPorNombre(dataCanchas.filter((c) => c.activo === 0));
+            setCanchas([...activas, ...inactivas]);
 
         } catch (err) {
             console.error('Error al cargar mis canchas:', err);
@@ -111,7 +114,8 @@ function MisCanchas() {
                     nombre: canchaEditando.nombre,
                     tipo: canchaEditando.tipo,
                     foto: canchaEditando.foto,
-                    precio: canchaEditando.precio
+                    precio: canchaEditando.precio,
+                    precio_nocturno: canchaEditando.precio_nocturno
                 })
             });
 
@@ -155,7 +159,14 @@ function MisCanchas() {
                 return;
             }
 
-            setCanchas((prev) => prev.filter((c) => c.id_cancha !== canchaEliminando.id_cancha));
+            setCanchas((prev) => {
+                const actualizadas = prev.map((c) =>
+                    c.id_cancha === canchaEliminando.id_cancha ? { ...c, activo: 0 } : c
+                );
+                const activas = ordenarCanchasPorNombre(actualizadas.filter((c) => c.activo !== 0));
+                const inactivas = ordenarCanchasPorNombre(actualizadas.filter((c) => c.activo === 0));
+                return [...activas, ...inactivas];
+            });
             setCanchaEliminando(null);
 
         } catch (err) {
@@ -166,8 +177,26 @@ function MisCanchas() {
         }
     };
 
+    const handleReactivar = async (cancha) => {
+        try {
+            const res = await apiFetch(`/canchas/${cancha.id_cancha}/reactivar`, { method: 'PUT' });
+            if (!res.ok) return;
+
+            setCanchas((prev) => {
+                const actualizadas = prev.map((c) =>
+                    c.id_cancha === cancha.id_cancha ? { ...c, activo: 1 } : c
+                );
+                const activas = ordenarCanchasPorNombre(actualizadas.filter((c) => c.activo !== 0));
+                const inactivas = ordenarCanchasPorNombre(actualizadas.filter((c) => c.activo === 0));
+                return [...activas, ...inactivas];
+            });
+        } catch (err) {
+            console.error('Error al reactivar la cancha:', err);
+        }
+    };
+
     const handleAbrirAgregar = () => {
-        setNuevaCancha({ nombre: '', tipo: '', foto: '', precio: '' });
+        setNuevaCancha({ nombre: '', tipo: '', foto: '', precio: '', precio_nocturno: '' });
         setErrorModal('');
         setAgregandoCancha(true);
     };
@@ -185,7 +214,8 @@ function MisCanchas() {
                     nombre: nuevaCancha.nombre,
                     tipo: nuevaCancha.tipo,
                     foto: nuevaCancha.foto,
-                    precio: nuevaCancha.precio
+                    precio: nuevaCancha.precio,
+                    precio_nocturno: nuevaCancha.precio_nocturno
                 })
             });
 
@@ -269,10 +299,13 @@ function MisCanchas() {
                 )}
 
                 <div className="grid-mis-canchas">
-                    {canchas.map((cancha) => (
+                    {canchas.map((cancha) => {
+                        const canchaEliminadaLogicamente = cancha.activo === 0;
+
+                        return (
                         <div
                             key={cancha.id_cancha}
-                            className={`tarjeta-cancha ${cancha.estado === 'disponible' ? 'tarjeta-cancha-disponible' : 'tarjeta-cancha-inactiva'}`}
+                            className={`tarjeta-cancha ${cancha.estado === 'disponible' ? 'tarjeta-cancha-disponible' : 'tarjeta-cancha-inactiva'} ${canchaEliminadaLogicamente ? 'tarjeta-cancha-baja' : ''}`}
                         >
 
                             <div className="tarjeta-cancha-imagen">
@@ -289,12 +322,19 @@ function MisCanchas() {
                                     </div>
                                 )}
 
-                                <span className={`badge-estado-cancha estado-${cancha.estado}`}>
-                                    {cancha.estado === 'disponible' ? 'Disponible' : 'Inactiva'}
-                                </span>
+                                {canchaEliminadaLogicamente ? (
+                                    <span className="badge-estado-cancha estado-baja">Dada de baja</span>
+                                ) : (
+                                    <span className={`badge-estado-cancha estado-${cancha.estado}`}>
+                                        {cancha.estado === 'disponible' ? 'Disponible' : 'Inactiva'}
+                                    </span>
+                                )}
 
                                 {formatearPrecio(cancha.precio) && (
-                                    <span className="badge-precio-cancha">{formatearPrecio(cancha.precio)}</span>
+                                    <span className="badge-precio-cancha">
+                                        {formatearPrecio(cancha.precio)}
+                                        {formatearPrecio(cancha.precio_nocturno) && ` · noche ${formatearPrecio(cancha.precio_nocturno)}`}
+                                    </span>
                                 )}
 
                                 <div className="tarjeta-cancha-overlay">
@@ -310,33 +350,45 @@ function MisCanchas() {
                                 </div>
 
                                 <div className="tarjeta-cancha-acciones-iconos">
-                                    <button
-                                        type="button"
-                                        title="Editar cancha"
-                                        aria-label="Editar cancha"
-                                        onClick={() => setCanchaEditando({ ...cancha })}
-                                    >
-                                        ✏️
-                                    </button>
+                                    {canchaEliminadaLogicamente ? (
+                                        <button
+                                            type="button"
+                                            className="btn-reactivar-cancha"
+                                            onClick={() => handleReactivar(cancha)}
+                                        >
+                                            Reactivar
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                title="Editar cancha"
+                                                aria-label="Editar cancha"
+                                                onClick={() => setCanchaEditando({ ...cancha })}
+                                            >
+                                                ✏️
+                                            </button>
 
-                                    <button
-                                        type="button"
-                                        title={cancha.estado === 'disponible' ? 'Desactivar cancha' : 'Activar cancha'}
-                                        aria-label={cancha.estado === 'disponible' ? 'Desactivar cancha' : 'Activar cancha'}
-                                        onClick={() => handleToggleEstado(cancha)}
-                                    >
-                                        {cancha.estado === 'disponible' ? '⏸️' : '▶️'}
-                                    </button>
+                                            <button
+                                                type="button"
+                                                title={cancha.estado === 'disponible' ? 'Desactivar cancha' : 'Activar cancha'}
+                                                aria-label={cancha.estado === 'disponible' ? 'Desactivar cancha' : 'Activar cancha'}
+                                                onClick={() => handleToggleEstado(cancha)}
+                                            >
+                                                {cancha.estado === 'disponible' ? '⏸️' : '▶️'}
+                                            </button>
 
-                                    <button
-                                        type="button"
-                                        title="Eliminar cancha"
-                                        aria-label="Eliminar cancha"
-                                        className="btn-icono-eliminar"
-                                        onClick={() => { setCanchaEliminando(cancha); setErrorModal(''); }}
-                                    >
-                                        🗑️
-                                    </button>
+                                            <button
+                                                type="button"
+                                                title="Eliminar cancha"
+                                                aria-label="Eliminar cancha"
+                                                className="btn-icono-eliminar"
+                                                onClick={() => { setCanchaEliminando(cancha); setErrorModal(''); }}
+                                            >
+                                                🗑️
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
 
                                 <button
@@ -349,7 +401,8 @@ function MisCanchas() {
                             </div>
 
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
             </div>
@@ -389,7 +442,7 @@ function MisCanchas() {
                                 <img src={canchaEditando.foto} alt="Vista previa" className="preview-foto-cancha" />
                             )}
 
-                            <label>Precio por hora</label>
+                            <label>Precio por hora (de día)</label>
                             <input
                                 type="number"
                                 min="0"
@@ -397,6 +450,18 @@ function MisCanchas() {
                                 value={canchaEditando.precio || ''}
                                 onChange={(e) => setCanchaEditando({ ...canchaEditando, precio: e.target.value })}
                             />
+
+                            <label>Precio por hora nocturno (opcional)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="Ej: 10000"
+                                value={canchaEditando.precio_nocturno || ''}
+                                onChange={(e) => setCanchaEditando({ ...canchaEditando, precio_nocturno: e.target.value })}
+                            />
+                            <p className="ayuda-precio-nocturno">
+                                Se cobra a partir del horario nocturno configurado en "Mi Perfil". Dejalo vacío si esta cancha no tiene luces / no cambia de precio.
+                            </p>
 
                             {errorModal && <p className="error-modal-cancha">{errorModal}</p>}
 
@@ -449,7 +514,7 @@ function MisCanchas() {
                                 <img src={nuevaCancha.foto} alt="Vista previa" className="preview-foto-cancha" />
                             )}
 
-                            <label>Precio por hora</label>
+                            <label>Precio por hora (de día)</label>
                             <input
                                 type="number"
                                 min="0"
@@ -457,6 +522,18 @@ function MisCanchas() {
                                 value={nuevaCancha.precio}
                                 onChange={(e) => setNuevaCancha({ ...nuevaCancha, precio: e.target.value })}
                             />
+
+                            <label>Precio por hora nocturno (opcional)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="Ej: 10000"
+                                value={nuevaCancha.precio_nocturno}
+                                onChange={(e) => setNuevaCancha({ ...nuevaCancha, precio_nocturno: e.target.value })}
+                            />
+                            <p className="ayuda-precio-nocturno">
+                                Se cobra a partir del horario nocturno configurado en "Mi Perfil". Dejalo vacío si esta cancha no tiene luces / no cambia de precio.
+                            </p>
 
                             {errorModal && <p className="error-modal-cancha">{errorModal}</p>}
 
@@ -478,7 +555,7 @@ function MisCanchas() {
                 <div className="overlay-modal" onClick={() => setCanchaEliminando(null)}>
                     <div className="modal-cancha" onClick={(e) => e.stopPropagation()}>
                         <h3>Eliminar cancha</h3>
-                        <p>¿Seguro que querés eliminar <strong>{canchaEliminando.nombre}</strong>? Esta acción no se puede deshacer.</p>
+                        <p>¿Seguro que querés eliminar <strong>{canchaEliminando.nombre}</strong>? Dejará de poder reservarse, pero vas a poder reactivarla cuando quieras desde esta misma pantalla.</p>
 
                         {errorModal && <p className="error-modal-cancha">{errorModal}</p>}
 

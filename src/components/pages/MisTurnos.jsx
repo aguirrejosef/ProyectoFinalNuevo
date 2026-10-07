@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
+import Footer from '../Footer/Footer';
 import './MisTurnos.css';
 import { apiFetch } from '../../api';
  
@@ -9,6 +10,8 @@ const TABS = [
     { key: 'completado', label: 'Completadas' },
     { key: 'cancelado', label: 'Canceladas' }
 ];
+
+const LIMITE_POR_PAGINA = 8;
  
 const MENSAJES_VACIO = {
     reservado: {
@@ -48,46 +51,92 @@ function MisTurnos() {
     const [tabActiva, setTabActiva] = useState('reservado');
     const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
     const [cancelando, setCancelando] = useState(false);
- 
+    const [mostrandoConfirmacionCancelar, setMostrandoConfirmacionCancelar] = useState(false);
+    const [errorCancelar, setErrorCancelar] = useState('');
+
+    const [pagina, setPagina] = useState(1);
+    const [totalPaginas, setTotalPaginas] = useState(1);
+    const [total, setTotal] = useState(0);
+
+    const idUsuario = localStorage.getItem('id');
+
+    const cargarTurnos = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await apiFetch(
+                `/turnos?id_usuario=${idUsuario}&estado=${tabActiva}&pagina=${pagina}&limite=${LIMITE_POR_PAGINA}`
+            );
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setError(data.message || 'Error al cargar turnos');
+                return;
+            }
+
+            const data = await res.json();
+            setTurnos(Array.isArray(data.turnos) ? data.turnos : []);
+            setTotal(data.total || 0);
+            setTotalPaginas(data.totalPaginas || 1);
+
+        } catch (err) {
+            console.error('Error al cargar turnos:', err);
+            setError('Error al conectar con el servidor');
+        } finally {
+            setLoading(false);
+        }
+    }, [idUsuario, tabActiva, pagina]);
+
     useEffect(() => {
-        const idUsuario = localStorage.getItem('id');
         const rol = localStorage.getItem('rol');
- 
+
         if (!rol || !idUsuario) {
             navigate('/login');
             return;
         }
- 
-        const cargarTurnos = async () => {
+
+        cargarTurnos();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cargarTurnos]);
+
+    // Si quedó algún turno "pendiente_pago" (por ej. porque el cliente no
+    // volvió del checkout de Mercado Pago), reconsultamos el estado real del
+    // pago una sola vez al entrar. Esto es independiente de la pestaña/página
+    // que se esté mirando, porque "pendiente_pago" no tiene pestaña propia.
+    useEffect(() => {
+        if (!idUsuario) return;
+
+        const revisarPendientes = async () => {
             try {
-                const res = await apiFetch(
-                    `/turnos?id_usuario=${idUsuario}`
-                );
- 
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    setError(data.message || 'Error al cargar turnos');
-                    return;
-                }
- 
+                const res = await apiFetch(`/turnos?id_usuario=${idUsuario}&estado=pendiente_pago&limite=50`);
+                if (!res.ok) return;
                 const data = await res.json();
- 
-                const turnosOrdenados = [...data].sort(
-                    (a, b) => new Date(a.fecha) - new Date(b.fecha)
+                const pendientes = Array.isArray(data.turnos) ? data.turnos : [];
+
+                if (pendientes.length === 0) return;
+
+                const resultados = await Promise.all(
+                    pendientes.map((t) =>
+                        apiFetch(`/pagos/estado/${t.id_turno}`)
+                            .then((r) => r.json())
+                            .catch(() => null)
+                    )
                 );
- 
-                setTurnos(turnosOrdenados);
- 
+
+                const huboCambios = resultados.some(
+                    (r) => r && (r.estado === 'pagado' || r.estado === 'rechazado')
+                );
+
+                if (huboCambios) {
+                    cargarTurnos();
+                }
             } catch (err) {
-                console.error('Error al cargar turnos:', err);
-                setError('Error al conectar con el servidor');
-            } finally {
-                setLoading(false);
+                console.error('Error al revisar turnos pendientes de pago:', err);
             }
         };
- 
-        cargarTurnos();
-    }, [navigate]);
+
+        revisarPendientes();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [idUsuario]);
  
     const formatearFecha = (fecha) => {
         const f = new Date(fecha);
@@ -100,22 +149,27 @@ function MisTurnos() {
  
     const formatearHora = (hora) => hora ? hora.slice(0, 5) : '';
  
-    const turnosFiltrados = turnos.filter(
-        (t) => t.estado?.toLowerCase() === tabActiva
-    );
- 
     const handleCambiarTab = (tab) => {
         setTabActiva(tab);
         setTurnoSeleccionado(null);
+        setPagina(1);
+    };
+
+    const handleAbrirConfirmacionCancelar = () => {
+        setErrorCancelar('');
+        setMostrandoConfirmacionCancelar(true);
+    };
+
+    const handleCerrarConfirmacionCancelar = () => {
+        if (cancelando) return;
+        setMostrandoConfirmacionCancelar(false);
     };
 
     const handleCancelarTurno = async () => {
         if (!turnoSeleccionado) return;
 
-        const confirmar = window.confirm('¿Seguro que querés cancelar este turno?');
-        if (!confirmar) return;
-
         setCancelando(true);
+        setErrorCancelar('');
 
         try {
             const res = await apiFetch(`/turnos/${turnoSeleccionado.id_turno}/cancelar`, {
@@ -124,18 +178,17 @@ function MisTurnos() {
 
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                alert(data.message || 'No se pudo cancelar el turno');
+                setErrorCancelar(data.message || 'No se pudo cancelar el turno');
                 return;
             }
 
-            setTurnos((prev) => prev.map((t) =>
-                t.id_turno === turnoSeleccionado.id_turno ? { ...t, estado: 'cancelado' } : t
-            ));
             setTurnoSeleccionado(null);
+            setMostrandoConfirmacionCancelar(false);
+            cargarTurnos();
 
         } catch (err) {
             console.error('Error al cancelar turno:', err);
-            alert('Error al conectar con el servidor');
+            setErrorCancelar('Error al conectar con el servidor');
         } finally {
             setCancelando(false);
         }
@@ -172,17 +225,17 @@ function MisTurnos() {
                     {loading && <p className="mensaje-turnos">Cargando turnos...</p>}
                     {error && <p className="mensaje-turnos error-turnos">{error}</p>}
  
-                    {!loading && !error && turnosFiltrados.length === 0 && (
+                    {!loading && !error && turnos.length === 0 && (
                         <div className="vacio-turnos">
                             <IconoVacio />
                             <p className="vacio-titulo">{MENSAJES_VACIO[tabActiva].titulo}</p>
                             <p className="vacio-texto">{MENSAJES_VACIO[tabActiva].texto}</p>
                         </div>
                     )}
- 
-                    {!loading && !error && turnosFiltrados.length > 0 && (
+
+                    {!loading && !error && turnos.length > 0 && (
                         <div className="lista-turnos">
-                            {turnosFiltrados.map((turno) => (
+                            {turnos.map((turno) => (
                                 <div
                                     key={turno.id_turno}
                                     className={`tarjeta-turno ${turnoSeleccionado?.id_turno === turno.id_turno ? 'tarjeta-seleccionada' : ''}`}
@@ -196,11 +249,11 @@ function MisTurnos() {
                                             {turno.estado}
                                         </span>
                                     </div>
- 
+
                                     <div className="fila-turno-detalle">
                                         <span>🎾 {turno.cancha} — {turno.club}</span>
                                     </div>
- 
+
                                     <div className="fila-turno-detalle">
                                         <span>🕐 {formatearHora(turno.hora_inicio)} a {formatearHora(turno.hora_fin)}</span>
                                     </div>
@@ -208,7 +261,15 @@ function MisTurnos() {
                             ))}
                         </div>
                     )}
- 
+
+                    {!loading && !error && totalPaginas > 1 && (
+                        <div className="paginado-mis-turnos">
+                            <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>‹ Anterior</button>
+                            <span>Página {pagina} de {totalPaginas} ({total})</span>
+                            <button type="button" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>Siguiente ›</button>
+                        </div>
+                    )}
+
                 </div>
  
                 <div className="panel-detalle">
@@ -279,10 +340,9 @@ function MisTurnos() {
                                 <button
                                     type="button"
                                     className="btn-cancelar-turno-detalle"
-                                    onClick={handleCancelarTurno}
-                                    disabled={cancelando}
+                                    onClick={handleAbrirConfirmacionCancelar}
                                 >
-                                    {cancelando ? 'Cancelando...' : 'Cancelar turno'}
+                                    Cancelar turno
                                 </button>
                             )}
 
@@ -292,8 +352,30 @@ function MisTurnos() {
                 </div>
  
             </div>
+
+            {mostrandoConfirmacionCancelar && (
+                <div className="overlay-modal" onClick={handleCerrarConfirmacionCancelar}>
+                    <div className="modal-cancha" onClick={(e) => e.stopPropagation()}>
+                        <h3>Cancelar turno</h3>
+                        <p>¿Seguro que querés cancelar este turno? Esta acción no se puede deshacer.</p>
+
+                        {errorCancelar && <p className="error-modal-cancha">{errorCancelar}</p>}
+
+                        <div className="modal-cancha-botones">
+                            <button type="button" className="btn-modal-cancelar" onClick={handleCerrarConfirmacionCancelar} disabled={cancelando}>
+                                No, volver
+                            </button>
+                            <button type="button" className="btn-modal-eliminar" onClick={handleCancelarTurno} disabled={cancelando}>
+                                {cancelando ? 'Cancelando...' : 'Sí, cancelar turno'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <Footer />
         </>
     );
 }
- 
+
 export default MisTurnos;

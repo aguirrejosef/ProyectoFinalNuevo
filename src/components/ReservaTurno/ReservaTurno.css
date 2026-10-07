@@ -1,3 +1,14 @@
+.aviso-politica-sena {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    color: #8a6d00;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.4;
+    margin: 0 0 16px;
+}
+
 .tarjeta-reserva {
     background: white;
     border: 1px solid #e0e4ea;
@@ -76,7 +87,7 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    min-height: 56px;
+    min-height: 66px;
 }
 
 .duracion-principal {
@@ -87,6 +98,12 @@
     font-weight: 400;
     font-size: 0.75rem;
     opacity: 0.8;
+    white-space: nowrap;
+}
+
+.duracion-precio {
+    font-weight: 700;
+    font-size: 0.78rem;
     white-space: nowrap;
 }
 
@@ -160,7 +177,7 @@
 .revision-layout {
     width: 100%;
     box-sizing: border-box;
-    margin: 20px 0;
+    margin: 30px 0;
     padding: 0 90px;
 }
 
@@ -170,8 +187,78 @@
     }
 }
 
+/* Indicador de pasos (Club -> Día y turno -> Confirmar) */
+
+.revision-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 34px;
+}
+
+.revision-paso {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.revision-paso-circulo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: #e3f0fd;
+    color: #004AAD;
+}
+
+.revision-paso-hecho .revision-paso-circulo {
+    background: #004AAD;
+    color: white;
+}
+
+.revision-paso-actual .revision-paso-circulo {
+    background: #0d3b66;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(13, 59, 102, 0.18);
+}
+
+.revision-paso-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #667085;
+}
+
+.revision-paso-hecho .revision-paso-label,
+.revision-paso-actual .revision-paso-label {
+    color: #0d3b66;
+}
+
+.revision-paso-linea {
+    width: 60px;
+    height: 2px;
+    background: #d5dbe4;
+    margin-bottom: 20px;
+}
+
+.revision-paso-linea-hecha {
+    background: #004AAD;
+}
+
+@media (max-width: 500px) {
+    .revision-paso-linea {
+        width: 30px;
+    }
+}
+
 .revision-header {
-    margin-bottom: 24px;
+    text-align: center;
+    margin-bottom: 28px;
 }
 
 .revision-titulo {
@@ -193,135 +280,99 @@
     gap: 24px;
 }
 
-/* Card de resumen (club, fecha/turno/cancha, precios) */
+/* Ticket de la reserva (club, fecha/turno/cancha) */
 
-.revision-resumen-card {
+.revision-ticket {
     flex: 1;
     min-width: 300px;
-    max-width: 420px;
-    background: white;
-    border: 1px solid #e0e4ea;
-    border-radius: 16px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
-    padding: 22px;
+    max-width: 480px;
+    background: linear-gradient(135deg, #0d3b66 0%, #004AAD 100%);
+    color: white;
+    border-radius: 18px;
+    box-shadow: 0 10px 26px rgba(13, 59, 102, 0.25);
+    overflow: hidden;
 }
 
-.revision-resumen-etiqueta {
-    display: flex;
+.revision-ticket-header {
+    padding: 24px 26px 20px;
+}
+
+.revision-ticket-etiqueta {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    color: #1b7a3d;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding-bottom: 12px;
-    margin-bottom: 14px;
-    border-bottom: 1px solid #eef1f5;
+    letter-spacing: 0.04em;
+    color: #CBE825;
+    margin-bottom: 10px;
 }
 
-.revision-resumen-club {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 18px;
+.revision-ticket-header h3 {
+    margin: 0 0 6px;
+    font-size: 1.3rem;
 }
 
-.revision-resumen-club-foto {
-    width: 52px;
-    height: 52px;
-    border-radius: 12px;
-    object-fit: cover;
-    flex-shrink: 0;
-}
-
-.revision-resumen-club h3 {
-    margin: 0 0 4px;
-    color: #0d3b66;
-    font-size: 1.1rem;
-}
-
-.revision-resumen-club p {
+.revision-ticket-header p {
     margin: 0;
     font-size: 0.82rem;
-    color: #667085;
+    color: #cfe0f5;
 }
 
-.revision-resumen-detalle {
+.revision-ticket-recorte {
+    position: relative;
+    height: 0;
+    border-top: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+.revision-ticket-notch {
+    position: absolute;
+    top: -10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+}
+
+.revision-ticket-notch-izq {
+    left: -10px;
+}
+
+.revision-ticket-notch-der {
+    right: -10px;
+}
+
+.revision-ticket-datos {
+    display: flex;
+    padding: 22px 10px;
+}
+
+.revision-ticket-dato {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 16px 0;
-    border-top: 1px solid #eef1f5;
-    border-bottom: 1px solid #eef1f5;
-    margin-bottom: 16px;
-}
-
-.revision-resumen-fila {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-}
-
-.revision-resumen-fila-icono {
-    width: 30px;
-    height: 30px;
-    flex-shrink: 0;
-    border-radius: 8px;
-    background: #e3f0fd;
-    color: #004AAD;
-    display: flex;
     align-items: center;
-    justify-content: center;
+    text-align: center;
+    gap: 4px;
+    padding: 0 6px;
+}
+
+.revision-ticket-dato-icono {
     font-size: 0.85rem;
+    color: #CBE825;
+    margin-bottom: 2px;
 }
 
-.revision-resumen-fila-texto {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 0.9rem;
-    color: #333;
+.revision-ticket-dato-label {
+    font-size: 0.72rem;
+    color: #cfe0f5;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
-.revision-resumen-fila-label {
-    font-size: 0.78rem;
-    color: #667085;
-}
-
-.revision-resumen-precios {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.revision-resumen-precio-fila {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9rem;
-    color: #444;
-}
-
-.revision-resumen-precio-destacada {
-    padding-top: 10px;
-    border-top: 1px dashed #d5dbe4;
-    color: #0d3b66;
-}
-
-.revision-resumen-precio-destacada span {
-    font-weight: 700;
-}
-
-.revision-resumen-precio-destacada p {
-    margin: 2px 0 0;
-    font-size: 0.75rem;
-    font-weight: 400;
-    color: #667085;
-}
-
-.revision-resumen-precio-destacada strong {
-    font-size: 1.1rem;
+.revision-ticket-dato strong {
+    font-size: 0.85rem;
 }
 
 /* Columna derecha: titular + info de pago + acciones */
@@ -343,7 +394,7 @@
 }
 
 .revision-card-titulo {
-    margin: 0 0 16px;
+    margin: 0 0 4px;
     color: #0d3b66;
     font-size: 1.05rem;
 }
@@ -352,6 +403,11 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 14px;
+    margin-top: 14px;
+}
+
+.revision-campo-ancho {
+    grid-column: 1 / -1;
 }
 
 .revision-titular-grid label {
@@ -377,7 +433,7 @@
 }
 
 .revision-nota-voucher {
-    margin: 14px 0 0;
+    margin: 0;
     font-size: 0.78rem;
     color: #888;
 }
@@ -391,6 +447,7 @@
     border-radius: 10px;
     padding: 14px 16px;
     font-size: 0.85rem;
+    margin-bottom: 16px;
 }
 
 .revision-info-pago strong {
@@ -404,6 +461,40 @@
     color: #245a94;
 }
 
+.revision-pago-desglose {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.revision-pago-desglose > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 8px;
+    border-radius: 10px;
+    background: #f5f7fa;
+    text-align: center;
+}
+
+.revision-pago-desglose span {
+    font-size: 0.72rem;
+    color: #667085;
+}
+
+.revision-pago-desglose strong {
+    font-size: 0.95rem;
+    color: #0d3b66;
+}
+
+.revision-pago-desglose-destacado {
+    background: #e3f0fd !important;
+}
+
+.revision-pago-desglose-destacado strong {
+    color: #004AAD;
+}
+
 .revision-acciones {
     display: flex;
     justify-content: flex-end;
@@ -415,6 +506,12 @@
     padding: 14px 40px;
     border-radius: 30px;
     font-size: 1rem;
+}
+
+@media (max-width: 500px) {
+    .revision-pago-desglose {
+        grid-template-columns: 1fr;
+    }
 }
 
 .reserva-subtitulo {

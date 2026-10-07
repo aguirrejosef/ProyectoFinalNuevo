@@ -2,9 +2,14 @@ import React, { useEffect, useState } from 'react'
 import NavBar from '../NavBar/NavBar'
 import BtnFlotanteWp from '../Button/BtnFlotanteWp/BtnFlotanteWp'
 import Footer from '../Footer/Footer'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import './Planes.css'
 import { apiFetch } from '../../api'
+
+// Mercado Pago se abre en otra pestaña y el usuario puede tardar en pagar
+// ahí, así que esperamos varios minutos en vez de solo unos segundos.
+const INTENTOS_MAXIMOS_CAMBIO_PLAN = 120;
+const ESPERA_ENTRE_INTENTOS_CAMBIO_PLAN_MS = 5000;
 
 // NOTA: los beneficios de cada plan son PLACEHOLDER, ajustalos si hace falta.
 // Los precios deben coincidir con PRECIOS_PLANES en src/backend/db.js.
@@ -49,6 +54,7 @@ const PLANES = [
 
 function Planes() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const rol = localStorage.getItem('rol');
   const esClub = Number(rol) === 2;
@@ -58,6 +64,7 @@ function Planes() {
   const [cambiando, setCambiando] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [planAImprimir, setPlanAImprimir] = useState(null);
+  const [verificandoCambioPlan, setVerificandoCambioPlan] = useState(false);
 
   useEffect(() => {
     if (!planAImprimir) return;
@@ -92,6 +99,75 @@ function Planes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Consulta el estado real del cambio de plan hasta que se defina (aprobado
+  // o rechazado). La usamos apenas se abre Mercado Pago en la pestaña nueva,
+  // y también si el usuario vuelve a entrar con ?cambioPlan= en la URL.
+  const iniciarVerificacionCambioPlan = (idClub, limpiarUrl) => {
+    let cancelado = false;
+    setVerificandoCambioPlan(true);
+    setMensaje('Esperando el pago del nuevo plan...');
+
+    const consultar = async (intento) => {
+      try {
+        const res = await apiFetch(`/club/${idClub}/estado-cambio-plan`);
+        const data = await res.json();
+
+        if (cancelado) return;
+
+        if (data.estado === 'aprobado') {
+          setPlanActual(data.plan);
+          setMensaje(`Listo, ahora tenés el plan ${PLANES.find((p) => p.id === data.plan)?.nombre || data.plan}.`);
+          setVerificandoCambioPlan(false);
+          if (limpiarUrl) limpiarUrl();
+          return;
+        }
+
+        if (data.estado === 'rechazado') {
+          setMensaje('El pago del nuevo plan no se completó. Podés intentarlo de nuevo.');
+          setVerificandoCambioPlan(false);
+          if (limpiarUrl) limpiarUrl();
+          return;
+        }
+
+        if (data.estado === 'sin_cambio' || intento >= INTENTOS_MAXIMOS_CAMBIO_PLAN) {
+          setMensaje('Todavía estamos esperando la confirmación del pago. Volvé a esta página en unos minutos.');
+          setVerificandoCambioPlan(false);
+          if (limpiarUrl) limpiarUrl();
+          return;
+        }
+
+        setTimeout(() => consultar(intento + 1), ESPERA_ENTRE_INTENTOS_CAMBIO_PLAN_MS);
+
+      } catch (err) {
+        console.error('Error al consultar el cambio de plan:', err);
+        if (!cancelado) {
+          setMensaje('No pudimos confirmar el pago. Volvé a esta página en unos minutos.');
+          setVerificandoCambioPlan(false);
+        }
+      }
+    };
+
+    consultar(1);
+
+    return () => { cancelado = true; };
+  };
+
+  // Si el usuario vuelve a entrar con ?cambioPlan= en la URL (por ejemplo,
+  // porque Mercado Pago lo redirigió con el back_url), retomamos la consulta.
+  useEffect(() => {
+    const idClubEnUrl = searchParams.get('cambioPlan');
+    if (!idClubEnUrl || !clubId) return;
+
+    const limpiarUrl = () => {
+      const nuevosParams = new URLSearchParams(searchParams);
+      nuevosParams.delete('cambioPlan');
+      setSearchParams(nuevosParams, { replace: true });
+    };
+
+    return iniciarVerificacionCambioPlan(clubId, limpiarUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId]);
+
   const handleElegirPlan = (plan) => {
     // Se pasa el plan elegido al formulario de registro del club,
     // así en RegistroClub.jsx se puede leer con: useLocation().state?.planSeleccionado
@@ -105,26 +181,35 @@ function Planes() {
     setMensaje('');
 
     try {
-      const res = await apiFetch(`/club/${clubId}/plan`, {
-        method: 'PUT',
+      const res = await apiFetch(`/club/${clubId}/cambiar-plan`, {
+        method: 'POST',
         body: JSON.stringify({ plan: plan.id })
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setMensaje(data.message || 'No se pudo cambiar el plan');
+        setMensaje(data.message || 'No se pudo iniciar el cambio de plan');
         setCambiando(false);
         return;
       }
 
-      setPlanActual(plan.id);
-      setMensaje(`Listo, ahora tenés el plan ${plan.nombre}.`);
+      if (!data.init_point) {
+        setMensaje('Los pagos no están disponibles en este momento. Contactanos para cambiar el plan.');
+        setCambiando(false);
+        return;
+      }
+
+      // Abrimos Mercado Pago en una pestaña nueva y nos quedamos acá
+      // consultando el estado del cambio de plan, igual que al pagar
+      // la seña de una reserva.
+      window.open(data.init_point, '_blank');
+      setCambiando(false);
+      iniciarVerificacionCambioPlan(clubId);
 
     } catch (err) {
       console.error('Error al cambiar el plan:', err);
       setMensaje('Error al conectar con el servidor');
-    } finally {
       setCambiando(false);
     }
   };
@@ -174,9 +259,9 @@ function Planes() {
                     type="button"
                     className="plan-boton"
                     onClick={() => handleCambiarPlan(plan)}
-                    disabled={esElActual || cambiando}
+                    disabled={esElActual || cambiando || verificandoCambioPlan}
                   >
-                    {esElActual ? 'Plan actual' : (cambiando ? 'Cambiando...' : 'Cambiar plan')}
+                    {esElActual ? 'Plan actual' : (cambiando ? 'Generando el pago...' : 'Cambiar plan')}
                   </button>
                 ) : (
                   <button

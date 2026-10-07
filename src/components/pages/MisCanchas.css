@@ -76,6 +76,11 @@
   border-left-color: #b0b7c0;
 }
 
+.tarjeta-cancha-baja {
+  opacity: 0.65;
+  border-left-color: #9a9a9a;
+}
+
 /* ------------------ Imagen tipo "hero" con degradé y datos superpuestos ------------------ */
 
 .tarjeta-cancha-imagen {
@@ -153,6 +158,11 @@
 .estado-inactiva {
   background: #fdecea;
   color: #c62828;
+}
+
+.estado-baja {
+  background: #e0e0e0;
+  color: #4a4a4a;
 }
 
 .badge-precio-cancha {
@@ -242,6 +252,21 @@
   border-color: #c62828;
 }
 
+.tarjeta-cancha-acciones-iconos .btn-reactivar-cancha {
+  width: auto;
+  padding: 0 18px;
+  background: #1b7a3d;
+  border-color: #1b7a3d;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.tarjeta-cancha-acciones-iconos .btn-reactivar-cancha:hover {
+  background: #146530;
+  border-color: #146530;
+}
+
 /* Botón principal, protagonista de la tarjeta */
 
 .btn-ver-turnos-principal {
@@ -320,6 +345,13 @@
   color: #004AAD;
   font-size: 13px;
   margin: 6px 0 0 0;
+}
+
+.ayuda-precio-nocturno {
+  color: #777;
+  font-size: 12.5px;
+  margin: -8px 0 12px;
+  line-height: 1.4;
 }
 
 .preview-foto-cancha {
