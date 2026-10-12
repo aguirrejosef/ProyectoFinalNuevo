@@ -21,6 +21,8 @@ import ReservaConfirmacion from './components/pages/ReservaConfirmacion';
 import RegistroClubConfirmacion from './components/pages/RegistroClubConfirmacion';
 import AdminClubDetalle from './components/pages/AdminClubDetalle';
 import GuardiaSuscripcionClub from './components/GuardiaSuscripcionClub/GuardiaSuscripcionClub';
+import BalanceAdmin from './components/pages/BalanceAdmin';
+import BalanceClub from './components/pages/BalanceClub';
 
 // Bloquea el acceso a una ruta si no hay sesión, o si el rol no está permitido.
 function RutaPrivada({ rolesPermitidos, children }) {
@@ -49,6 +51,14 @@ function App() {
           <Route
             path="/admin/clubes/:id"
             element={<RutaPrivada rolesPermitidos={[1]}><AdminClubDetalle /></RutaPrivada>}
+          />
+          <Route
+            path="/admin/balance"
+            element={<RutaPrivada rolesPermitidos={[1]}><BalanceAdmin /></RutaPrivada>}
+          />
+          <Route
+            path="/mi-balance"
+            element={<RutaPrivada rolesPermitidos={[2]}><GuardiaSuscripcionClub><BalanceClub /></GuardiaSuscripcionClub></RutaPrivada>}
           />
           <Route path="/club" element={<Home />} />
           <Route path="/cliente" element={<Home />} />

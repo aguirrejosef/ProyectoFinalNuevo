@@ -1,3 +1,8 @@
+.pagina-club {
+    background: linear-gradient(180deg, #ffffff 0%, #eef5fc 55%, #e4f0fb 100%);
+    min-height: 100vh;
+}
+
 .mensaje-club {
     padding: 20px 90px;
     color: #444;
@@ -72,8 +77,14 @@
     background: #fff;
 }
 
-.encabezado-club {
-    padding: 20px 90px 0;
+.tarjeta-encabezado-club {
+    background: white;
+    border: 1px solid #e0e4ea;
+    border-top: 4px solid #004AAD;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    padding: 20px 28px;
+    margin: 20px 90px 0;
 }
 
 .nombre-club {
@@ -125,11 +136,21 @@
 }
 
 .seccion-canchas-club {
-    padding: 0 90px 20px;
+    padding: 28px 90px 20px;
 }
 
 .titulo-seccion-canchas {
     color: #0d3b66;
+    margin: 0 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e3f0fd;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.titulo-seccion-canchas svg {
+    color: #004AAD;
 }
 
 .grid-canchas-club {
@@ -155,11 +176,14 @@
     min-height: 110px;
     box-sizing: border-box;
     position: relative;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
 .tarjeta-cancha-club:hover {
     border-color: #004AAD;
+    box-shadow: 0 6px 16px rgba(0, 74, 173, 0.15);
+    transform: translateY(-3px);
 }
 
 .tarjeta-cancha-club-elegida {
@@ -215,10 +239,15 @@
 
 @media (max-width: 700px) {
     .mensaje-club,
-    .encabezado-club,
     .seccion-canchas-club {
         padding-left: 20px;
         padding-right: 20px;
+    }
+
+    .tarjeta-encabezado-club {
+        margin-left: 20px;
+        margin-right: 20px;
+        padding: 16px 20px;
     }
 
     .carrusel-club {

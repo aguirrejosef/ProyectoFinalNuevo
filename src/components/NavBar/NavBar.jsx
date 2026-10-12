@@ -58,6 +58,7 @@ function NavBar() {
         { label: 'Usuarios', path: '/usuario' },
         { label: 'Novedades', path: '/novedades' },
         { label: 'Planes', path: '/planes' },
+        { label: 'Balance', path: '/admin/balance' },
     ];
 
     const botonesClub = [
@@ -66,6 +67,7 @@ function NavBar() {
         { label: 'Usuarios', path: '/usuario' },
        /* { label: 'Novedades', path: '/novedades' },*/
         { label: 'Planes', path: '/planes' },
+        { label: 'Balance', path: '/mi-balance' },
     ];
 
     const botonesCliente = [

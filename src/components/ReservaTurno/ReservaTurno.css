@@ -12,6 +12,7 @@
 .tarjeta-reserva {
     background: white;
     border: 1px solid #e0e4ea;
+    border-top: 4px solid #004AAD;
     border-radius: 16px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
     padding: 24px;
@@ -46,6 +47,12 @@
 
 .label-fecha-reserva input:focus {
     border-color: #004AAD;
+}
+
+.label-fecha-reserva span svg,
+.label-paso-horario svg {
+    color: #004AAD;
+    margin-right: 4px;
 }
 
 .label-paso-horario {

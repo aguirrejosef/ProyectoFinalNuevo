@@ -4,18 +4,24 @@ import { apiFetch } from '../../api';
 
 const UMBRAL_CLIENTE_FRECUENTE = 5;
 const LIMITE_ADMIN = 12;
+const LIMITE_CLUB = 12;
 
 const Usuarios = () => {
   const rol = localStorage.getItem('rol');
   const miId = Number(localStorage.getItem('id'));
   const esClub = Number(rol) === 2;
 
-  // ------------------ Vista CLUB: listado completo, orden y búsqueda en el cliente ------------------
-  const [usuarios, setUsuarios] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busqueda, setBusqueda] = useState('');
-  const [campoOrden, setCampoOrden] = useState('total_turnos');
-  const [direccionOrden, setDireccionOrden] = useState('desc');
+  // ------------------ Vista CLUB: búsqueda, filtro, orden y paginado reales en el backend ------------------
+  const [clientesClub, setClientesClub] = useState([]);
+  const [cargandoClub, setCargandoClub] = useState(true);
+  const [totalClub, setTotalClub] = useState(0);
+  const [paginaClub, setPaginaClub] = useState(1);
+  const [totalPaginasClub, setTotalPaginasClub] = useState(1);
+  const [busquedaClubInput, setBusquedaClubInput] = useState('');
+  const [busquedaClub, setBusquedaClub] = useState('');
+  const [estadoFiltroClub, setEstadoFiltroClub] = useState('activo');
+  const [campoOrdenClub, setCampoOrdenClub] = useState('total_turnos');
+  const [direccionOrdenClub, setDireccionOrdenClub] = useState('desc');
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [turnosCliente, setTurnosCliente] = useState([]);
   const [cargandoTurnos, setCargandoTurnos] = useState(false);
@@ -28,28 +34,49 @@ const Usuarios = () => {
   const [totalPaginasAdmin, setTotalPaginasAdmin] = useState(1);
   const [busquedaAdminInput, setBusquedaAdminInput] = useState('');
   const [busquedaAdmin, setBusquedaAdmin] = useState('');
-  const [estadoFiltroAdmin, setEstadoFiltroAdmin] = useState('todos');
+  const [estadoFiltroAdmin, setEstadoFiltroAdmin] = useState('activo');
   const [procesandoId, setProcesandoId] = useState(null);
   const [campoOrdenAdmin, setCampoOrdenAdmin] = useState('fecha_registro');
   const [direccionOrdenAdmin, setDireccionOrdenAdmin] = useState('desc');
 
+  // Buscador del club con debounce
   useEffect(() => {
     if (!esClub) return;
+    const timer = setTimeout(() => {
+      setBusquedaClub(busquedaClubInput.trim());
+      setPaginaClub(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [busquedaClubInput, esClub]);
 
-    const fetchUsuarios = async () => {
-      try {
-        const response = await apiFetch('/usuarios');
-        const data = await response.json();
-        setUsuarios(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const cargarClientesClub = useCallback(async () => {
+    if (!esClub) return;
+    setCargandoClub(true);
+    try {
+      const params = new URLSearchParams({
+        pagina: String(paginaClub),
+        limite: String(LIMITE_CLUB),
+        estado: estadoFiltroClub,
+        campo: campoOrdenClub,
+        direccion: direccionOrdenClub
+      });
+      if (busquedaClub) params.set('busqueda', busquedaClub);
 
-    fetchUsuarios();
-  }, [esClub]);
+      const res = await apiFetch(`/club/clientes-buscar?${params.toString()}`);
+      const data = await res.json();
+      setClientesClub(Array.isArray(data.clientes) ? data.clientes : []);
+      setTotalClub(data.total || 0);
+      setTotalPaginasClub(data.totalPaginas || 1);
+    } catch (error) {
+      console.error('Error al cargar clientes del club:', error);
+    } finally {
+      setCargandoClub(false);
+    }
+  }, [esClub, paginaClub, busquedaClub, estadoFiltroClub, campoOrdenClub, direccionOrdenClub]);
+
+  useEffect(() => {
+    cargarClientesClub();
+  }, [cargarClientesClub]);
 
   // Buscador del admin con debounce
   useEffect(() => {
@@ -200,165 +227,163 @@ const Usuarios = () => {
     return <span className="th-arrow th-arrow-activa">{direccionOrdenAdmin === 'asc' ? '▴' : '▾'}</span>;
   };
 
-  // ------------------ Orden de columnas (vista club) ------------------
-  const handleOrdenar = (campo) => {
-    if (campoOrden === campo) {
-      setDireccionOrden(direccionOrden === 'asc' ? 'desc' : 'asc');
+  const handleFiltroEstadoClub = (valor) => {
+    setEstadoFiltroClub(valor);
+    setPaginaClub(1);
+  };
+
+  // El orden acá lo resuelve el backend (la tabla está paginada).
+  const handleOrdenarClub = (campo) => {
+    if (campoOrdenClub === campo) {
+      setDireccionOrdenClub(direccionOrdenClub === 'asc' ? 'desc' : 'asc');
     } else {
-      setCampoOrden(campo);
-      // texto arranca ascendente, numéricos/fechas arrancan descendente
-      setDireccionOrden(campo === 'nombre' ? 'asc' : 'desc');
+      setCampoOrdenClub(campo);
+      setDireccionOrdenClub(campo === 'nombre' ? 'asc' : 'desc');
     }
+    setPaginaClub(1);
   };
 
-  const flechaColumna = (campo) => {
-    if (campoOrden !== campo) return <span className="th-arrow th-arrow-inactiva">▾</span>;
-    return <span className="th-arrow th-arrow-activa">{direccionOrden === 'asc' ? '▴' : '▾'}</span>;
+  const flechaColumnaClub = (campo) => {
+    if (campoOrdenClub !== campo) return <span className="th-arrow th-arrow-inactiva">▾</span>;
+    return <span className="th-arrow th-arrow-activa">{direccionOrdenClub === 'asc' ? '▴' : '▾'}</span>;
   };
-
-  const valorOrdenable = (user, campo) => {
-    if (campo === 'nombre') {
-      return (user.nombre ? `${user.nombre} ${user.apellido || ''}` : user.usuario || '').toLowerCase();
-    }
-    if (campo === 'fecha_registro') {
-      return user.fecha_registro ? new Date(user.fecha_registro).getTime() : 0;
-    }
-    if (campo === 'total_turnos') {
-      return Number(user.total_turnos) || 0;
-    }
-    if (campo === 'ultima_reserva') {
-      return user.ultima_reserva ? new Date(user.ultima_reserva).getTime() : 0;
-    }
-    return 0;
-  };
-
-  const textoBusqueda = busqueda.trim().toLowerCase();
-  const usuariosFiltrados = usuarios.filter((u) => {
-    if (!textoBusqueda) return true;
-    const campos = [u.nombre, u.apellido, u.usuario, u.correo].filter(Boolean).join(' ').toLowerCase();
-    return campos.includes(textoBusqueda);
-  });
-
-  const usuariosOrdenados = [...usuariosFiltrados].sort((a, b) => {
-    const va = valorOrdenable(a, campoOrden);
-    const vb = valorOrdenable(b, campoOrden);
-    if (va < vb) return direccionOrden === 'asc' ? -1 : 1;
-    if (va > vb) return direccionOrden === 'asc' ? 1 : -1;
-    return 0;
-  });
 
   // ------------------ Vista CLUB: tabla de clientes con estadísticas ------------------
   if (esClub) {
-    if (loading) return <div className="usuarios-cargando">Cargando...</div>;
-
     return (
       <div className="usuarios-contenedor">
 
         <h1 className="usuarios-titulo">Listado de Usuarios</h1>
 
-        <div className="usuarios-buscador">
+        <div className="controles-lista-admin">
           <input
             type="text"
+            className="buscador-lista-admin"
             placeholder="Buscar cliente por nombre, usuario o correo..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            value={busquedaClubInput}
+            onChange={(e) => setBusquedaClubInput(e.target.value)}
           />
+          <select className="filtro-lista-admin" value={estadoFiltroClub} onChange={(e) => handleFiltroEstadoClub(e.target.value)}>
+            <option value="activo">Activos</option>
+            <option value="baja">Dados de baja</option>
+          </select>
         </div>
 
-        {usuariosOrdenados.length === 0 && (
+        {cargandoClub && <p className="usuarios-vacio">Cargando...</p>}
+
+        {!cargandoClub && clientesClub.length === 0 && (
           <p className="usuarios-vacio">
-            {usuarios.length === 0
-              ? 'Todavía no tenés clientes que hayan reservado en tu club.'
-              : 'No se encontró ningún cliente con esa búsqueda.'}
+            {busquedaClub || estadoFiltroClub !== 'activo'
+              ? 'No se encontró ningún cliente con esa búsqueda o filtro.'
+              : 'Todavía no tenés clientes que hayan reservado en tu club.'}
           </p>
         )}
 
-        {usuariosOrdenados.length > 0 && (
+        {!cargandoClub && clientesClub.length > 0 && (
           <div className="tabla-usuarios-wrap">
             <table className="tabla-usuarios">
               <thead>
                 <tr>
-                  <th onClick={() => handleOrdenar('nombre')}>
-                    Cliente {flechaColumna('nombre')}
+                  <th onClick={() => handleOrdenarClub('nombre')}>
+                    Cliente {flechaColumnaClub('nombre')}
                   </th>
                   <th className="col-oculto-movil">Contacto</th>
-                  <th className="col-oculto-movil" onClick={() => handleOrdenar('fecha_registro')}>
-                    Cliente desde {flechaColumna('fecha_registro')}
+                  <th className="col-oculto-movil" onClick={() => handleOrdenarClub('fecha_registro')}>
+                    Cliente desde {flechaColumnaClub('fecha_registro')}
                   </th>
-                  <th className="centrado" onClick={() => handleOrdenar('total_turnos')}>
-                    Turnos {flechaColumna('total_turnos')}
+                  <th className="centrado" onClick={() => handleOrdenarClub('total_turnos')}>
+                    Turnos {flechaColumnaClub('total_turnos')}
                   </th>
-                  <th className="centrado" onClick={() => handleOrdenar('ultima_reserva')}>
-                    Última reserva {flechaColumna('ultima_reserva')}
+                  <th className="centrado" onClick={() => handleOrdenarClub('ultima_reserva')}>
+                    Última reserva {flechaColumnaClub('ultima_reserva')}
                   </th>
+                  <th className="centrado">Último turno</th>
                   <th className="centrado">Estado</th>
                 </tr>
               </thead>
               <tbody>
-                {usuariosOrdenados.map((user) => (
-                  <tr
-                    key={user.id_usuario}
-                    onClick={() => handleAbrirDetalle(user)}
-                  >
-                    <td>
-                      <div className="col-cliente">
-                        <div className="avatar-tabla">
-                          {user.foto ? (
-                            <img src={user.foto} alt={user.nombre || user.usuario} />
-                          ) : (
-                            <span>{iniciales(user)}</span>
-                          )}
-                        </div>
-                        <div className="nombre-cliente">
-                          <strong>
-                            {user.nombre ? `${user.nombre} ${user.apellido || ''}` : user.usuario}
-                            {user.total_turnos >= UMBRAL_CLIENTE_FRECUENTE && (
-                              <span className="badge-frecuente">⭐ Frecuente</span>
+                {clientesClub.map((user) => {
+                  const clienteActivo = user.activo !== 0;
+                  return (
+                    <tr
+                      key={user.id_usuario}
+                      className={!clienteActivo ? 'fila-usuario-baja' : ''}
+                      onClick={() => handleAbrirDetalle(user)}
+                    >
+                      <td>
+                        <div className="col-cliente">
+                          <div className="avatar-tabla">
+                            {user.foto ? (
+                              <img src={user.foto} alt={user.nombre || user.usuario} />
+                            ) : (
+                              <span>{iniciales(user)}</span>
                             )}
-                          </strong>
-                          <span>@{user.usuario}</span>
+                          </div>
+                          <div className="nombre-cliente">
+                            <strong>
+                              {user.nombre ? `${user.nombre} ${user.apellido || ''}` : user.usuario}
+                              {user.total_turnos >= UMBRAL_CLIENTE_FRECUENTE && (
+                                <span className="badge-frecuente">⭐ Frecuente</span>
+                              )}
+                            </strong>
+                            <span>@{user.usuario}</span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="col-oculto-movil">
-                      {user.correo && (
-                        <a
-                          className="contacto-linea"
-                          href={`mailto:${user.correo}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          ✉️ {user.correo}
-                        </a>
-                      )}
-                      {user.telefono && (
-                        <a
-                          className="contacto-linea"
-                          href={`tel:${user.telefono}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          📞 {user.telefono}
-                        </a>
-                      )}
-                    </td>
+                      <td className="col-oculto-movil">
+                        {user.correo && (
+                          <a
+                            className="contacto-linea"
+                            href={`mailto:${user.correo}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            ✉️ {user.correo}
+                          </a>
+                        )}
+                        {user.telefono && (
+                          <a
+                            className="contacto-linea"
+                            href={`tel:${user.telefono}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            📞 {user.telefono}
+                          </a>
+                        )}
+                      </td>
 
-                    <td className="col-oculto-movil">{formatearMesAno(user.fecha_registro)}</td>
+                      <td className="col-oculto-movil">{formatearMesAno(user.fecha_registro)}</td>
 
-                    <td className="centrado">
-                      <span className="turnos-num">{user.total_turnos}</span>
-                    </td>
+                      <td className="centrado">
+                        <span className="turnos-num">{user.total_turnos}</span>
+                      </td>
 
-                    <td className="centrado">{formatearFecha(user.ultima_reserva) || '-'}</td>
+                      <td className="centrado">{formatearFecha(user.ultima_reserva) || '-'}</td>
 
-                    <td className="centrado">
-                      {user.ultimo_estado && (
-                        <span className={claseEstado(user.ultimo_estado)}>{user.ultimo_estado}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="centrado">
+                        {user.ultimo_estado && (
+                          <span className={claseEstado(user.ultimo_estado)}>{user.ultimo_estado}</span>
+                        )}
+                      </td>
+
+                      <td className="centrado">
+                        <span className={`badge-estado-usuario-tabla ${clienteActivo ? 'badge-estado-usuario-activo' : 'badge-estado-usuario-baja'}`}>
+                          {clienteActivo ? 'Activo' : 'Dado de baja'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!cargandoClub && totalPaginasClub > 1 && (
+          <div className="paginado-lista-admin">
+            <button type="button" disabled={paginaClub <= 1} onClick={() => setPaginaClub((p) => p - 1)}>‹ Anterior</button>
+            <span>Página {paginaClub} de {totalPaginasClub} ({totalClub} clientes)</span>
+            <button type="button" disabled={paginaClub >= totalPaginasClub} onClick={() => setPaginaClub((p) => p + 1)}>Siguiente ›</button>
           </div>
         )}
 
@@ -432,7 +457,6 @@ const Usuarios = () => {
           onChange={(e) => setBusquedaAdminInput(e.target.value)}
         />
         <select className="filtro-lista-admin" value={estadoFiltroAdmin} onChange={(e) => handleFiltroEstadoAdmin(e.target.value)}>
-          <option value="todos">Todos los estados</option>
           <option value="activo">Activos</option>
           <option value="baja">Dados de baja</option>
         </select>

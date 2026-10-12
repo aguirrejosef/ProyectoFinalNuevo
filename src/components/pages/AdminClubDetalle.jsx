@@ -71,9 +71,11 @@ function AdminClubDetalle() {
         );
     }
 
-    const estado = club.en_mora
-        ? { texto: 'Falta de pago', clase: 'badge-suscripcion-mora' }
-        : ETIQUETA_ESTADO[club.estado_suscripcion] || null;
+    const estado = club.activo === 0
+        ? null
+        : club.en_mora
+            ? { texto: 'Falta de pago', clase: 'badge-suscripcion-mora' }
+            : ETIQUETA_ESTADO[club.estado_suscripcion] || null;
     const precioPlan = club.plan && PRECIOS_PLANES[club.plan] ? PRECIOS_PLANES[club.plan] : null;
 
     return (

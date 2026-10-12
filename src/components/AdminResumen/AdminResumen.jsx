@@ -4,7 +4,7 @@ import './AdminResumen.css';
 
 const formatearMoneda = (monto) => `$${Math.round(monto).toLocaleString('es-AR')}`;
 
-function AdminResumen() {
+function AdminResumen({ mostrandoClubes = true }) {
     const [clubes, setClubes] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
     const [ingresoTotal, setIngresoTotal] = useState(0);
@@ -42,15 +42,21 @@ function AdminResumen() {
     // no el total histórico incluyendo las dadas de baja.
     const totalClientes = usuarios.filter((u) => u.id_rol === 3 && u.activo !== 0).length;
     const totalAdmins = usuarios.filter((u) => u.id_rol === 1 && u.activo !== 0).length;
+    const clientesDadosDeBaja = usuarios.filter((u) => u.id_rol === 3 && u.activo === 0).length;
 
     // "Activo" acá es la baja lógica del club (lo dio de baja el admin o no),
     // algo independiente de si la suscripción está al día/pausada/cancelada.
     const clubesNoDadosDeBaja = clubes.filter((c) => c.activo !== 0);
     const totalCanchasActivas = clubesNoDadosDeBaja.reduce((total, c) => total + (Number(c.cantidad_canchas) || 0), 0);
 
-    const clubesActivos = clubes.filter((c) => c.estado_suscripcion === 'activa').length;
-    const clubesPausados = clubes.filter((c) => c.estado_suscripcion === 'pausada').length;
-    const clubesCancelados = clubes.filter((c) => c.estado_suscripcion === 'cancelada').length;
+    // Estos tres son mutuamente excluyentes y cubren TODOS los clubes:
+    // primero se mira si el admin lo dio de baja (no importa el motivo),
+    // y recién si sigue activo se mira cómo anda su pago.
+    const clubesActivos = clubes.filter((c) => c.activo !== 0 && c.estado_suscripcion === 'activa' && !c.en_mora).length;
+    const clubesConProblemaDePago = clubes.filter((c) =>
+        c.activo !== 0 && (c.estado_suscripcion === 'pausada' || c.estado_suscripcion === 'cancelada' || c.en_mora)
+    ).length;
+    const clubesDadosDeBaja = clubes.filter((c) => c.activo === 0).length;
 
     return (
         <div className="resumen-admin">
@@ -77,11 +83,18 @@ function AdminResumen() {
                 </div>
             </div>
 
-            <div className="fila-suscripciones-resumen">
-                <div className="chip-suscripcion chip-suscripcion-activa">{clubesActivos} al día</div>
-                <div className="chip-suscripcion chip-suscripcion-pausada">{clubesPausados} pausados</div>
-                <div className="chip-suscripcion chip-suscripcion-cancelada">{clubesCancelados} cancelados</div>
-            </div>
+            {mostrandoClubes ? (
+                <div className="fila-suscripciones-resumen">
+                    <div className="chip-suscripcion chip-suscripcion-activa">{clubesActivos} Al día</div>
+                    <div className="chip-suscripcion chip-suscripcion-pausada">{clubesConProblemaDePago} Con problema de pago</div>
+                    <div className="chip-suscripcion chip-suscripcion-cancelada">{clubesDadosDeBaja} Dados de baja</div>
+                </div>
+            ) : (
+                <div className="fila-suscripciones-resumen">
+                    <div className="chip-suscripcion chip-suscripcion-activa">{totalClientes} Activos</div>
+                    <div className="chip-suscripcion chip-suscripcion-cancelada">{clientesDadosDeBaja} Dados de baja</div>
+                </div>
+            )}
 
         </div>
     );

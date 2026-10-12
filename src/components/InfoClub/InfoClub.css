@@ -1,10 +1,11 @@
 .tarjeta-donde-estamos-info {
     background: white;
     border: 1px solid #e0e4ea;
+    border-top: 4px solid #004AAD;
     border-radius: 16px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
     padding: 24px;
-    margin: 20px 80px 40px;
+    margin: 20px 90px 40px;
 }
 
 .titulo-donde-estamos-info {
@@ -42,7 +43,7 @@
 }
 
 .panel-info {
-    background: #f8fafc;
+    background: #e3f0fd;
     border-radius: 10px;
     overflow: hidden;
 }

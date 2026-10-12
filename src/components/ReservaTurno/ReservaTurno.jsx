@@ -495,7 +495,7 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
             <h3 className="titulo-reserva">Reservar en {cancha.nombre}</h3>
 
             <label className="label-fecha-reserva">
-                Fecha
+                <span><FontAwesomeIcon icon={faCalendarCheck} /> Fecha</span>
                 <input
                     type="date"
                     min={fechaLocalDeHoy()}
@@ -516,7 +516,7 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
 
             {!cargando && horasInicioDisponibles.length > 0 && (
                 <>
-                    <p className="label-paso-horario">Hora de inicio</p>
+                    <p className="label-paso-horario"><FontAwesomeIcon icon={faClock} /> Hora de inicio</p>
                     <div className="grid-horarios-reserva">
                         {horasInicioDisponibles.map((horaInicio) => (
                             <button

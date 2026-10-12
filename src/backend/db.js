@@ -1003,6 +1003,100 @@ app.get('/usuarios', verificarToken, requireRol(1, 2), async (req, res) => {
   }
 });
 
+// ------------------ Clientes del club, con búsqueda, filtro, orden y paginado real (solo club) ------------------
+// Igual que /usuarios para rol club, pero con LIMIT/OFFSET reales en vez de
+// traer todo y filtrar en el front, para que se comporte igual que el resto
+// de las listas paginadas (clubes, usuarios de admin).
+app.get('/club/clientes-buscar', verificarToken, requireRol(2), async (req, res) => {
+  const id_dueno = req.usuario.id;
+
+  try {
+    const pagina = Math.max(1, parseInt(req.query.pagina) || 1);
+    const limite = Math.min(100, Math.max(1, parseInt(req.query.limite) || 12));
+    const offset = (pagina - 1) * limite;
+    const busqueda = (req.query.busqueda || '').trim();
+    const estado = req.query.estado || 'todos'; // 'activo' | 'baja' | 'todos'
+
+    const condiciones = ['cl.id_dueno = ?'];
+    const params = [id_dueno];
+
+    if (estado === 'activo') {
+      condiciones.push('u.activo = 1');
+    } else if (estado === 'baja') {
+      condiciones.push('u.activo = 0');
+    }
+
+    if (busqueda) {
+      const like = `%${busqueda}%`;
+      condiciones.push('(u.nombre LIKE ? OR u.apellido LIKE ? OR u.usuario LIKE ? OR u.correo LIKE ?)');
+      params.push(like, like, like, like);
+    }
+
+    const whereSql = `WHERE ${condiciones.join(' AND ')}`;
+
+    const [totalRows] = await pool.query(
+      `SELECT COUNT(DISTINCT u.id_usuario) AS total
+       FROM usuarios u
+       INNER JOIN turnos t ON u.id_usuario = t.id_usuario
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN club cl ON c.id_club = cl.id_club
+       ${whereSql}`,
+      params
+    );
+    const total = totalRows[0].total;
+
+    // Whitelist de columnas ordenables, para no interpolar nada que venga
+    // directo del query string en el ORDER BY.
+    const COLUMNAS_ORDEN = {
+      nombre: 'nombre ${dir}, apellido ASC',
+      fecha_registro: 'fecha_registro ${dir}',
+      total_turnos: 'total_turnos ${dir}',
+      ultima_reserva: 'ultima_reserva ${dir}'
+    };
+    const campoOrden = COLUMNAS_ORDEN[req.query.campo] ? req.query.campo : 'total_turnos';
+    const dir = req.query.direccion === 'asc' ? 'ASC' : 'DESC';
+    const orderBySql = COLUMNAS_ORDEN[campoOrden].replace(/\$\{dir\}/g, dir);
+
+    const [rows] = await pool.query(
+      `SELECT
+          u.id_usuario, u.usuario, u.nombre, u.apellido, u.correo, u.telefono, u.foto,
+          u.id_rol, u.fecha_registro, u.activo,
+          COUNT(t.id_turno) AS total_turnos,
+          MAX(t.fecha) AS ultima_reserva,
+          (
+            SELECT et.nombre
+            FROM turnos t2
+            INNER JOIN canchas c2 ON t2.id_cancha = c2.id_cancha
+            INNER JOIN club cl2 ON c2.id_club = cl2.id_club
+            INNER JOIN estados_turno et ON t2.id_estado = et.id_estado
+            WHERE t2.id_usuario = u.id_usuario AND cl2.id_dueno = ?
+            ORDER BY t2.fecha DESC
+            LIMIT 1
+          ) AS ultimo_estado
+       FROM usuarios u
+       INNER JOIN turnos t ON u.id_usuario = t.id_usuario
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN club cl ON c.id_club = cl.id_club
+       ${whereSql}
+       GROUP BY u.id_usuario, u.usuario, u.nombre, u.apellido, u.correo, u.telefono, u.foto, u.id_rol, u.fecha_registro, u.activo
+       ORDER BY ${orderBySql}
+       LIMIT ${limite} OFFSET ${offset}`,
+      [id_dueno, ...params]
+    );
+
+    res.json({
+      clientes: rows,
+      total,
+      pagina,
+      limite,
+      totalPaginas: Math.max(1, Math.ceil(total / limite))
+    });
+  } catch (error) {
+    console.error('Error en /club/clientes-buscar:', error);
+    res.status(500).json({ message: 'Error al buscar los clientes' });
+  }
+});
+
 // ------------------ Listado de usuarios con búsqueda, filtro y paginado real (solo admin) ------------------
 app.get('/usuarios/buscar', verificarToken, requireRol(1), async (req, res) => {
   try {
@@ -1344,6 +1438,129 @@ app.get('/admin/ingresos-planes', verificarToken, requireRol(1), async (req, res
   } catch (error) {
     console.error('Error en /admin/ingresos-planes:', error);
     res.status(500).json({ message: 'Error al obtener los ingresos' });
+  }
+});
+
+// ------------------ Balance histórico de ingresos por planes, mes a mes (solo admin) ------------------
+const MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+function formatearPeriodoLargo(periodo) {
+  const [anio, mes] = periodo.split('-');
+  return `${MESES_ES[Number(mes) - 1]} ${anio}`;
+}
+
+async function obtenerBalanceMensualAdmin() {
+  const [filas] = await pool.execute(
+    `SELECT DATE_FORMAT(fecha, '%Y-%m') AS periodo,
+            SUM(monto) AS total,
+            COUNT(*) AS cantidad_pagos,
+            COUNT(DISTINCT id_club) AS cantidad_clubes
+     FROM pagos_planes
+     GROUP BY DATE_FORMAT(fecha, '%Y-%m')
+     ORDER BY periodo DESC`
+  );
+
+  const meses = filas.map((f) => ({
+    periodo: f.periodo,
+    total: Number(f.total),
+    cantidad_pagos: f.cantidad_pagos,
+    cantidad_clubes: f.cantidad_clubes
+  }));
+
+  const totalHistorico = meses.reduce((acc, m) => acc + m.total, 0);
+  const promedioMensual = meses.length > 0 ? totalHistorico / meses.length : 0;
+
+  return { meses, totalHistorico, promedioMensual };
+}
+
+app.get('/admin/balance-mensual', verificarToken, requireRol(1), async (req, res) => {
+  try {
+    const { meses, totalHistorico, promedioMensual } = await obtenerBalanceMensualAdmin();
+    res.json({ meses, total_historico: totalHistorico, promedio_mensual: promedioMensual });
+  } catch (error) {
+    console.error('Error en /admin/balance-mensual:', error);
+    res.status(500).json({ message: 'Error al obtener el balance' });
+  }
+});
+
+// ------------------ Balance histórico de ingresos por planes, en Excel real (con formato y data bars) ------------------
+app.get('/admin/balance-mensual/excel', verificarToken, requireRol(1), async (req, res) => {
+  try {
+    const { meses, totalHistorico, promedioMensual } = await obtenerBalanceMensualAdmin();
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'SUP - Sale un Padel';
+    workbook.created = new Date();
+
+    const hojaResumen = workbook.addWorksheet('Resumen');
+    hojaResumen.columns = [{ width: 30 }, { width: 22 }];
+    hojaResumen.mergeCells('A1:B1');
+    hojaResumen.getCell('A1').value = 'Balance de Suscripciones';
+    hojaResumen.getCell('A1').font = { bold: true, size: 16, color: { argb: COLOR_ENCABEZADO } };
+    hojaResumen.addRow([]);
+
+    const filaEncabezadoResumen = hojaResumen.addRow(['Indicador', 'Valor']);
+    estiloEncabezado(filaEncabezadoResumen);
+
+    const filaTotal = hojaResumen.addRow(['Ingreso histórico acumulado', totalHistorico]);
+    filaTotal.getCell(2).numFmt = '$#,##0';
+    const filaPromedio = hojaResumen.addRow(['Promedio mensual', promedioMensual]);
+    filaPromedio.getCell(2).numFmt = '$#,##0';
+    hojaResumen.addRow(['Meses con cobros registrados', meses.length]);
+
+    const hojaMeses = workbook.addWorksheet('Balance mensual');
+    hojaMeses.columns = [
+      { header: 'Mes', key: 'mes', width: 20 },
+      { header: 'Clubes que pagaron', key: 'clubes', width: 20 },
+      { header: 'Cantidad de cobros', key: 'cobros', width: 20 },
+      { header: 'Total ingresado', key: 'total', width: 20 }
+    ];
+    estiloEncabezado(hojaMeses.getRow(1));
+    hojaMeses.autoFilter = { from: 'A1', to: 'D1' };
+    hojaMeses.views = [{ state: 'frozen', ySplit: 1 }];
+
+    for (const m of meses) {
+      const fila = hojaMeses.addRow({
+        mes: formatearPeriodoLargo(m.periodo),
+        clubes: m.cantidad_clubes,
+        cobros: m.cantidad_pagos,
+        total: m.total
+      });
+      fila.getCell('total').numFmt = '$#,##0';
+    }
+
+    if (meses.length > 0) {
+      hojaMeses.addConditionalFormatting({
+        ref: `D2:D${meses.length + 1}`,
+        rules: [
+          {
+            type: 'dataBar',
+            minLength: 0,
+            maxLength: 100,
+            gradient: true,
+            border: true,
+            negativeBarColorSameAsPositive: false,
+            negativeBarBorderColorSameAsPositive: true,
+            axisPosition: 'automatic',
+            direction: 'leftToRight',
+            cfvo: [{ type: 'min' }, { type: 'max' }],
+            color: { argb: 'FF1B7A3D' }
+          }
+        ]
+      });
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="balance-suscripciones.xlsx"');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error en /admin/balance-mensual/excel:', error);
+    res.status(500).json({ message: 'Error al generar el Excel' });
   }
 });
 
@@ -2861,6 +3078,208 @@ app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
   } catch (error) {
     console.error('Error en /club/resumen:', error);
     res.status(500).json({ error: 'Error al obtener el resumen del club' });
+  }
+});
+
+// ------------------ Balance histórico del club, mes a mes: lo que ingresó por turnos vs. lo que pagó de plan ------------------
+async function obtenerBalanceMensualClub(idClub) {
+  const [pagosTurnos] = await pool.query(
+    `SELECT p.monto, p.resto_pagado_en, DATE_FORMAT(t.fecha, '%Y-%m') AS periodo
+     FROM pagos p
+     INNER JOIN turnos t ON p.id_turno = t.id_turno
+     INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+     WHERE c.id_club = ? AND p.estado = 'pagado'`,
+    [idClub]
+  );
+
+  const ingresosPorMes = {};
+  for (const pago of pagosTurnos) {
+    const periodo = pago.periodo;
+    const monto = Number(pago.monto);
+    let ingreso = monto;
+    if (pago.resto_pagado_en) {
+      const precioTotal = monto / PORCENTAJE_SENA;
+      ingreso += precioTotal - monto;
+    }
+    ingresosPorMes[periodo] = (ingresosPorMes[periodo] || 0) + ingreso;
+  }
+
+  const [pagosPlanes] = await pool.query(
+    `SELECT monto, DATE_FORMAT(fecha, '%Y-%m') AS periodo FROM pagos_planes WHERE id_club = ?`,
+    [idClub]
+  );
+
+  const gastosPorMes = {};
+  for (const pago of pagosPlanes) {
+    const periodo = pago.periodo;
+    gastosPorMes[periodo] = (gastosPorMes[periodo] || 0) + Number(pago.monto);
+  }
+
+  const periodos = new Set([...Object.keys(ingresosPorMes), ...Object.keys(gastosPorMes)]);
+  const meses = [...periodos].sort().reverse().map((periodo) => {
+    const ingreso_turnos = ingresosPorMes[periodo] || 0;
+    const gasto_plan = gastosPorMes[periodo] || 0;
+    return { periodo, ingreso_turnos, gasto_plan, balance: ingreso_turnos - gasto_plan };
+  });
+
+  const totales = meses.reduce(
+    (acc, m) => ({
+      ingreso_turnos: acc.ingreso_turnos + m.ingreso_turnos,
+      gasto_plan: acc.gasto_plan + m.gasto_plan
+    }),
+    { ingreso_turnos: 0, gasto_plan: 0 }
+  );
+
+  return {
+    meses,
+    totalIngresoTurnos: totales.ingreso_turnos,
+    totalGastoPlan: totales.gasto_plan,
+    balanceTotal: totales.ingreso_turnos - totales.gasto_plan
+  };
+}
+
+app.get('/club/balance-mensual', verificarToken, requireRol(1, 2), async (req, res) => {
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+
+  if (!id_dueno) {
+    return res.status(400).json({ error: 'Falta id_dueno' });
+  }
+
+  try {
+    const [clubRows] = await pool.query('SELECT id_club FROM club WHERE id_dueno = ?', [id_dueno]);
+    if (clubRows.length === 0) {
+      return res.status(404).json({ error: 'No se encontró un club para este usuario' });
+    }
+
+    const { meses, totalIngresoTurnos, totalGastoPlan, balanceTotal } = await obtenerBalanceMensualClub(clubRows[0].id_club);
+
+    res.json({
+      meses,
+      total_ingreso_turnos: totalIngresoTurnos,
+      total_gasto_plan: totalGastoPlan,
+      balance_total: balanceTotal
+    });
+  } catch (error) {
+    console.error('Error en /club/balance-mensual:', error);
+    res.status(500).json({ error: 'Error al obtener el balance del club' });
+  }
+});
+
+// ------------------ Balance mensual del club, en Excel real (con formato y data bars) ------------------
+app.get('/club/balance-mensual/excel', verificarToken, requireRol(1, 2), async (req, res) => {
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+
+  if (!id_dueno) {
+    return res.status(400).json({ error: 'Falta id_dueno' });
+  }
+
+  try {
+    const [clubRows] = await pool.query('SELECT id_club, nombre FROM club WHERE id_dueno = ?', [id_dueno]);
+    if (clubRows.length === 0) {
+      return res.status(404).json({ error: 'No se encontró un club para este usuario' });
+    }
+    const { id_club: idClub, nombre: nombreClub } = clubRows[0];
+
+    const { meses, totalIngresoTurnos, totalGastoPlan, balanceTotal } = await obtenerBalanceMensualClub(idClub);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'SUP - Sale un Padel';
+    workbook.created = new Date();
+
+    const hojaResumen = workbook.addWorksheet('Resumen');
+    hojaResumen.columns = [{ width: 30 }, { width: 22 }];
+    hojaResumen.mergeCells('A1:B1');
+    hojaResumen.getCell('A1').value = `Mi Balance - ${nombreClub}`;
+    hojaResumen.getCell('A1').font = { bold: true, size: 16, color: { argb: COLOR_ENCABEZADO } };
+    hojaResumen.addRow([]);
+
+    const filaEncabezadoResumen = hojaResumen.addRow(['Indicador', 'Valor']);
+    estiloEncabezado(filaEncabezadoResumen);
+
+    const filaIngreso = hojaResumen.addRow(['Ingreso total por turnos', totalIngresoTurnos]);
+    filaIngreso.getCell(2).numFmt = '$#,##0';
+    filaIngreso.getCell(2).font = { color: { argb: 'FF1B7A3D' }, bold: true };
+
+    const filaGasto = hojaResumen.addRow(['Gasto total en plan', totalGastoPlan]);
+    filaGasto.getCell(2).numFmt = '$#,##0';
+    filaGasto.getCell(2).font = { color: { argb: 'FFC62828' }, bold: true };
+
+    const filaBalance = hojaResumen.addRow(['Balance neto acumulado', balanceTotal]);
+    filaBalance.getCell(2).numFmt = '$#,##0';
+    filaBalance.getCell(2).font = { color: { argb: balanceTotal >= 0 ? 'FF1B7A3D' : 'FFC62828' }, bold: true };
+
+    const hojaMeses = workbook.addWorksheet('Balance mensual');
+    hojaMeses.columns = [
+      { header: 'Mes', key: 'mes', width: 20 },
+      { header: 'Ingreso por turnos', key: 'ingreso', width: 20 },
+      { header: 'Gasto por plan', key: 'gasto', width: 20 },
+      { header: 'Balance', key: 'balance', width: 20 }
+    ];
+    estiloEncabezado(hojaMeses.getRow(1));
+    hojaMeses.autoFilter = { from: 'A1', to: 'D1' };
+    hojaMeses.views = [{ state: 'frozen', ySplit: 1 }];
+
+    for (const m of meses) {
+      const fila = hojaMeses.addRow({
+        mes: formatearPeriodoLargo(m.periodo),
+        ingreso: m.ingreso_turnos,
+        gasto: m.gasto_plan,
+        balance: m.balance
+      });
+      fila.getCell('ingreso').numFmt = '$#,##0';
+      fila.getCell('gasto').numFmt = '$#,##0';
+      fila.getCell('balance').numFmt = '$#,##0';
+      fila.getCell('balance').font = { color: { argb: m.balance >= 0 ? 'FF1B7A3D' : 'FFC62828' }, bold: true };
+    }
+
+    if (meses.length > 0) {
+      const ultimaFila = meses.length + 1;
+      hojaMeses.addConditionalFormatting({
+        ref: `B2:B${ultimaFila}`,
+        rules: [
+          {
+            type: 'dataBar',
+            minLength: 0,
+            maxLength: 100,
+            gradient: true,
+            border: true,
+            negativeBarColorSameAsPositive: false,
+            negativeBarBorderColorSameAsPositive: true,
+            axisPosition: 'automatic',
+            direction: 'leftToRight',
+            cfvo: [{ type: 'min' }, { type: 'max' }],
+            color: { argb: 'FF1B7A3D' }
+          }
+        ]
+      });
+      hojaMeses.addConditionalFormatting({
+        ref: `C2:C${ultimaFila}`,
+        rules: [
+          {
+            type: 'dataBar',
+            minLength: 0,
+            maxLength: 100,
+            gradient: true,
+            border: true,
+            negativeBarColorSameAsPositive: false,
+            negativeBarBorderColorSameAsPositive: true,
+            axisPosition: 'automatic',
+            direction: 'leftToRight',
+            cfvo: [{ type: 'min' }, { type: 'max' }],
+            color: { argb: 'FFC62828' }
+          }
+        ]
+      });
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="mi-balance-${nombreClub.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error en /club/balance-mensual/excel:', error);
+    res.status(500).json({ error: 'Error al generar el Excel' });
   }
 });
 

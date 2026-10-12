@@ -8,7 +8,7 @@ import ReservaTurno from '../ReservaTurno/ReservaTurno'
 import { apiFetch } from '../../api'
 import { ordenarCanchasPorNombre } from '../../utils/ordenarNatural'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faLocationDot } from '@fortawesome/free-solid-svg-icons'
+import { faLocationDot, faTableTennisPaddleBall } from '@fortawesome/free-solid-svg-icons'
 import "./Club.css"
 
 function Club() {
@@ -105,7 +105,7 @@ function Club() {
   }
 
   return (
-    <div>
+    <div className="pagina-club">
       <NavBar />
 
       {fotos.length > 0 && (
@@ -134,7 +134,7 @@ function Club() {
         </div>
       )}
 
-      <div className="encabezado-club">
+      <div className="tarjeta-encabezado-club">
         <h1 className="nombre-club">{club.nombre}</h1>
         {club.cantidad_resenas > 0 && (
           <p className="resumen-resenas-club">
@@ -158,7 +158,9 @@ function Club() {
       <div className="seccion-canchas-club">
         {pasoReserva === 'eligiendo' && (
           <>
-            <h2 className="titulo-seccion-canchas">Elegí tu turno</h2>
+            <h2 className="titulo-seccion-canchas">
+              <FontAwesomeIcon icon={faTableTennisPaddleBall} /> Elegí tu turno
+            </h2>
 
             {canchas.length === 0 && (
               <p className="mensaje-club">Este club todavía no cargó canchas.</p>

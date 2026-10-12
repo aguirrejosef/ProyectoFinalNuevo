@@ -28,7 +28,7 @@ function ListaTablaAdmin() {
 
     const [busquedaInput, setBusquedaInput] = useState('');
     const [busqueda, setBusqueda] = useState('');
-    const [estadoFiltro, setEstadoFiltro] = useState('todos');
+    const [estadoFiltro, setEstadoFiltro] = useState('activo');
 
     const [procesandoId, setProcesandoId] = useState(null);
     const [clubEnConfirmacion, setClubEnConfirmacion] = useState(null);
@@ -144,7 +144,6 @@ function ListaTablaAdmin() {
                     value={estadoFiltro}
                     onChange={(e) => handleFiltroEstado(e.target.value)}
                 >
-                    <option value="todos">Todos los estados</option>
                     <option value="activo">Activos</option>
                     <option value="baja">Dados de baja</option>
                 </select>
@@ -172,9 +171,11 @@ function ListaTablaAdmin() {
                             {clubes.map((club) => {
                                 const clubActivo = club.activo !== 0;
                                 const enMora = !!club.en_mora;
-                                const estado = enMora
-                                    ? { texto: 'Falta de pago', clase: 'badge-suscripcion-mora' }
-                                    : ETIQUETA_ESTADO[club.estado_suscripcion] || null;
+                                const estado = !clubActivo
+                                    ? null
+                                    : enMora
+                                        ? { texto: 'Falta de pago', clase: 'badge-suscripcion-mora' }
+                                        : ETIQUETA_ESTADO[club.estado_suscripcion] || null;
 
                                 return (
                                     <tr
@@ -189,7 +190,7 @@ function ListaTablaAdmin() {
                                         </td>
                                         <td>{`${club.nombre_dueno || ''} ${club.apellido_dueno || ''}`.trim() || club.dueno || '-'}</td>
                                         <td>{club.plan || '-'}</td>
-                                        <td>{estado && <span className={`badge-suscripcion ${estado.clase}`}>{estado.texto}</span>}</td>
+                                        <td>{estado ? <span className={`badge-suscripcion ${estado.clase}`}>{estado.texto}</span> : <span className="dato-secundario">–</span>}</td>
                                         <td className="centrado">{club.cantidad_canchas ?? 0}</td>
                                         <td>{formatearFecha(club.proxima_fecha_pago)}</td>
                                         <td className="centrado">

@@ -12,10 +12,20 @@ function PanelAdmin() {
   return (
     <div>
         <NavBar/>
-        <AdminResumen />
+        <AdminResumen mostrandoClubes={mostrarTabla} />
       <div className="botones-alternancia">
-        <button onClick={() => setMostrarTabla(true)}>Mostrar Clubes</button>
-        <button onClick={() => setMostrarTabla(false)}>Mostrar Usuarios</button>
+        <button
+          className={`nav-btn ${mostrarTabla ? 'nav-btn-activo' : ''}`}
+          onClick={() => setMostrarTabla(true)}
+        >
+          Mostrar Clubes
+        </button>
+        <button
+          className={`nav-btn ${!mostrarTabla ? 'nav-btn-activo' : ''}`}
+          onClick={() => setMostrarTabla(false)}
+        >
+          Mostrar Usuarios
+        </button>
         </div>
         {mostrarTabla ? <ListaTablaAdmin /> : <CardsUsuarios />}
         <Footer />
