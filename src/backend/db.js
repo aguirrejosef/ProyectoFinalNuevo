@@ -3096,6 +3096,11 @@ app.post('/turnos', verificarToken, async (req, res) => {
           failure: `${process.env.FRONTEND_URL}/reserva-confirmacion?turno=${idTurno}`,
           pending: `${process.env.FRONTEND_URL}/reserva-confirmacion?turno=${idTurno}`
         },
+        // La pestaña de Mercado Pago vuelve sola a esta misma URL al aprobarse
+        // el pago. El frontend distingue esa pestaña (vía sessionStorage, ver
+        // ReservaConfirmacion.jsx) de la pestaña original que se quedó
+        // esperando, para no mandarla a una ruta protegida: solo intenta
+        // cerrarse sola.
         ...(FRONTEND_URL_ES_PUBLICA ? { auto_return: 'approved' } : {}),
         expires: true,
         expiration_date_to: expiraEn,

@@ -246,6 +246,13 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
         // para que la pantalla de confirmación pueda ofrecer un botón para
         // volver a abrirlo si el navegador bloqueó el popup o el usuario
         // cerró la pestaña sin pagar.
+        //
+        // sessionStorage es por pestaña (no se comparte ni heredándolo desde
+        // acá, porque la pestaña nueva abre mercadopago.com, no nuestro
+        // sitio). Así, si Mercado Pago después redirige esa otra pestaña de
+        // vuelta a esta misma URL, se nota que no es ESTA pestaña por no
+        // tener esta marca, y actúa distinto (ver ReservaConfirmacion.jsx).
+        sessionStorage.setItem(`pestana-original-turno-${reserva.id_turno}`, '1');
         window.open(reserva.init_point, '_blank');
         navigate(`/reserva-confirmacion?turno=${reserva.id_turno}&initPoint=${encodeURIComponent(reserva.init_point)}`);
     };

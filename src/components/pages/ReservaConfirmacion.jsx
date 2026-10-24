@@ -24,6 +24,21 @@ function ReservaConfirmacion() {
 
     const [estado, setEstado] = useState('cargando'); // cargando | pagado | rechazado | pendiente | error
 
+    // sessionStorage es por pestaña. La pestaña original (donde el cliente
+    // venía reservando) la marca ella misma antes de abrir Mercado Pago (ver
+    // ReservaTurno.jsx). Si Mercado Pago después vuelve solo a esta misma URL
+    // pero en la OTRA pestaña (la que abrió), esa no va a tener la marca —
+    // así la distinguimos sin depender de window.opener, que se puede perder
+    // al navegar a través del dominio de Mercado Pago.
+    const [esPestanaOriginal] = useState(() => {
+        if (!idTurno) return true;
+        try {
+            return sessionStorage.getItem(`pestana-original-turno-${idTurno}`) === '1';
+        } catch {
+            return true;
+        }
+    });
+
     useEffect(() => {
         if (!idTurno) {
             setEstado('error');
@@ -92,26 +107,40 @@ function ReservaConfirmacion() {
         // se enteraría del turno nuevo hasta la próxima navegación.
         window.dispatchEvent(new Event('turnos-actualizados'));
 
+        if (!esPestanaOriginal) {
+            // Esta es la pestaña que abrió Mercado Pago, no la original: no
+            // tiene por qué conservar una sesión confiable para ir a una ruta
+            // protegida, así que directamente se cierra sola.
+            window.close();
+            return;
+        }
+
         const timer = setTimeout(() => navigate('/mis-turnos'), ESPERA_REDIRECCION_MS);
         return () => clearTimeout(timer);
-    }, [estado, navigate]);
+    }, [estado, navigate, esPestanaOriginal]);
 
     const contenidoPorEstado = {
         cargando: {
             titulo: 'Esperando tu pago...',
-            texto: 'Completá el pago en la pestaña de Mercado Pago que se abrió. En cuanto lo confirmes, esta pantalla se va a actualizar sola.'
+            texto: esPestanaOriginal
+                ? 'Completá el pago en la pestaña de Mercado Pago que se abrió. En cuanto lo confirmes, esta pantalla se va a actualizar sola.'
+                : 'Completá el pago acá. Cuando termines, esta pestaña se cierra sola.'
         },
         pagado: {
             titulo: '¡Reserva confirmada! 🎉',
-            texto: 'Te llevamos a Mis Reservas en un momento...'
+            texto: esPestanaOriginal ? 'Te llevamos a Mis Reservas en un momento...' : 'Ya podés cerrar esta pestaña.'
         },
         rechazado: {
             titulo: 'El pago no se completó',
-            texto: 'El horario volvió a estar disponible. Podés intentar reservarlo de nuevo.'
+            texto: esPestanaOriginal
+                ? 'El horario volvió a estar disponible. Podés intentar reservarlo de nuevo.'
+                : 'Podés cerrar esta pestaña y volver a intentar desde la otra.'
         },
         pendiente: {
             titulo: 'Todavía estamos esperando la confirmación',
-            texto: 'Puede demorar unos minutos más. Revisá Mis Reservas más tarde.'
+            texto: esPestanaOriginal
+                ? 'Puede demorar unos minutos más. Revisá Mis Reservas más tarde.'
+                : 'Puede demorar unos minutos más. Podés cerrar esta pestaña y revisar Mis Reservas más tarde.'
         },
         error: {
             titulo: 'No pudimos verificar tu pago',
@@ -130,7 +159,7 @@ function ReservaConfirmacion() {
                     <h2>{titulo}</h2>
                     <p>{texto}</p>
 
-                    {estado === 'cargando' && initPoint && (
+                    {estado === 'cargando' && esPestanaOriginal && initPoint && (
                         <div className="botones-confirmacion-pago">
                             <button type="button" onClick={() => window.open(initPoint, '_blank')}>
                                 Abrir Mercado Pago
@@ -141,7 +170,7 @@ function ReservaConfirmacion() {
                         </div>
                     )}
 
-                    {estado !== 'cargando' && (
+                    {estado !== 'cargando' && esPestanaOriginal && (
                         <div className="botones-confirmacion-pago">
                             <button type="button" onClick={() => navigate('/mis-turnos')}>
                                 Ver mis reservas
@@ -151,6 +180,14 @@ function ReservaConfirmacion() {
                                     Buscar otro club
                                 </button>
                             )}
+                        </div>
+                    )}
+
+                    {estado !== 'cargando' && !esPestanaOriginal && (
+                        <div className="botones-confirmacion-pago">
+                            <button type="button" onClick={() => window.close()}>
+                                Cerrar pestaña
+                            </button>
                         </div>
                     )}
                 </div>
