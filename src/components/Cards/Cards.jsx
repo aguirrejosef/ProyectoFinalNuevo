@@ -6,15 +6,22 @@ import { apiFetch } from '../../api'
 function Cards() {
   const [clubes, setClubes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchClubesPopulares = async () => {
       try {
         const response = await apiFetch('/clubes/populares?limit=3');
         const data = await response.json();
+
+        if (!response.ok || !Array.isArray(data)) {
+          setError(true);
+          return;
+        }
         setClubes(data);
       } catch (error) {
         console.error('Error al obtener los clubes populares:', error);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -25,6 +32,10 @@ function Cards() {
 
   if (loading) {
     return <div className="cards-cargando">Cargando clubes...</div>;
+  }
+
+  if (error) {
+    return <p className="cards-vacio">No se pudieron cargar los clubes. Intentá de nuevo más tarde.</p>;
   }
 
   if (clubes.length === 0) {

@@ -1,0 +1,99 @@
+/* Estilos del modal genérico de confirmación (overlay + tarjeta), usado por
+   varias pantallas que no comparten ningún otro archivo CSS entre sí
+   (MisCanchas, MisTurnos, ReservaTurno). Vive acá, en un único lugar, para
+   que cada pantalla que lo use lo declare explícitamente en vez de depender
+   de que otra página cualquiera lo haya cargado antes en el bundle. */
+
+.overlay-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.modal-cancha {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 26px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.modal-cancha h3 {
+  color: #0d3b66;
+  margin-bottom: 16px;
+}
+
+.modal-cancha form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-cancha label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  margin-top: 10px;
+}
+
+.modal-cancha input {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.modal-cancha input[type="file"] {
+  padding: 8px;
+  background: #fafbfc;
+  cursor: pointer;
+}
+
+.error-modal-cancha {
+  color: #c62828;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.modal-cancha-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-modal-cancelar {
+  background: #f0f0f0;
+  color: #444;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-guardar {
+  background: #004AAD;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-eliminar {
+  background: #c62828;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}

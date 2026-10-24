@@ -5,9 +5,9 @@ import Modal from '../Modal/Modal';
 import { apiFetch } from '../../api';
  
 const PLANES = [
-  { id: 'basico', label: 'Básico', precio: 50000 },
-  { id: 'estandar', label: 'Estándar', precio: 80000 },
-  { id: 'premium', label: 'Premium', precio: 120000 }
+  { id: 'basico', label: 'Básico', precio: 5000 },
+  { id: 'estandar', label: 'Estándar', precio: 8000 },
+  { id: 'premium', label: 'Premium', precio: 12000 }
 ];
 
 const formatearPrecioPlan = (precio) => `$${precio.toLocaleString('es-AR')}/mes`;
@@ -111,7 +111,7 @@ function FormRegistro() {
  
   return (
     <div className="form-container">
-      <h1>Registro de Club</h1>
+      <h1 className="form-titulo">Registro de Club</h1>
  
       <form onSubmit={handleSubmit}>
  

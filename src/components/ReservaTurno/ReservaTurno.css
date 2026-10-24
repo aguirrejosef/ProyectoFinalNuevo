@@ -144,6 +144,11 @@
     font-weight: 600;
 }
 
+.reserva-mensaje-error {
+    color: #c62828;
+    font-weight: 600;
+}
+
 .btn-reservar {
     background-color: #004AAD;
     color: white;
@@ -417,7 +422,8 @@
     grid-column: 1 / -1;
 }
 
-.revision-titular-grid label {
+.revision-titular-grid label,
+.revision-titular-grid .revision-campo-solo-lectura {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -426,13 +432,16 @@
     color: #444;
 }
 
-.revision-titular-grid input {
-    border: 1px solid #ccc;
+.revision-titular-grid input,
+.revision-titular-grid .revision-campo-solo-lectura strong {
+    border: 1px solid #e0e0e0;
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 0.9rem;
     outline: none;
     font-weight: normal;
+    background: #f7f8fa;
+    color: #333;
 }
 
 .revision-titular-grid input:focus {
@@ -511,7 +520,7 @@
 
 .btn-continuar-revision {
     padding: 14px 40px;
-    border-radius: 30px;
+    border-radius: 8px;
     font-size: 1rem;
 }
 
@@ -606,7 +615,7 @@
     color: white;
     border: none;
     padding: 12px;
-    border-radius: 24px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
 }
@@ -621,7 +630,7 @@
     color: #c62828;
     border: 1px solid #f5c6cb;
     padding: 12px;
-    border-radius: 24px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
 }

@@ -1,7 +1,8 @@
 .titulo-canchas{
     text-align: start;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 50px;
+    font-size: 28px;
+    font-weight: 700;
     padding-left: 50px;
-    color:#004AAD;
+    margin: 30px 0 0;
+    color: #0d3b66;
 }

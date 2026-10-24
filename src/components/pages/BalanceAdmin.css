@@ -131,8 +131,8 @@
 }
 
 .th-arrow {
-    font-size: 12px;
-    margin-left: 4px;
+    font-size: 10px;
+    margin-left: 3px;
 }
 
 .th-arrow-activa {
@@ -209,6 +209,7 @@
 }
 
 .tabla-balance tbody td strong {
+    font-size: 20px;
     color: #0d3b66;
 }
 

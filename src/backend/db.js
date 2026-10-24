@@ -110,9 +110,9 @@ const mpClient = process.env.MP_ACCESS_TOKEN
 
 // ------------------ Suscripción de planes del club ------------------
 const PRECIOS_PLANES = {
-  basico: 50000,
-  estandar: 80000,
-  premium: 120000
+  basico: 5000,
+  estandar: 8000,
+  premium: 12000
 };
 
 // Da de alta de verdad al club (usuario dueño + club + canchas) una vez que
@@ -141,6 +141,48 @@ async function registrarClubDesdePendiente(pendiente, proximaFechaPago) {
   }
 
   return idClub;
+}
+
+// Busca en Mercado Pago los cobros reales de una suscripción (preapproval) y
+// guarda en pagos_planes los que todavía no tenía (el UNIQUE KEY sobre
+// mp_invoice_id evita duplicados si se llama más de una vez para el mismo
+// cobro). Se usa tanto acá, en el momento en que el club vuelve de pagar
+// (así el balance de admin se actualiza al instante, sin esperar al
+// chequeo diario), como en el chequeo diario de respaldo.
+async function registrarPagosPlanDesdeMP(idClub, preapprovalId) {
+  if (!mpClient || !preapprovalId) return false;
+
+  let huboPagoNuevo = false;
+  try {
+    const invoiceClient = new Invoice(mpClient);
+    const busqueda = await invoiceClient.search({ options: { preapproval_id: preapprovalId } });
+    const invoices = busqueda.results || [];
+
+    for (const invoice of invoices) {
+      if (invoice.payment?.status === 'approved' && invoice.transaction_amount) {
+        const [resultado] = await pool.execute(
+          `INSERT INTO pagos_planes (id_club, mp_invoice_id, monto, fecha)
+           VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE monto = monto`,
+          [
+            idClub,
+            String(invoice.id),
+            invoice.transaction_amount,
+            invoice.date_created ? new Date(invoice.date_created) : new Date()
+          ]
+        );
+        // affectedRows da 1 tanto en un INSERT nuevo como en un duplicado
+        // que no cambió nada (verificado con el driver que usamos), así que
+        // no sirve para distinguir. insertId sí: es el ID nuevo real en un
+        // INSERT, y 0 cuando cayó en la rama de ON DUPLICATE KEY.
+        if (resultado.insertId !== 0) huboPagoNuevo = true;
+      }
+    }
+  } catch (error) {
+    console.error(`Error al registrar pagos de plan del club ${idClub}:`, error);
+  }
+
+  return huboPagoNuevo;
 }
 
 // Consulta a Mercado Pago el estado real de la suscripción de un registro
@@ -176,7 +218,8 @@ async function sincronizarRegistroClubPendiente(idRegistro) {
     const proximaFechaPago = preapproval.next_payment_date
       ? preapproval.next_payment_date.slice(0, 10)
       : null;
-    await registrarClubDesdePendiente(pendiente, proximaFechaPago);
+    const idClubNuevo = await registrarClubDesdePendiente(pendiente, proximaFechaPago);
+    await registrarPagosPlanDesdeMP(idClubNuevo, pendiente.mp_preapproval_id);
     await pool.execute("UPDATE registros_club_pendientes SET estado = 'aprobado' WHERE id_registro = ?", [idRegistro]);
     return { estado: 'aprobado' };
   }
@@ -235,6 +278,8 @@ async function sincronizarCambioPlanClub(idClub) {
        WHERE id_club = ?`,
       [club.plan_pendiente, club.mp_preapproval_pendiente_id, proximaFechaPago, idClub]
     );
+
+    await registrarPagosPlanDesdeMP(idClub, club.mp_preapproval_pendiente_id);
 
     return { estado: 'aprobado', plan: club.plan_pendiente };
   }
@@ -424,6 +469,51 @@ async function revisarRecordatoriosTurnos() {
 const MS_ENTRE_REVISIONES_RECORDATORIO = 60 * 60 * 1000; // cada 1 hora
 setInterval(revisarRecordatoriosTurnos, MS_ENTRE_REVISIONES_RECORDATORIO);
 revisarRecordatoriosTurnos();
+
+// Le pregunta a Mercado Pago, club por club, si hubo cobros nuevos de la
+// suscripción del plan. Es el mismo chequeo que ya se hace al instante
+// cuando un club termina de pagar (ver registrarPagosPlanDesdeMP), pero acá
+// corre solo, una vez por día, para cubrir las RENOVACIONES mensuales: esas
+// pasan sin que nadie esté mirando la pantalla, así que no hay "vuelta del
+// checkout" que dispare el chequeo. También sirve de respaldo si el webhook
+// está configurado pero se pierde algún aviso.
+async function sincronizarPagosPlanesTodosLosClubes() {
+  if (!mpClient) return;
+
+  try {
+    const [clubes] = await pool.execute(
+      `SELECT id_club, mp_preapproval_id FROM club
+       WHERE mp_preapproval_id IS NOT NULL AND activo = 1 AND estado_suscripcion <> 'cancelada'`
+    );
+
+    const preapprovalClient = new PreApproval(mpClient);
+
+    for (const club of clubes) {
+      try {
+        const huboPagoNuevo = await registrarPagosPlanDesdeMP(club.id_club, club.mp_preapproval_id);
+
+        if (huboPagoNuevo) {
+          const preapproval = await preapprovalClient.get({ id: club.mp_preapproval_id });
+          const proximaFechaPago = preapproval.next_payment_date
+            ? preapproval.next_payment_date.slice(0, 10)
+            : null;
+          await pool.execute(
+            `UPDATE club SET estado_suscripcion = 'activa', proxima_fecha_pago = ? WHERE id_club = ?`,
+            [proximaFechaPago, club.id_club]
+          );
+        }
+      } catch (error) {
+        console.error(`Error al sincronizar pagos de plan del club ${club.id_club}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Error en sincronizarPagosPlanesTodosLosClubes:', error);
+  }
+}
+
+const MS_ENTRE_SINCRONIZACIONES_PAGOS_PLANES = 24 * 60 * 60 * 1000; // una vez por día
+setInterval(sincronizarPagosPlanesTodosLosClubes, MS_ENTRE_SINCRONIZACIONES_PAGOS_PLANES);
+sincronizarPagosPlanesTodosLosClubes();
 
 // ------------------ Crear Admin Automáticamente ------------------
 (async () => {
@@ -1486,31 +1576,183 @@ app.get('/admin/balance-mensual', verificarToken, requireRol(1), async (req, res
   }
 });
 
+const NOMBRES_PLAN = { basico: 'Básico', estandar: 'Estándar', premium: 'Premium' };
+
+// Estado actual de cada club (activo/con problema de pago/dado de baja) e
+// ingreso potencial del mes (lo que deberían aportar los clubes activos
+// según su plan actual, para comparar contra lo que entró de verdad).
+async function obtenerEstadoClubesYPotencial() {
+  const [clubes] = await pool.execute(`
+    SELECT c.activo, c.estado_suscripcion, c.plan,
+      (c.activo = 1 AND c.estado_suscripcion <> 'cancelada' AND c.proxima_fecha_pago IS NOT NULL AND c.proxima_fecha_pago < CURDATE()) AS en_mora
+    FROM club c
+  `);
+
+  let activos = 0;
+  let conProblemaDePago = 0;
+  let dadosDeBaja = 0;
+  let ingresoPotencial = 0;
+
+  for (const c of clubes) {
+    if (c.activo === 0) {
+      dadosDeBaja += 1;
+      continue;
+    }
+    ingresoPotencial += PRECIOS_PLANES[c.plan] || 0;
+    if (c.estado_suscripcion === 'activa' && !c.en_mora) {
+      activos += 1;
+    } else {
+      conProblemaDePago += 1;
+    }
+  }
+
+  return { activos, conProblemaDePago, dadosDeBaja, ingresoPotencial };
+}
+
+// Ingreso histórico acumulado agrupado por el plan ACTUAL de cada club (no
+// hay historial de cambios de plan guardado, así que un pago viejo de un
+// club que después cambió de plan queda contado en su plan de hoy).
+async function obtenerIngresoPorPlan() {
+  const [filas] = await pool.execute(`
+    SELECT c.plan, SUM(pp.monto) AS total, COUNT(*) AS cantidad_pagos, COUNT(DISTINCT pp.id_club) AS cantidad_clubes
+    FROM pagos_planes pp
+    INNER JOIN club c ON pp.id_club = c.id_club
+    GROUP BY c.plan
+    ORDER BY total DESC
+  `);
+  return filas.map((f) => ({
+    plan: NOMBRES_PLAN[f.plan] || f.plan,
+    total: Number(f.total),
+    cantidad_pagos: f.cantidad_pagos,
+    cantidad_clubes: f.cantidad_clubes
+  }));
+}
+
+// Cada cobro individual registrado, con el club y el plan — para el detalle
+// completo de pagos en el Excel (no solo el total agrupado por mes).
+async function obtenerDetallePagosPlanes() {
+  const [filas] = await pool.execute(`
+    SELECT pp.fecha, pp.monto, pp.mp_invoice_id, c.nombre AS club, c.plan
+    FROM pagos_planes pp
+    INNER JOIN club c ON pp.id_club = c.id_club
+    ORDER BY pp.fecha DESC
+  `);
+  return filas.map((f) => ({
+    fecha: f.fecha,
+    monto: Number(f.monto),
+    mp_invoice_id: f.mp_invoice_id,
+    club: f.club,
+    plan: NOMBRES_PLAN[f.plan] || f.plan
+  }));
+}
+
 // ------------------ Balance histórico de ingresos por planes, en Excel real (con formato y data bars) ------------------
 app.get('/admin/balance-mensual/excel', verificarToken, requireRol(1), async (req, res) => {
   try {
     const { meses, totalHistorico, promedioMensual } = await obtenerBalanceMensualAdmin();
 
     const workbook = new ExcelJS.Workbook();
+    const [estadoClubes, ingresoPorPlan, detallePagos] = await Promise.all([
+      obtenerEstadoClubesYPotencial(),
+      obtenerIngresoPorPlan(),
+      obtenerDetallePagosPlanes()
+    ]);
+
+    const periodoActual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const ingresoEsteMes = meses.find((m) => m.periodo === periodoActual)?.total || 0;
+
+    const mesesOrdenadosPorTotal = [...meses].sort((a, b) => b.total - a.total);
+    const mesConMayorIngreso = mesesOrdenadosPorTotal[0] || null;
+    const mesConMenorIngreso = mesesOrdenadosPorTotal[mesesOrdenadosPorTotal.length - 1] || null;
+
     workbook.creator = 'SUP - Sale un Padel';
     workbook.created = new Date();
 
+    // ------------------ Hoja 1: Resumen ------------------
     const hojaResumen = workbook.addWorksheet('Resumen');
-    hojaResumen.columns = [{ width: 30 }, { width: 22 }];
+    hojaResumen.columns = [{ width: 34 }, { width: 22 }];
     hojaResumen.mergeCells('A1:B1');
-    hojaResumen.getCell('A1').value = 'Balance de Suscripciones';
-    hojaResumen.getCell('A1').font = { bold: true, size: 16, color: { argb: COLOR_ENCABEZADO } };
+    hojaResumen.getCell('A1').value = 'SUP - Sale un Pádel';
+    hojaResumen.getCell('A1').font = { bold: true, size: 12, color: { argb: 'FF667085' } };
+    hojaResumen.mergeCells('A2:B2');
+    hojaResumen.getCell('A2').value = 'Balance de Suscripciones';
+    hojaResumen.getCell('A2').font = { bold: true, size: 16, color: { argb: COLOR_ENCABEZADO } };
+    hojaResumen.getCell('A3').value = `Generado el ${new Date().toLocaleString('es-AR')}`;
+    hojaResumen.getCell('A3').font = { italic: true, size: 10, color: { argb: 'FF999999' } };
     hojaResumen.addRow([]);
 
     const filaEncabezadoResumen = hojaResumen.addRow(['Indicador', 'Valor']);
     estiloEncabezado(filaEncabezadoResumen);
 
-    const filaTotal = hojaResumen.addRow(['Ingreso histórico acumulado', totalHistorico]);
-    filaTotal.getCell(2).numFmt = '$#,##0';
-    const filaPromedio = hojaResumen.addRow(['Promedio mensual', promedioMensual]);
-    filaPromedio.getCell(2).numFmt = '$#,##0';
-    hojaResumen.addRow(['Meses con cobros registrados', meses.length]);
+    const filasResumenAdmin = [
+      ['Ingreso histórico acumulado', totalHistorico, 'moneda-destacada'],
+      ['Ingreso de este mes', ingresoEsteMes, 'moneda'],
+      ['Ingreso potencial de este mes (si todos los clubes activos pagan su plan)', estadoClubes.ingresoPotencial, 'moneda'],
+      ['Promedio mensual histórico', promedioMensual, 'moneda'],
+      ['Meses con cobros registrados', meses.length, 'numero'],
+      [`Mes con mayor ingreso${mesConMayorIngreso ? ` (${formatearPeriodoLargo(mesConMayorIngreso.periodo)})` : ''}`, mesConMayorIngreso?.total || 0, 'moneda'],
+      [`Mes con menor ingreso${mesConMenorIngreso ? ` (${formatearPeriodoLargo(mesConMenorIngreso.periodo)})` : ''}`, mesConMenorIngreso?.total || 0, 'moneda'],
+      ['Clubes activos y al día', estadoClubes.activos, 'numero'],
+      ['Clubes con problema de pago', estadoClubes.conProblemaDePago, 'numero'],
+      ['Clubes dados de baja', estadoClubes.dadosDeBaja, 'numero']
+    ];
 
+    filasResumenAdmin.forEach(([indicador, valor, tipo], i) => {
+      const fila = hojaResumen.addRow([indicador, valor]);
+      fila.eachCell((celda) => bordeFino(celda));
+      if (tipo === 'moneda' || tipo === 'moneda-destacada') {
+        fila.getCell(2).numFmt = '$#,##0';
+      }
+      if (tipo === 'moneda-destacada') {
+        fila.eachCell((celda) => {
+          celda.font = { bold: true, color: { argb: 'FF1B7A3D' } };
+          celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F7E9' } };
+        });
+      } else if (i % 2 === 1) {
+        fila.eachCell((celda) => {
+          celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        });
+      }
+    });
+
+    // ------------------ Hoja 2: Ingreso por plan ------------------
+    const hojaPorPlan = workbook.addWorksheet('Ingreso por plan');
+    hojaPorPlan.columns = [
+      { header: 'Plan', key: 'plan', width: 18 },
+      { header: 'Clubes', key: 'clubes', width: 14 },
+      { header: 'Cantidad de cobros', key: 'cobros', width: 20 },
+      { header: 'Total histórico', key: 'total', width: 20 }
+    ];
+    estiloEncabezado(hojaPorPlan.getRow(1));
+    hojaPorPlan.autoFilter = { from: 'A1', to: 'D1' };
+
+    for (const p of ingresoPorPlan) {
+      const fila = hojaPorPlan.addRow({ plan: p.plan, clubes: p.cantidad_clubes, cobros: p.cantidad_pagos, total: p.total });
+      fila.getCell('total').numFmt = '$#,##0';
+    }
+
+    if (ingresoPorPlan.length > 0) {
+      hojaPorPlan.addConditionalFormatting({
+        ref: `D2:D${ingresoPorPlan.length + 1}`,
+        rules: [
+          {
+            type: 'dataBar',
+            minLength: 0,
+            maxLength: 100,
+            gradient: true,
+            border: true,
+            negativeBarColorSameAsPositive: false,
+            negativeBarBorderColorSameAsPositive: true,
+            axisPosition: 'automatic',
+            direction: 'leftToRight',
+            cfvo: [{ type: 'min' }, { type: 'max' }],
+            color: { argb: 'FF004AAD' }
+          }
+        ]
+      });
+    }
+
+    // ------------------ Hoja 3: Balance mensual ------------------
     const hojaMeses = workbook.addWorksheet('Balance mensual');
     hojaMeses.columns = [
       { header: 'Mes', key: 'mes', width: 20 },
@@ -1552,6 +1794,35 @@ app.get('/admin/balance-mensual/excel', verificarToken, requireRol(1), async (re
         ]
       });
     }
+
+    // ------------------ Hoja 4: Detalle de pagos (cada cobro individual) ------------------
+    const hojaDetalle = workbook.addWorksheet('Detalle de pagos');
+    hojaDetalle.columns = [
+      { header: 'Fecha', key: 'fecha', width: 16 },
+      { header: 'Club', key: 'club', width: 28 },
+      { header: 'Plan', key: 'plan', width: 16 },
+      { header: 'Monto', key: 'monto', width: 16 },
+      { header: 'ID de pago en Mercado Pago', key: 'invoice', width: 28 }
+    ];
+    estiloEncabezado(hojaDetalle.getRow(1));
+    hojaDetalle.autoFilter = { from: 'A1', to: 'E1' };
+    hojaDetalle.views = [{ state: 'frozen', ySplit: 1 }];
+
+    detallePagos.forEach((p, i) => {
+      const fila = hojaDetalle.addRow({
+        fecha: new Date(p.fecha).toLocaleDateString('es-AR'),
+        club: p.club,
+        plan: p.plan,
+        monto: p.monto,
+        invoice: p.mp_invoice_id
+      });
+      fila.getCell('monto').numFmt = '$#,##0';
+      if (i % 2 === 1) {
+        fila.eachCell((celda) => {
+          celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        });
+      }
+    });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="balance-suscripciones.xlsx"');
@@ -1984,13 +2255,26 @@ app.post('/club/:id/cambiar-plan', verificarToken, requireRol(2), async (req, re
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    const [clubRows] = await pool.execute('SELECT nombre, plan FROM club WHERE id_club = ?', [id]);
+    const [clubRows] = await pool.execute(
+      `SELECT nombre, plan, activo,
+        (activo = 1 AND estado_suscripcion <> 'cancelada' AND proxima_fecha_pago IS NOT NULL AND proxima_fecha_pago < CURDATE()) AS en_mora
+       FROM club WHERE id_club = ?`,
+      [id]
+    );
     if (clubRows.length === 0) {
       return res.status(404).json({ message: 'Club no encontrado' });
     }
     const club = clubRows[0];
 
-    if (club.plan === plan) {
+    if (!club.activo) {
+      return res.status(403).json({ message: 'Tu club está dado de baja. Contactá a soporte para reactivarlo antes de cambiar de plan.' });
+    }
+
+    // Si está en mora, dejamos "cambiar" al mismo plan: es la forma de
+    // generar una suscripción nueva y volver a estar al día, porque la
+    // vieja dejó de cobrar. Si no está en mora, no tiene sentido pagar de
+    // nuevo el mismo plan que ya está vigente.
+    if (club.plan === plan && !club.en_mora) {
       return res.status(400).json({ message: 'Ese ya es tu plan actual' });
     }
 
@@ -2254,6 +2538,11 @@ app.delete('/club/servicios/:id', verificarToken, requireRol(1, 2), async (req, 
   }
 });
 
+ // Cada plan tope hasta cuántas canchas ACTIVAS puede tener publicadas un
+ // club a la vez (Premium no tiene límite). Se valida tanto al agregar una
+ // cancha nueva como al reactivar una que estaba dada de baja.
+ const LIMITE_CANCHAS_POR_PLAN = { basico: 2, estandar: 6, premium: Infinity };
+
  // ------------------ Agregar una cancha nueva al club ------------------
 app.post('/club/canchas', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id_club, nombre, tipo, foto, precio, precio_nocturno } = req.body;
@@ -2267,20 +2556,37 @@ app.post('/club/canchas', verificarToken, requireRol(1, 2), async (req, res) => 
       return res.status(403).json({ message: 'No autorizado' });
     }
 
+    const [clubRows] = await pool.execute('SELECT plan FROM club WHERE id_club = ?', [id_club]);
+    if (clubRows.length === 0) {
+      return res.status(404).json({ message: 'Club no encontrado' });
+    }
+
+    const limite = LIMITE_CANCHAS_POR_PLAN[clubRows[0].plan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+    const [[{ cantidad }]] = await pool.execute(
+      'SELECT COUNT(*) AS cantidad FROM canchas WHERE id_club = ? AND activo = 1',
+      [id_club]
+    );
+
+    if (cantidad >= limite) {
+      return res.status(400).json({
+        message: `Tu plan actual permite hasta ${limite} cancha${limite === 1 ? '' : 's'} activa${limite === 1 ? '' : 's'}. Dá de baja otra cancha o cambiá de plan para agregar más.`
+      });
+    }
+
     const conn = await pool.getConnection();
 
     const [result] = await conn.execute(
       'INSERT INTO canchas (nombre, estado, id_club, tipo, foto, precio, precio_nocturno) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [nombre, 'disponible', id_club, tipo || null, foto || null, precio || null, precio_nocturno || null]
     );
- 
+
     conn.release();
- 
+
     res.status(201).json({
       message: 'Cancha agregada correctamente',
       id_cancha: result.insertId
     });
- 
+
   } catch (error) {
     console.error('Error al agregar cancha:', error);
     res.status(500).json({ message: 'Error en el servidor' });
@@ -2476,6 +2782,30 @@ app.put('/canchas/:id/reactivar', verificarToken, requireRol(1, 2), async (req, 
   try {
     if (!(await verificarDuenoDeCancha(req, id))) {
       return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    const [canchaRows] = await pool.execute(
+      `SELECT ca.id_club, cl.plan
+       FROM canchas ca
+       INNER JOIN club cl ON ca.id_club = cl.id_club
+       WHERE ca.id_cancha = ?`,
+      [id]
+    );
+    if (canchaRows.length === 0) {
+      return res.status(404).json({ message: 'Cancha no encontrada' });
+    }
+
+    const { id_club, plan } = canchaRows[0];
+    const limite = LIMITE_CANCHAS_POR_PLAN[plan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+    const [[{ cantidad }]] = await pool.execute(
+      'SELECT COUNT(*) AS cantidad FROM canchas WHERE id_club = ? AND activo = 1',
+      [id_club]
+    );
+
+    if (cantidad >= limite) {
+      return res.status(400).json({
+        message: `Tu plan actual permite hasta ${limite} cancha${limite === 1 ? '' : 's'} activa${limite === 1 ? '' : 's'}. Dá de baja otra cancha o cambiá de plan para reactivar esta.`
+      });
     }
 
     const [result] = await pool.execute('UPDATE canchas SET activo = 1 WHERE id_cancha = ?', [id]);
@@ -3027,24 +3357,26 @@ app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
       [idClub]
     );
  
-    // Turnos reservados para hoy
+    // Turnos de hoy (igual criterio que /club/mis-canchas y el calendario:
+    // cuenta todo lo que no esté cancelado, así los números no se contradicen
+    // entre pantallas).
     const [turnosHoyRows] = await pool.query(
       `SELECT COUNT(*) AS turnos_hoy
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
        INNER JOIN estados_turno et ON t.id_estado = et.id_estado
-       WHERE c.id_club = ? AND t.fecha = CURDATE() AND et.nombre = 'reservado'`,
+       WHERE c.id_club = ? AND t.fecha = CURDATE() AND et.nombre <> 'cancelado'`,
       [idClub]
     );
- 
-    // Turnos reservados en la semana actual (lunes a domingo)
+
+    // Turnos de la semana actual (lunes a domingo), mismo criterio.
     const [turnosSemanaRows] = await pool.query(
       `SELECT COUNT(*) AS turnos_semana
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
        INNER JOIN estados_turno et ON t.id_estado = et.id_estado
        WHERE c.id_club = ?
-         AND et.nombre = 'reservado'
+         AND et.nombre <> 'cancelado'
          AND YEARWEEK(t.fecha, 1) = YEARWEEK(CURDATE(), 1)`,
       [idClub]
     );
@@ -3406,11 +3738,14 @@ app.get('/club/turnos-calendario', verificarToken, requireRol(1, 2), async (req,
     }
     const idClub = clubRows[0].id_club;
 
+    // No contamos los cancelados: ese numerito es "cuántos turnos reales
+    // tenés ese día", y un turno cancelado ya no ocupa el horario.
     const [rows] = await pool.execute(
       `SELECT t.fecha, COUNT(*) AS cantidad
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
-       WHERE c.id_club = ? AND YEAR(t.fecha) = ? AND MONTH(t.fecha) = ?
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE c.id_club = ? AND YEAR(t.fecha) = ? AND MONTH(t.fecha) = ? AND et.nombre <> 'cancelado'
        GROUP BY t.fecha`,
       [idClub, anio, mes]
     );
@@ -3488,27 +3823,76 @@ async function calcularResumenClub(idClub, periodo) {
 
   let totalSenas = 0;
   let totalResto = 0;
+  let turnosConRestoPendiente = 0;
+  let montoRestoPendiente = 0;
   for (const pago of pagosRows) {
     const monto = Number(pago.monto);
     totalSenas += monto;
+    // La seña es un % fijo del precio total (PORCENTAJE_SENA); el resto
+    // es lo que falta para llegar a ese total.
+    const precioTotal = monto / PORCENTAJE_SENA;
     if (pago.resto_pagado_en) {
-      // La seña es un % fijo del precio total (PORCENTAJE_SENA); el resto
-      // es lo que falta para llegar a ese total.
-      const precioTotal = monto / PORCENTAJE_SENA;
       totalResto += precioTotal - monto;
+    } else {
+      // Ya pagó la seña pero todavía no se cobró el resto en el club: es
+      // plata que el club tiene pendiente de cobrar, dato útil que antes
+      // no se mostraba en ningún lado.
+      turnosConRestoPendiente += 1;
+      montoRestoPendiente += precioTotal - monto;
     }
   }
 
+  const porEstadoObj = porEstado.reduce((acc, r) => ({ ...acc, [r.estado]: r.cantidad }), {});
+  const turnosTotales = Object.values(porEstadoObj).reduce((acc, cantidad) => acc + cantidad, 0);
+  const turnosFacturables = (porEstadoObj.reservado || 0) + (porEstadoObj.completado || 0);
+  const ingresoTotal = totalSenas + totalResto;
+
   return {
-    turnos_por_estado: porEstado.reduce((acc, r) => ({ ...acc, [r.estado]: r.cantidad }), {}),
+    turnos_por_estado: porEstadoObj,
     total_clientes: total_clientes || 0,
     cancha_mas_reservada: canchaTop[0] || null,
     ingresos: {
       senas: totalSenas,
       resto_cobrado: totalResto,
-      total: totalSenas + totalResto
+      total: ingresoTotal
+    },
+    ticket_promedio: turnosFacturables > 0 ? ingresoTotal / turnosFacturables : 0,
+    porcentaje_cancelados: turnosTotales > 0 ? ((porEstadoObj.cancelado || 0) / turnosTotales) * 100 : 0,
+    resto_pendiente: {
+      cantidad: turnosConRestoPendiente,
+      monto: montoRestoPendiente
     }
   };
+}
+
+// Ingreso real (seña + resto cobrado) agrupado por cancha, para la tabla
+// "Ingresos por cancha" del Excel.
+async function obtenerIngresosPorCancha(idClub, periodo) {
+  const condicionPeriodo = condicionPeriodoResumen(periodo);
+
+  const [pagosPorCancha] = await pool.query(
+    `SELECT c.nombre AS cancha, p.monto, p.resto_pagado_en
+     FROM pagos p
+     INNER JOIN turnos t ON p.id_turno = t.id_turno
+     INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+     WHERE c.id_club = ? AND p.estado = 'pagado' ${condicionPeriodo}`,
+    [idClub]
+  );
+
+  const porCancha = {};
+  for (const pago of pagosPorCancha) {
+    const monto = Number(pago.monto);
+    let ingreso = monto;
+    if (pago.resto_pagado_en) {
+      const precioTotal = monto / PORCENTAJE_SENA;
+      ingreso += precioTotal - monto;
+    }
+    porCancha[pago.cancha] = (porCancha[pago.cancha] || 0) + ingreso;
+  }
+
+  return Object.entries(porCancha)
+    .map(([cancha, ingreso]) => ({ cancha, ingreso }))
+    .sort((a, b) => b.ingreso - a.ingreso);
 }
 
 const NOMBRES_PERIODO_EXCEL = { mes: 'Este mes', anio: 'Este año', todo: 'Todo' };
@@ -3520,6 +3904,24 @@ function estiloEncabezado(fila) {
     celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ENCABEZADO } };
     celda.alignment = { vertical: 'middle', horizontal: 'left' };
   });
+}
+
+// Mismos colores que usan los badges de estado en la web, para que el
+// Excel se vea como una extensión del panel, no como una planilla aparte.
+const ESTILOS_ESTADO_TURNO = {
+  reservado: { fill: 'FFE3F0FD', font: 'FF004AAD' },
+  completado: { fill: 'FFE3F7E9', font: 'FF1B7A3D' },
+  cancelado: { fill: 'FFFDECEA', font: 'FFC62828' },
+  pendiente_pago: { fill: 'FFFFF4E0', font: 'FFB06A00' }
+};
+
+function bordeFino(celda) {
+  celda.border = {
+    top: { style: 'thin', color: { argb: 'FFE0E4EA' } },
+    left: { style: 'thin', color: { argb: 'FFE0E4EA' } },
+    bottom: { style: 'thin', color: { argb: 'FFE0E4EA' } },
+    right: { style: 'thin', color: { argb: 'FFE0E4EA' } }
+  };
 }
 
 // ------------------ Resumen del club, en Excel real (con formato) ------------------
@@ -3535,6 +3937,7 @@ app.get('/club/resumen-descargable/excel', verificarToken, requireRol(2), async 
     const nombreClub = clubRows[0].nombre;
 
     const resumen = await calcularResumenClub(idClub, periodo);
+    const ingresosPorCancha = await obtenerIngresosPorCancha(idClub, periodo);
     const condicionPeriodo = condicionPeriodoResumen(periodo);
 
     const [turnosRows] = await pool.query(
@@ -3559,14 +3962,21 @@ app.get('/club/resumen-descargable/excel', verificarToken, requireRol(2), async 
 
     // ------------------ Hoja 1: Resumen ------------------
     const hojaResumen = workbook.addWorksheet('Resumen');
-    hojaResumen.columns = [{ width: 28 }, { width: 22 }];
+    hojaResumen.columns = [{ width: 32 }, { width: 22 }];
 
     hojaResumen.mergeCells('A1:B1');
-    hojaResumen.getCell('A1').value = `Resumen de ${nombreClub}`;
-    hojaResumen.getCell('A1').font = { bold: true, size: 16, color: { argb: COLOR_ENCABEZADO } };
+    hojaResumen.getCell('A1').value = 'SUP - Sale un Pádel';
+    hojaResumen.getCell('A1').font = { bold: true, size: 12, color: { argb: 'FF667085' } };
 
-    hojaResumen.getCell('A2').value = `Período: ${NOMBRES_PERIODO_EXCEL[periodo] || NOMBRES_PERIODO_EXCEL.mes}`;
-    hojaResumen.getCell('A2').font = { italic: true, color: { argb: 'FF667085' } };
+    hojaResumen.mergeCells('A2:B2');
+    hojaResumen.getCell('A2').value = `Resumen de ${nombreClub}`;
+    hojaResumen.getCell('A2').font = { bold: true, size: 16, color: { argb: COLOR_ENCABEZADO } };
+
+    hojaResumen.getCell('A3').value = `Período: ${NOMBRES_PERIODO_EXCEL[periodo] || NOMBRES_PERIODO_EXCEL.mes}`;
+    hojaResumen.getCell('A3').font = { italic: true, color: { argb: 'FF667085' } };
+
+    hojaResumen.getCell('A4').value = `Generado el ${new Date().toLocaleString('es-AR')}`;
+    hojaResumen.getCell('A4').font = { italic: true, size: 10, color: { argb: 'FF999999' } };
 
     hojaResumen.addRow([]); // fila en blanco, separa el título del detalle
     const filaEncabezadoResumen = hojaResumen.addRow(['Indicador', 'Valor']);
@@ -3574,22 +3984,88 @@ app.get('/club/resumen-descargable/excel', verificarToken, requireRol(2), async 
 
     const porEstado = resumen.turnos_por_estado;
     const filasResumen = [
-      ['Turnos reservados', porEstado.reservado || 0],
-      ['Turnos completados', porEstado.completado || 0],
-      ['Turnos cancelados', porEstado.cancelado || 0],
-      ['Turnos pendientes de pago', porEstado.pendiente_pago || 0],
-      ['Clientes distintos', resumen.total_clientes],
-      ['Cancha más reservada', resumen.cancha_mas_reservada ? `${resumen.cancha_mas_reservada.nombre} (${resumen.cancha_mas_reservada.cantidad} turnos)` : '-'],
-      ['Ingreso por señas', resumen.ingresos.senas],
-      ['Ingreso por resto cobrado', resumen.ingresos.resto_cobrado],
-      ['Ingreso total', resumen.ingresos.total]
+      ['Turnos reservados', porEstado.reservado || 0, 'numero'],
+      ['Turnos completados', porEstado.completado || 0, 'numero'],
+      ['Turnos cancelados', porEstado.cancelado || 0, 'numero'],
+      ['% de turnos cancelados', resumen.porcentaje_cancelados, 'porcentaje'],
+      ['Turnos pendientes de pago', porEstado.pendiente_pago || 0, 'numero'],
+      ['Clientes distintos', resumen.total_clientes, 'numero'],
+      ['Cancha más reservada', resumen.cancha_mas_reservada ? `${resumen.cancha_mas_reservada.nombre} (${resumen.cancha_mas_reservada.cantidad} turnos)` : '-', 'texto'],
+      ['Ingreso por señas', resumen.ingresos.senas, 'moneda'],
+      ['Ingreso por resto cobrado', resumen.ingresos.resto_cobrado, 'moneda'],
+      ['Ticket promedio por turno', resumen.ticket_promedio, 'moneda'],
+      ['Turnos con resto pendiente de cobrar', resumen.resto_pendiente.cantidad, 'numero'],
+      ['Monto pendiente de cobrar en el club', resumen.resto_pendiente.monto, 'moneda'],
+      ['Ingreso total', resumen.ingresos.total, 'moneda-destacada']
     ];
 
-    for (const [indicador, valor] of filasResumen) {
+    filasResumen.forEach(([indicador, valor, tipo], i) => {
       const fila = hojaResumen.addRow([indicador, valor]);
-      if (typeof valor === 'number') {
+      fila.eachCell((celda) => bordeFino(celda));
+
+      if (tipo === 'moneda' || tipo === 'moneda-destacada') {
         fila.getCell(2).numFmt = '$#,##0';
+      } else if (tipo === 'porcentaje') {
+        fila.getCell(2).value = valor / 100;
+        fila.getCell(2).numFmt = '0.0%';
       }
+
+      if (tipo === 'moneda-destacada') {
+        fila.eachCell((celda) => {
+          celda.font = { bold: true, color: { argb: 'FF1B7A3D' } };
+          celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F7E9' } };
+        });
+      } else if (i % 2 === 1) {
+        fila.eachCell((celda) => {
+          celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        });
+      }
+    });
+
+    // ------------------ Ingresos por cancha (con data bars) ------------------
+    hojaResumen.addRow([]);
+    const filaTituloCanchas = hojaResumen.addRow(['Ingresos por cancha']);
+    filaTituloCanchas.getCell(1).font = { bold: true, size: 13, color: { argb: COLOR_ENCABEZADO } };
+
+    const filaEncabezadoCanchas = hojaResumen.addRow(['Cancha', 'Ingreso']);
+    estiloEncabezado(filaEncabezadoCanchas);
+
+    if (ingresosPorCancha.length === 0) {
+      const filaVacia = hojaResumen.addRow(['Todavía no hay ingresos registrados para este período.']);
+      filaVacia.getCell(1).font = { italic: true, color: { argb: 'FF999999' } };
+    } else {
+      const primeraFilaCanchas = filaEncabezadoCanchas.number + 1;
+
+      ingresosPorCancha.forEach((item, i) => {
+        const fila = hojaResumen.addRow([item.cancha, item.ingreso]);
+        fila.getCell(2).numFmt = '$#,##0';
+        fila.eachCell((celda) => bordeFino(celda));
+        if (i % 2 === 1) {
+          fila.eachCell((celda) => {
+            celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+          });
+        }
+      });
+
+      const ultimaFilaCanchas = primeraFilaCanchas + ingresosPorCancha.length - 1;
+      hojaResumen.addConditionalFormatting({
+        ref: `B${primeraFilaCanchas}:B${ultimaFilaCanchas}`,
+        rules: [
+          {
+            type: 'dataBar',
+            minLength: 0,
+            maxLength: 100,
+            gradient: true,
+            border: true,
+            negativeBarColorSameAsPositive: false,
+            negativeBarBorderColorSameAsPositive: true,
+            axisPosition: 'automatic',
+            direction: 'leftToRight',
+            cfvo: [{ type: 'min' }, { type: 'max' }],
+            color: { argb: 'FF004AAD' }
+          }
+        ]
+      });
     }
 
     // ------------------ Hoja 2: Turnos ------------------
@@ -3602,13 +4078,15 @@ app.get('/club/resumen-descargable/excel', verificarToken, requireRol(2), async 
       { header: 'Teléfono', key: 'telefono', width: 16 },
       { header: 'Estado', key: 'estado', width: 16 },
       { header: 'Seña', key: 'sena', width: 14 },
+      { header: 'Precio total', key: 'precio_total', width: 14 },
       { header: 'Resto cobrado', key: 'resto', width: 16 }
     ];
     estiloEncabezado(hojaTurnos.getRow(1));
-    hojaTurnos.autoFilter = { from: 'A1', to: 'H1' };
+    hojaTurnos.autoFilter = { from: 'A1', to: 'I1' };
     hojaTurnos.views = [{ state: 'frozen', ySplit: 1 }];
 
-    for (const t of turnosRows) {
+    turnosRows.forEach((t, i) => {
+      const montoSena = t.monto_sena ? Number(t.monto_sena) : null;
       const fila = hojaTurnos.addRow({
         fecha: new Date(t.fecha).toLocaleDateString('es-AR'),
         horario: `${t.hora_inicio?.slice(0, 5)} a ${t.hora_fin?.slice(0, 5)}`,
@@ -3616,11 +4094,34 @@ app.get('/club/resumen-descargable/excel', verificarToken, requireRol(2), async 
         cliente: `${t.cliente_nombre || ''} ${t.cliente_apellido || ''}`.trim(),
         telefono: t.cliente_telefono || '-',
         estado: t.estado,
-        sena: t.monto_sena ? Number(t.monto_sena) : null,
-        resto: t.monto_sena ? (t.resto_pagado_en ? 'Sí' : 'No') : '-'
+        sena: montoSena,
+        precio_total: montoSena ? montoSena / PORCENTAJE_SENA : null,
+        resto: montoSena ? (t.resto_pagado_en ? 'Sí' : 'No') : '-'
       });
       fila.getCell('sena').numFmt = '$#,##0';
-    }
+      fila.getCell('precio_total').numFmt = '$#,##0';
+
+      if (i % 2 === 1) {
+        fila.eachCell((celda) => {
+          celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        });
+      }
+
+      const estiloEstado = ESTILOS_ESTADO_TURNO[t.estado];
+      if (estiloEstado) {
+        const celdaEstado = fila.getCell('estado');
+        celdaEstado.font = { bold: true, color: { argb: estiloEstado.font } };
+        celdaEstado.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: estiloEstado.fill } };
+      }
+
+      const celdaResto = fila.getCell('resto');
+      if (celdaResto.value === 'Sí') {
+        celdaResto.font = { bold: true, color: { argb: 'FF1B7A3D' } };
+        celdaResto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F7E9' } };
+      } else if (celdaResto.value === 'No') {
+        celdaResto.font = { color: { argb: 'FF888888' } };
+      }
+    });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="resumen-${nombreClub.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx"`);
@@ -3790,7 +4291,7 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     const [turnoRows] = await pool.query(
       `SELECT
           t.id_usuario, cl.id_dueno, t.fecha,
-          h.hora_inicio, h.hora_fin,
+          h.hora_inicio, h.hora_fin, et.nombre AS estado_actual,
           c.nombre AS nombre_cancha, cl.nombre AS nombre_club,
           u.correo AS correo_cliente, u.nombre AS nombre_cliente
        FROM turnos t
@@ -3798,6 +4299,7 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
        INNER JOIN club cl ON c.id_club = cl.id_club
        INNER JOIN horarios h ON t.id_horario = h.id_horario
        INNER JOIN usuarios u ON t.id_usuario = u.id_usuario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
        WHERE t.id_turno = ?`,
       [id]
     );
@@ -3813,6 +4315,13 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
 
     if (!esDueno) {
       return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    if (turno.estado_actual === 'cancelado') {
+      return res.status(400).json({ message: 'Este turno ya está cancelado' });
+    }
+    if (turno.estado_actual === 'completado') {
+      return res.status(400).json({ message: 'No se puede cancelar un turno que ya se jugó' });
     }
 
     // Si cancela el club (o un admin) en nombre del cliente, le pedimos el motivo
@@ -3859,10 +4368,11 @@ app.put('/turnos/:id/marcar-resto-pagado', verificarToken, requireRol(1, 2), asy
 
   try {
     const [turnoRows] = await pool.query(
-      `SELECT cl.id_dueno, p.id_pago, p.estado AS estado_pago, p.resto_pagado_en
+      `SELECT cl.id_dueno, p.id_pago, p.estado AS estado_pago, p.resto_pagado_en, et.nombre AS estado_turno
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
        INNER JOIN club cl ON c.id_club = cl.id_club
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
        LEFT JOIN pagos p ON p.id_turno = t.id_turno
        WHERE t.id_turno = ?`,
       [id]
@@ -3877,6 +4387,10 @@ app.put('/turnos/:id/marcar-resto-pagado', verificarToken, requireRol(1, 2), asy
 
     if (!esDueno) {
       return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    if (turno.estado_turno === 'cancelado') {
+      return res.status(400).json({ message: 'Este turno está cancelado, no se le puede cobrar el resto' });
     }
 
     if (!turno.id_pago || turno.estado_pago !== 'pagado') {

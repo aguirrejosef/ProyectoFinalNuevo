@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
+import Toast from '../Toast/Toast';
 import './BalanceClub.css';
 import { apiFetch } from '../../api';
 
@@ -28,6 +29,7 @@ function BalanceClub() {
     const [busqueda, setBusqueda] = useState('');
     const [direccionOrden, setDireccionOrden] = useState('desc');
     const [pagina, setPagina] = useState(1);
+    const [toast, setToast] = useState(null);
     const [generandoExcel, setGenerandoExcel] = useState(false);
 
     const rol = localStorage.getItem('rol');
@@ -84,7 +86,7 @@ function BalanceClub() {
             const res = await apiFetch('/club/balance-mensual/excel');
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                alert(data.message || 'No se pudo generar el Excel');
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo generar el Excel' });
                 return;
             }
             const blob = await res.blob();
@@ -98,7 +100,7 @@ function BalanceClub() {
             window.URL.revokeObjectURL(url);
         } catch (err) {
             console.error('Error al generar el Excel:', err);
-            alert('Error al conectar con el servidor');
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
         } finally {
             setGenerandoExcel(false);
         }
@@ -109,7 +111,7 @@ function BalanceClub() {
             <NavBar />
             <div className="contenedor-balance">
                 <div className="encabezado-balance">
-                    <h1 className="titulo-tabla-admin">Mi Balance</h1>
+                    <h1 className="titulo-balance-club">Mi Balance</h1>
                     {!cargando && !error && datos && datos.meses.length > 0 && (
                         <button type="button" className="btn-descargar-excel-balance" onClick={handleDescargarExcel} disabled={generandoExcel}>
                             {generandoExcel ? 'Generando...' : 'Descargar Excel'}
@@ -182,15 +184,17 @@ function BalanceClub() {
                                             </table>
                                         </div>
 
-                                        <div className="paginado-lista-admin">
-                                            <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-                                                Anterior
-                                            </button>
-                                            <span>Página {pagina} de {totalPaginas}</span>
-                                            <button type="button" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
-                                                Siguiente
-                                            </button>
-                                        </div>
+                                        {totalPaginas > 1 && (
+                                            <div className="paginado-lista-admin">
+                                                <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
+                                                    ‹ Anterior
+                                                </button>
+                                                <span>Página {pagina} de {totalPaginas} ({mesesFiltrados.length} meses)</span>
+                                                <button type="button" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
+                                                    Siguiente ›
+                                                </button>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </>
@@ -199,6 +203,7 @@ function BalanceClub() {
                 )}
             </div>
             <Footer />
+            <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
         </div>
     );
 }

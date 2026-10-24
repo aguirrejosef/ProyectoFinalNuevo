@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
 import './MisTurnos.css';
+import '../Modal/ModalConfirmacion.css';
 import { apiFetch } from '../../api';
+import Toast from '../Toast/Toast';
  
 const TABS = [
     { key: 'reservado', label: 'Reservadas' },
@@ -53,6 +55,7 @@ function MisTurnos() {
     const [cancelando, setCancelando] = useState(false);
     const [mostrandoConfirmacionCancelar, setMostrandoConfirmacionCancelar] = useState(false);
     const [errorCancelar, setErrorCancelar] = useState('');
+    const [toast, setToast] = useState(null);
 
     const [pagina, setPagina] = useState(1);
     const [totalPaginas, setTotalPaginas] = useState(1);
@@ -62,6 +65,7 @@ function MisTurnos() {
 
     const cargarTurnos = useCallback(async () => {
         setLoading(true);
+        setError('');
         try {
             const res = await apiFetch(
                 `/turnos?id_usuario=${idUsuario}&estado=${tabActiva}&pagina=${pagina}&limite=${LIMITE_POR_PAGINA}`
@@ -74,9 +78,19 @@ function MisTurnos() {
             }
 
             const data = await res.json();
+            const nuevoTotalPaginas = data.totalPaginas || 1;
+
+            // Si cancelamos el único turno de la última página, esa página
+            // deja de existir: nos vamos a la última página válida en vez de
+            // quedarnos mostrando una lista vacía.
+            if (pagina > nuevoTotalPaginas) {
+                setPagina(nuevoTotalPaginas);
+                return;
+            }
+
             setTurnos(Array.isArray(data.turnos) ? data.turnos : []);
             setTotal(data.total || 0);
-            setTotalPaginas(data.totalPaginas || 1);
+            setTotalPaginas(nuevoTotalPaginas);
 
         } catch (err) {
             console.error('Error al cargar turnos:', err);
@@ -184,6 +198,8 @@ function MisTurnos() {
 
             setTurnoSeleccionado(null);
             setMostrandoConfirmacionCancelar(false);
+            setToast({ tipo: 'exito', mensaje: 'Turno cancelado correctamente' });
+            window.dispatchEvent(new Event('turnos-actualizados'));
             cargarTurnos();
 
         } catch (err) {
@@ -372,6 +388,8 @@ function MisTurnos() {
                     </div>
                 </div>
             )}
+
+            <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
 
             <Footer />
         </>

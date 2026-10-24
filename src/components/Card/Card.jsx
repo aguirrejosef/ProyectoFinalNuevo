@@ -24,10 +24,17 @@ function Card({ imagen, titulo, id, direccion, localidad, cantidadCanchas, preci
             </p>
           )}
           <div className='card-descripcion'>
-            <p className="card-detalle">📍 Dirección: {direccion}</p>
-            <p className="card-detalle">🏙️ Localidad: {localidad}</p>
             <p className="card-detalle">
-              🎾 {cantidadCanchas || 0} cancha{Number(cantidadCanchas) === 1 ? '' : 's'}
+              <span className="card-detalle-icono">📍</span>
+              <span>Dirección: {direccion}</span>
+            </p>
+            <p className="card-detalle">
+              <span className="card-detalle-icono">🏙️</span>
+              <span>Localidad: {localidad}</span>
+            </p>
+            <p className="card-detalle">
+              <span className="card-detalle-icono">🎾</span>
+              <span>{cantidadCanchas || 0} cancha{Number(cantidadCanchas) === 1 ? '' : 's'}</span>
             </p>
             <p className="card-detalle card-precio">{formatearPrecio(precioDesde)}</p>
           </div>

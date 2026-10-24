@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
 import './MisCanchas.css';
+import '../Modal/ModalConfirmacion.css';
 import { apiFetch } from '../../api';
 import { ordenarCanchasPorNombre } from '../../utils/ordenarNatural';
+import Toast from '../Toast/Toast';
 
 function MisCanchas() {
     const navigate = useNavigate();
@@ -23,6 +25,8 @@ function MisCanchas() {
     const [agregandoCancha, setAgregandoCancha] = useState(false);
     const [nuevaCancha, setNuevaCancha] = useState({ nombre: '', tipo: '', foto: '', precio: '', precio_nocturno: '' });
     const [subiendoFoto, setSubiendoFoto] = useState(false);
+    const [procesandoId, setProcesandoId] = useState(null);
+    const [toast, setToast] = useState(null);
 
     const handleErrorFoto = (idCancha) => {
         setFotosConError((prev) => new Set(prev).add(idCancha));
@@ -85,6 +89,7 @@ function MisCanchas() {
 
     const handleToggleEstado = async (cancha) => {
         const nuevoEstado = cancha.estado === 'disponible' ? 'inactiva' : 'disponible';
+        setProcesandoId(cancha.id_cancha);
 
         try {
             const res = await apiFetch(`/canchas/${cancha.id_cancha}/estado`, {
@@ -92,13 +97,24 @@ function MisCanchas() {
                 body: JSON.stringify({ estado: nuevoEstado })
             });
 
-            if (!res.ok) return;
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo cambiar el estado de la cancha' });
+                return;
+            }
 
             setCanchas((prev) =>
                 prev.map((c) => c.id_cancha === cancha.id_cancha ? { ...c, estado: nuevoEstado } : c)
             );
+            setToast({
+                tipo: 'exito',
+                mensaje: nuevoEstado === 'disponible' ? 'Cancha activada correctamente.' : 'Cancha desactivada correctamente.'
+            });
         } catch (err) {
             console.error('Error al cambiar estado:', err);
+            setToast({ tipo: 'error', mensaje: 'Ocurrió un error al conectar con el servidor' });
+        } finally {
+            setProcesandoId(null);
         }
     };
 
@@ -127,12 +143,14 @@ function MisCanchas() {
                 return;
             }
 
-            setCanchas((prev) =>
-                ordenarCanchasPorNombre(
-                    prev.map((c) => c.id_cancha === canchaEditando.id_cancha ? canchaEditando : c)
-                )
-            );
+            setCanchas((prev) => {
+                const actualizadas = prev.map((c) => c.id_cancha === canchaEditando.id_cancha ? canchaEditando : c);
+                const activas = ordenarCanchasPorNombre(actualizadas.filter((c) => c.activo !== 0));
+                const inactivas = ordenarCanchasPorNombre(actualizadas.filter((c) => c.activo === 0));
+                return [...activas, ...inactivas];
+            });
             setCanchaEditando(null);
+            setToast({ tipo: 'exito', mensaje: 'Cancha editada correctamente.' });
 
         } catch (err) {
             console.error('Error al editar cancha:', err);
@@ -168,6 +186,7 @@ function MisCanchas() {
                 return [...activas, ...inactivas];
             });
             setCanchaEliminando(null);
+            setToast({ tipo: 'exito', mensaje: 'Cancha dada de baja correctamente.' });
 
         } catch (err) {
             console.error('Error al eliminar cancha:', err);
@@ -178,9 +197,15 @@ function MisCanchas() {
     };
 
     const handleReactivar = async (cancha) => {
+        setProcesandoId(cancha.id_cancha);
+
         try {
             const res = await apiFetch(`/canchas/${cancha.id_cancha}/reactivar`, { method: 'PUT' });
-            if (!res.ok) return;
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo reactivar la cancha' });
+                return;
+            }
 
             setCanchas((prev) => {
                 const actualizadas = prev.map((c) =>
@@ -190,8 +215,12 @@ function MisCanchas() {
                 const inactivas = ordenarCanchasPorNombre(actualizadas.filter((c) => c.activo === 0));
                 return [...activas, ...inactivas];
             });
+            setToast({ tipo: 'exito', mensaje: 'Cancha reactivada correctamente.' });
         } catch (err) {
             console.error('Error al reactivar la cancha:', err);
+            setToast({ tipo: 'error', mensaje: 'Ocurrió un error al conectar con el servidor' });
+        } finally {
+            setProcesandoId(null);
         }
     };
 
@@ -229,6 +258,7 @@ function MisCanchas() {
 
             await cargarDatos();
             setAgregandoCancha(false);
+            setToast({ tipo: 'exito', mensaje: 'Cancha agregada correctamente.' });
 
         } catch (err) {
             console.error('Error al agregar cancha:', err);
@@ -355,8 +385,9 @@ function MisCanchas() {
                                             type="button"
                                             className="btn-reactivar-cancha"
                                             onClick={() => handleReactivar(cancha)}
+                                            disabled={procesandoId === cancha.id_cancha}
                                         >
-                                            Reactivar
+                                            {procesandoId === cancha.id_cancha ? 'Procesando...' : 'Reactivar'}
                                         </button>
                                     ) : (
                                         <>
@@ -374,6 +405,7 @@ function MisCanchas() {
                                                 title={cancha.estado === 'disponible' ? 'Desactivar cancha' : 'Activar cancha'}
                                                 aria-label={cancha.estado === 'disponible' ? 'Desactivar cancha' : 'Activar cancha'}
                                                 onClick={() => handleToggleEstado(cancha)}
+                                                disabled={procesandoId === cancha.id_cancha}
                                             >
                                                 {cancha.estado === 'disponible' ? '⏸️' : '▶️'}
                                             </button>
@@ -572,6 +604,8 @@ function MisCanchas() {
             )}
 
             <Footer />
+
+            <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
         </>
     );
 }

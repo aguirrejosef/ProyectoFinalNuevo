@@ -78,6 +78,11 @@
   padding: 30px 0;
 }
 
+.mensaje-error-lista-admin {
+  color: #c62828;
+  font-weight: 600;
+}
+
 .tabla-clubes-wrap {
   width: 100%;
   overflow-x: auto;
@@ -156,18 +161,18 @@
 }
 
 .badge-suscripcion-activa {
-  background: #c8f2d6;
-  color: #0f6b30;
+  background: #e3f7e9;
+  color: #1b7a3d;
 }
 
 .badge-suscripcion-pausada {
-  background: #ffe6b8;
-  color: #92500a;
+  background: #fff4e0;
+  color: #b06a00;
 }
 
 .badge-suscripcion-cancelada {
-  background: #fbd4d0;
-  color: #a81f1f;
+  background: #fdecea;
+  color: #c62828;
 }
 
 .badge-suscripcion-mora {
@@ -189,13 +194,13 @@
 }
 
 .badge-estado-club-activo {
-  background: #c8f2d6;
-  color: #0f6b30;
+  background: #e3f7e9;
+  color: #1b7a3d;
 }
 
 .badge-estado-club-baja {
-  background: #dcdcdc;
-  color: #333;
+  background: #e0e0e0;
+  color: #4a4a4a;
 }
 
 .btn-accion-tabla {

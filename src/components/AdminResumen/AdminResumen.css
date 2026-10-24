@@ -3,6 +3,11 @@
     color: #444;
 }
 
+.mensaje-resumen-admin-error {
+    color: #c62828;
+    font-weight: 600;
+}
+
 .resumen-admin {
     padding: 20px 40px 0;
 }

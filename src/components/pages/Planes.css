@@ -6,7 +6,8 @@
 }
 
 .planes-titulo {
-  font-size: 30px;
+  font-size: 28px;
+  font-weight: 700;
   color: #0d3b66;
   margin-bottom: 12px;
 }
@@ -202,26 +203,60 @@
     color: #004AAD;
     font-size: 20px;
     font-weight: 700;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
 
-  .hoja-plan-beneficios {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 40px;
-  }
-
-  .hoja-plan-beneficios li {
-    font-size: 15px;
+  .hoja-plan-descripcion {
+    font-size: 14px;
     color: #333;
-    padding: 10px 0;
+    line-height: 1.6;
+    margin: 0 0 18px;
+    text-align: justify;
+  }
+
+  .hoja-plan-ideal-para {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.6;
+    background: #f5f7fa;
+    border-left: 3px solid #004AAD;
+    padding: 12px 16px;
+    margin: 0 0 30px;
+  }
+
+  .hoja-plan-ideal-para strong {
+    color: #0d3b66;
+  }
+
+  .hoja-plan-subtitulo {
+    color: #0d3b66;
+    font-size: 17px;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #0d3b66;
+  }
+
+  .hoja-plan-detalle-beneficios {
+    margin: 0 0 30px;
+  }
+
+  .hoja-plan-beneficio {
+    padding: 12px 0;
     border-bottom: 1px solid #ddd;
   }
 
-  .hoja-plan-beneficios li::before {
-    content: '✓ ';
-    color: #2e7d32;
+  .hoja-plan-beneficio-titulo {
+    font-size: 15px;
     font-weight: 700;
+    color: #2e7d32;
+    margin: 0 0 4px;
+  }
+
+  .hoja-plan-beneficio-texto {
+    font-size: 13.5px;
+    color: #444;
+    line-height: 1.55;
+    margin: 0;
   }
 
   .hoja-plan-fecha {
@@ -233,13 +268,59 @@
 .planes-mensaje {
   max-width: 500px;
   margin: 0 auto 24px auto;
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #c8e6c9;
   border-radius: 8px;
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.planes-mensaje-exito {
+  background: #e3f7e9;
+  color: #1b7a3d;
+  border: 1px solid #b7e4c7;
+}
+
+.planes-mensaje-error {
+  background: #fdecea;
+  color: #c62828;
+  border: 1px solid #f3b8b3;
+}
+
+.planes-mensaje-info {
+  background: #e3f0fd;
+  color: #004AAD;
+  border: 1px solid #c3d3e8;
+}
+
+.planes-club-baja-aviso {
+  background: #fff;
+  border: 2px solid #fdecea;
+  border-radius: 18px;
+  padding: 40px 36px;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(198, 40, 40, 0.1);
+}
+
+.planes-club-baja-icono {
+  font-size: 42px;
+  display: block;
+  margin-bottom: 14px;
+}
+
+.planes-club-baja-aviso h3 {
+  color: #c62828;
+  font-size: 22px;
+  margin: 0 0 14px;
+}
+
+.planes-club-baja-aviso p {
+  color: #555;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
 }
 
 @media (max-width: 800px) {

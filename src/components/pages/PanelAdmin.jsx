@@ -8,11 +8,14 @@ import NavBar from '../NavBar/NavBar';
 
 function PanelAdmin() {
   const [mostrarTabla, setMostrarTabla] = useState(true);
+  const [refrescarResumen, setRefrescarResumen] = useState(0);
+
+  const dispararRefrescoResumen = () => setRefrescarResumen((r) => r + 1);
 
   return (
     <div>
         <NavBar/>
-        <AdminResumen mostrandoClubes={mostrarTabla} />
+        <AdminResumen mostrandoClubes={mostrarTabla} refrescar={refrescarResumen} />
       <div className="botones-alternancia">
         <button
           className={`nav-btn ${mostrarTabla ? 'nav-btn-activo' : ''}`}
@@ -27,7 +30,9 @@ function PanelAdmin() {
           Mostrar Usuarios
         </button>
         </div>
-        {mostrarTabla ? <ListaTablaAdmin /> : <CardsUsuarios />}
+        {mostrarTabla
+          ? <ListaTablaAdmin onCambioEstado={dispararRefrescoResumen} />
+          : <CardsUsuarios onCambioEstado={dispararRefrescoResumen} />}
         <Footer />
         <div className="contenedor-btnFlotanteWsp">
             <BtnFlotanteWp

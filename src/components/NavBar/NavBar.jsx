@@ -4,6 +4,8 @@ import '../NavBar/NavBar.css';
 import Logo from '../Logo/Logo';
 import { apiFetch, cerrarSesion } from '../../api';
 
+const capitalizar = (texto) => (texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : texto);
+
 function NavBar() {
     const navigate = useNavigate();
 
@@ -15,7 +17,7 @@ function NavBar() {
 
     const menuRef = useRef(null);
 
-    useEffect(() => {
+    const leerPerfilDeLocalStorage = () => {
         const storedRol = localStorage.getItem('rol');
         setRol(storedRol);
 
@@ -24,10 +26,9 @@ function NavBar() {
 
         setNombre(storedNombre || '');
         setFoto(storedFoto || '');
-    }, []);
+    };
 
-    // Turnos próximos (hoy o mañana), solo para clientes
-    useEffect(() => {
+    const cargarProximoTurno = () => {
         const storedRol = localStorage.getItem('rol');
         const storedId = localStorage.getItem('id');
 
@@ -37,6 +38,28 @@ function NavBar() {
                 .then((data) => setProximoInfo(data))
                 .catch((err) => console.error('Error al obtener turnos próximos:', err));
         }
+    };
+
+    useEffect(() => {
+        leerPerfilDeLocalStorage();
+    }, []);
+
+    // Turnos próximos (hoy o mañana), solo para clientes
+    useEffect(() => {
+        cargarProximoTurno();
+    }, []);
+
+    // El NavBar se monta una sola vez por página (no es un layout persistente
+    // en todas las rutas), así que si el usuario edita su perfil o cancela/crea
+    // un turno sin cambiar de página, estos eventos son la única forma de que
+    // se entere y se refresque solo, sin esperar a la próxima navegación.
+    useEffect(() => {
+        window.addEventListener('perfil-actualizado', leerPerfilDeLocalStorage);
+        window.addEventListener('turnos-actualizados', cargarProximoTurno);
+        return () => {
+            window.removeEventListener('perfil-actualizado', leerPerfilDeLocalStorage);
+            window.removeEventListener('turnos-actualizados', cargarProximoTurno);
+        };
     }, []);
 
     // Cierra el menú si se hace clic afuera
@@ -64,7 +87,7 @@ function NavBar() {
     const botonesClub = [
        /* { label: 'Historia', path: '/historia' },*/
         { label: 'Canchas', path: '/mis-canchas' },
-        { label: 'Usuarios', path: '/usuario' },
+        { label: 'Clientes', path: '/usuario' },
        /* { label: 'Novedades', path: '/novedades' },*/
         { label: 'Planes', path: '/planes' },
         { label: 'Balance', path: '/mi-balance' },
@@ -172,7 +195,7 @@ function NavBar() {
                                 className="nombre-usuario-navbar"
                                 onClick={() => setMenuAbierto(!menuAbierto)}
                             >
-                                {nombre} ▾
+                                {capitalizar(nombre)} ▾
                             </button>
 
                             {/* MENÚ DESPLEGABLE */}
@@ -190,7 +213,7 @@ function NavBar() {
                                     </button>
                                     {Number(rol) === 3 && (
                                         <button onClick={handleMiTurno}>
-                                            Mis Turnos
+                                            Mis Reservas
                                         </button>
                                     )}
                                     <button onClick={handleLogout}>

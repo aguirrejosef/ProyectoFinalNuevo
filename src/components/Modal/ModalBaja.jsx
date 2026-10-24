@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './ModalBaja.css';
 
-const ModalBaja = ({ show, onAccept, onCancel, mensaje, pedirMotivo }) => {
+const ModalBaja = ({ show, onAccept, onCancel, mensaje, pedirMotivo, procesando }) => {
     const [motivo, setMotivo] = useState('');
 
     const handleAceptar = () => {
@@ -9,7 +9,7 @@ const ModalBaja = ({ show, onAccept, onCancel, mensaje, pedirMotivo }) => {
     };
 
     return (
-        <div className={`modal ${show ? 'show' : ''}`}>
+        <div className={`modal-baja ${show ? 'show' : ''}`}>
             <div className="modal-content">
                 <p>{mensaje || '¿Confirmar la baja?'}</p>
 
@@ -30,11 +30,11 @@ const ModalBaja = ({ show, onAccept, onCancel, mensaje, pedirMotivo }) => {
                     <button
                         className="modal-button accept"
                         onClick={handleAceptar}
-                        disabled={pedirMotivo && !motivo.trim()}
+                        disabled={procesando || (pedirMotivo && !motivo.trim())}
                     >
-                        Aceptar
+                        {procesando ? 'Procesando...' : 'Aceptar'}
                     </button>
-                    <button className="modal-button cancel" onClick={onCancel}>Cancelar</button>
+                    <button className="modal-button cancel" onClick={onCancel} disabled={procesando}>Cancelar</button>
                 </div>
             </div>
         </div>

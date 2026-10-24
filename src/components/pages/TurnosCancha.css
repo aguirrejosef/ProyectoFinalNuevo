@@ -17,7 +17,8 @@
  
 .titulo-turnos-cancha {
   color: #0d3b66;
-  font-size: 24px;
+  font-size: 28px;
+  font-weight: 700;
   margin-bottom: 24px;
 }
  
@@ -66,23 +67,31 @@
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 20px;
-  text-transform: capitalize;
   width: fit-content;
 }
  
-.estado-reservado {
+/* Con prefijo .estado-turno-cancha (compuesto, misma etiqueta) para no
+   pisar ni que te pisen el mismo nombre de clase definido en
+   CardsUsuarios.css/MisTurnos.css con otros tonos — y mismos colores que
+   usa el panel principal del club (.estado-badge-* en PanelClub.css). */
+.estado-turno-cancha.estado-reservado {
   background: #e3f0fd;
   color: #004AAD;
 }
- 
-.estado-completado {
-  background: #e6f4ea;
-  color: #2e7d32;
+
+.estado-turno-cancha.estado-completado {
+  background: #e3f7e9;
+  color: #1b7a3d;
 }
- 
-.estado-cancelado {
+
+.estado-turno-cancha.estado-cancelado {
   background: #fdecea;
   color: #c62828;
+}
+
+.estado-turno-cancha.estado-pendiente_pago {
+  background: #fff4e0;
+  color: #b06a00;
 }
  
 @media (max-width: 700px) {

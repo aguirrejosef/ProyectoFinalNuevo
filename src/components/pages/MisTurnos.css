@@ -26,7 +26,8 @@
   text-align: center;
   color: #0d3b66;
   margin-bottom: 20px;
-  font-size: 24px;
+  font-size: 28px;
+  font-weight: 700;
 }
 
 .fila-titulo-panel {
@@ -207,17 +208,17 @@
   text-transform: capitalize;
 }
  
-.estado-reservado {
+.estado-turno.estado-reservado {
   background: #e3f0fd;
   color: #004AAD;
 }
- 
-.estado-completado {
-  background: #e6f4ea;
-  color: #2e7d32;
+
+.estado-turno.estado-completado {
+  background: #e3f7e9;
+  color: #1b7a3d;
 }
- 
-.estado-cancelado {
+
+.estado-turno.estado-cancelado {
   background: #fdecea;
   color: #c62828;
 }

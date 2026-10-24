@@ -67,6 +67,14 @@
     margin: 0;
     font-size: 17px;
     color: #004AAD;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    text-align: left;
+  }
+
+  .card-detalle-icono {
+    flex-shrink: 0;
   }
 
   .card-precio {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './PanelClub.css';
+import '../Modal/ModalConfirmacion.css';
 import { apiFetch } from '../../api';
 import CalendarioTurnos from './CalendarioTurnos';
+import Toast from '../Toast/Toast';
 
 const LIMITE_TURNOS_PERIODO = 10;
 const DIAS_AVISO_VENCIMIENTO = 5;
@@ -27,9 +29,11 @@ function PanelClub() {
   const [totalTurnosListado, setTotalTurnosListado] = useState(0);
   const [turnosListado, setTurnosListado] = useState([]);
   const [cargandoTurnosListado, setCargandoTurnosListado] = useState(true);
+  const [errorTurnosListado, setErrorTurnosListado] = useState('');
   const [ordenTurnos, setOrdenTurnos] = useState('desc');
   const [vistaTurnos, setVistaTurnos] = useState('lista');
   const [refrescarCalendario, setRefrescarCalendario] = useState(0);
+  const [toast, setToast] = useState(null);
 
   const nombreUsuario = localStorage.getItem('nombre');
 
@@ -60,6 +64,7 @@ function PanelClub() {
 
   const cargarTurnosListado = useCallback(async () => {
     setCargandoTurnosListado(true);
+    setErrorTurnosListado('');
     try {
       const params = new URLSearchParams({
         periodo: filtroTurnos,
@@ -72,7 +77,11 @@ function PanelClub() {
       const res = await apiFetch(`/club/turnos-periodo?${params.toString()}`);
       const data = await res.json();
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        setTurnosListado([]);
+        setErrorTurnosListado(data.message || 'No se pudo cargar la lista de turnos.');
+        return;
+      }
 
       setTurnosListado(Array.isArray(data.turnos) ? data.turnos : []);
       setTotalTurnosListado(data.total || 0);
@@ -80,6 +89,8 @@ function PanelClub() {
 
     } catch (err) {
       console.error('Error al cargar los turnos:', err);
+      setTurnosListado([]);
+      setErrorTurnosListado('No se pudo cargar la lista de turnos. Revisá tu conexión e intentá de nuevo.');
     } finally {
       setCargandoTurnosListado(false);
     }
@@ -101,6 +112,10 @@ function PanelClub() {
   const handleCambiarFiltroTurnos = (valor) => {
     setFiltroTurnos(valor);
     setPaginaTurnos(1);
+    // El filtro solo se ve reflejado en la vista Lista, así que si estaba en
+    // Calendario lo pasamos a Lista — si no, tocar "Turnos hoy"/"esta semana"
+    // desde el calendario no hacía nada visible.
+    setVistaTurnos('lista');
   };
 
   const handleCambiarOrdenTurnos = () => {
@@ -144,10 +159,11 @@ function PanelClub() {
       // la lista se actualicen solos
       await Promise.all([fetchResumen(), cargarTurnosListado()]);
       setRefrescarCalendario((n) => n + 1);
+      setToast({ tipo: 'exito', mensaje: 'Turno cancelado correctamente.' });
 
     } catch (error) {
       console.error('Error al cancelar turno:', error);
-      alert('No se pudo cancelar el turno. Intentá de nuevo.');
+      setToast({ tipo: 'error', mensaje: 'No se pudo cancelar el turno. Intentá de nuevo.' });
     } finally {
       setCancelandoId(null);
     }
@@ -162,16 +178,17 @@ function PanelClub() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.message || 'No se pudo marcar el resto como cobrado');
+        setToast({ tipo: 'error', mensaje: data.message || 'No se pudo marcar el resto como cobrado' });
         return;
       }
 
       await Promise.all([fetchResumen(), cargarTurnosListado()]);
       setRefrescarCalendario((n) => n + 1);
+      setToast({ tipo: 'exito', mensaje: 'Resto marcado como cobrado.' });
 
     } catch (error) {
       console.error('Error al marcar el resto como cobrado:', error);
-      alert('Error al conectar con el servidor');
+      setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
     } finally {
       setMarcandoRestoId(null);
     }
@@ -197,7 +214,7 @@ function PanelClub() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.message || 'No se pudo generar el Excel');
+        setToast({ tipo: 'error', mensaje: data.message || 'No se pudo generar el Excel' });
         return;
       }
 
@@ -213,7 +230,7 @@ function PanelClub() {
 
     } catch (error) {
       console.error('Error al generar el Excel:', error);
-      alert('Error al conectar con el servidor');
+      setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
     } finally {
       setGenerandoExcel(false);
     }
@@ -396,7 +413,11 @@ function PanelClub() {
           <>
             {cargandoTurnosListado && <p className="panel-club-vacio">Cargando...</p>}
 
-            {!cargandoTurnosListado && turnosListado.length === 0 && (
+            {!cargandoTurnosListado && errorTurnosListado && (
+              <p className="panel-club-vacio panel-club-error">{errorTurnosListado}</p>
+            )}
+
+            {!cargandoTurnosListado && !errorTurnosListado && turnosListado.length === 0 && (
               <p className="panel-club-vacio">
                 {filtroTurnos === 'hoy' && 'No tenés turnos reservados para hoy.'}
                 {filtroTurnos === 'semana' && 'No tenés turnos reservados esta semana.'}
@@ -430,7 +451,7 @@ function PanelClub() {
                         {NOMBRES_ESTADO_ITEM[t.estado] || t.estado}
                       </span>
                     )}
-                    {t.monto_sena && (
+                    {t.monto_sena && t.estado !== 'cancelado' && (
                       t.resto_pagado_en ? (
                         <span className="item-turno-resto-cobrado">✓ Resto cobrado</span>
                       ) : (
@@ -504,6 +525,7 @@ function PanelClub() {
         </div>
       )}
 
+      <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
     </div>
   );
 }

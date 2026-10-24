@@ -5,7 +5,7 @@ import Footer from '../Footer/Footer';
 import { apiFetch } from '../../api';
 import './AdminClubDetalle.css';
 
-const PRECIOS_PLANES = { basico: 50000, estandar: 80000, premium: 120000 };
+const PRECIOS_PLANES = { basico: 5000, estandar: 8000, premium: 12000 };
 
 const ETIQUETA_ESTADO = {
     activa: { texto: 'Al día', clase: 'badge-suscripcion-activa' },

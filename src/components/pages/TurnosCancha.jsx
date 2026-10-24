@@ -4,7 +4,14 @@ import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
 import './TurnosCancha.css';
 import { apiFetch } from '../../api';
- 
+
+const NOMBRES_ESTADO = {
+    reservado: 'Reservado',
+    completado: 'Completado',
+    cancelado: 'Cancelado',
+    pendiente_pago: 'Pendiente de pago'
+};
+
 function TurnosCancha() {
     const { idCancha } = useParams();
     const navigate = useNavigate();
@@ -80,7 +87,7 @@ function TurnosCancha() {
                                 <span>{t.cliente_nombre} {t.cliente_apellido}</span>
                                 <span>{t.cliente_telefono || '-'}</span>
                                 <span className={`estado-turno-cancha estado-${t.estado?.toLowerCase()}`}>
-                                    {t.estado}
+                                    {NOMBRES_ESTADO[t.estado] || t.estado}
                                 </span>
                             </div>
                         ))}

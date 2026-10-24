@@ -1,8 +1,8 @@
-.modal {
+.modal-baja {
     display: none;
 }
 
-.modal.show {
+.modal-baja.show {
     display: flex;
     position: fixed;
     inset: 0;

@@ -68,7 +68,11 @@
     color: #667085;
 }
 
-.badge-suscripcion {
+/* Con prefijo .tarjeta-detalle-club para no pisar el badge de la tabla de
+   clubes (ListaTablaAdmin.css define su propio .badge-suscripcion con otro
+   tamaño/colores, y como ambos CSS se mezclan en toda la app, sin este
+   prefijo gana el que se carga último). */
+.tarjeta-detalle-club .badge-suscripcion {
     font-size: 0.85rem;
     font-weight: bold;
     padding: 6px 16px;
@@ -76,22 +80,22 @@
     white-space: nowrap;
 }
 
-.badge-suscripcion-activa {
+.tarjeta-detalle-club .badge-suscripcion-activa {
     background: #e3f7e9;
     color: #1b7a3d;
 }
 
-.badge-suscripcion-pausada {
+.tarjeta-detalle-club .badge-suscripcion-pausada {
     background: #fff4e0;
     color: #b06a00;
 }
 
-.badge-suscripcion-cancelada {
+.tarjeta-detalle-club .badge-suscripcion-cancelada {
     background: #fdecea;
     color: #c62828;
 }
 
-.badge-suscripcion-mora {
+.tarjeta-detalle-club .badge-suscripcion-mora {
     background: #fde2cf;
     color: #a84b11;
 }

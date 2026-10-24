@@ -11,11 +11,16 @@ import './ReservaConfirmacion.css';
 const INTENTOS_MAXIMOS = 120;
 const ESPERA_ENTRE_INTENTOS_MS = 5000;
 const ESPERA_REDIRECCION_MS = 2500;
+// Un solo error de red (wifi que titila un segundo) no debería tirar toda
+// la espera a la basura; recién si falla varias veces seguidas asumimos que
+// el problema es real.
+const ERRORES_DE_RED_SEGUIDOS_MAXIMOS = 3;
 
 function ReservaConfirmacion() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const idTurno = searchParams.get('turno');
+    const initPoint = searchParams.get('initPoint');
 
     const [estado, setEstado] = useState('cargando'); // cargando | pagado | rechazado | pendiente | error
 
@@ -27,15 +32,31 @@ function ReservaConfirmacion() {
 
         let cancelado = false;
 
-        const consultar = async (intento) => {
+        const consultar = async (intento, erroresDeRedSeguidos = 0) => {
             try {
                 const res = await apiFetch(`/pagos/estado/${idTurno}`);
                 const data = await res.json();
 
                 if (cancelado) return;
 
+                // 403/404/500: no es que el pago esté pendiente, es que algo
+                // anda mal (turno inexistente, no autorizado, servidor caído).
+                // Insistir 10 minutos contra eso no tiene sentido.
+                if (!res.ok) {
+                    setEstado('error');
+                    return;
+                }
+
                 if (data.estado === 'pagado' || data.estado === 'rechazado') {
                     setEstado(data.estado);
+                    return;
+                }
+
+                // 'sin_pago' (no hay registro de pago para este turno) o
+                // 'error' (Mercado Pago no está configurado en el servidor)
+                // tampoco se van a resolver solos reintentando.
+                if (data.estado === 'sin_pago' || data.estado === 'error') {
+                    setEstado('error');
                     return;
                 }
 
@@ -44,11 +65,18 @@ function ReservaConfirmacion() {
                     return;
                 }
 
-                setTimeout(() => consultar(intento + 1), ESPERA_ENTRE_INTENTOS_MS);
+                setTimeout(() => consultar(intento + 1, 0), ESPERA_ENTRE_INTENTOS_MS);
 
             } catch (error) {
                 console.error('Error al consultar el estado del pago:', error);
-                if (!cancelado) setEstado('error');
+                if (cancelado) return;
+
+                const siguienteConteo = erroresDeRedSeguidos + 1;
+                if (siguienteConteo >= ERRORES_DE_RED_SEGUIDOS_MAXIMOS) {
+                    setEstado('error');
+                    return;
+                }
+                setTimeout(() => consultar(intento, siguienteConteo), ESPERA_ENTRE_INTENTOS_MS);
             }
         };
 
@@ -59,6 +87,10 @@ function ReservaConfirmacion() {
 
     useEffect(() => {
         if (estado !== 'pagado') return;
+
+        // El NavBar ya está montado desde antes de pagar; sin este aviso no
+        // se enteraría del turno nuevo hasta la próxima navegación.
+        window.dispatchEvent(new Event('turnos-actualizados'));
 
         const timer = setTimeout(() => navigate('/mis-turnos'), ESPERA_REDIRECCION_MS);
         return () => clearTimeout(timer);
@@ -97,6 +129,17 @@ function ReservaConfirmacion() {
                     {estado === 'cargando' && <div className="spinner-confirmacion"></div>}
                     <h2>{titulo}</h2>
                     <p>{texto}</p>
+
+                    {estado === 'cargando' && initPoint && (
+                        <div className="botones-confirmacion-pago">
+                            <button type="button" onClick={() => window.open(initPoint, '_blank')}>
+                                Abrir Mercado Pago
+                            </button>
+                            <p className="confirmacion-pago-ayuda">
+                                ¿No se abrió la pestaña, o la cerraste sin pagar? Volvé a abrirla acá.
+                            </p>
+                        </div>
+                    )}
 
                     {estado !== 'cargando' && (
                         <div className="botones-confirmacion-pago">

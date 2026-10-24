@@ -22,6 +22,7 @@ function Club() {
   const [pasoReserva, setPasoReserva] = useState('eligiendo');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [errorDatosClub, setErrorDatosClub] = useState(false);
   const [fotoIndex, setFotoIndex] = useState(0);
 
   useEffect(() => {
@@ -50,9 +51,16 @@ function Club() {
         const dataFotos = await resFotos.json();
         const dataServicios = await resServicios.json();
 
-        setCanchas(Array.isArray(dataCanchas) ? ordenarCanchasPorNombre(dataCanchas) : []);
-        setFotos(Array.isArray(dataFotos) ? dataFotos : []);
-        setServicios(Array.isArray(dataServicios) ? dataServicios : []);
+        // Si alguno de estos tres pedidos falla, no es que el club no tenga
+        // canchas/fotos/servicios cargados: es que no pudimos consultarlos.
+        // Avisamos en vez de mostrar silenciosamente "no hay nada".
+        if (!resCanchas.ok || !resFotos.ok || !resServicios.ok) {
+          setErrorDatosClub(true);
+        }
+
+        setCanchas(resCanchas.ok && Array.isArray(dataCanchas) ? ordenarCanchasPorNombre(dataCanchas) : []);
+        setFotos(resFotos.ok && Array.isArray(dataFotos) ? dataFotos : []);
+        setServicios(resServicios.ok && Array.isArray(dataServicios) ? dataServicios : []);
 
       } catch (err) {
         console.error('Error al cargar el club:', err);
@@ -64,6 +72,24 @@ function Club() {
 
     cargarDatos();
   }, [id]);
+
+  // Cuando el cliente publica, edita o elimina una reseña, el promedio del
+  // encabezado (que viene de este mismo fetch inicial) queda desactualizado
+  // hasta que se recarga la página entera. Lo volvemos a pedir solo a él.
+  const actualizarResumenResenas = async () => {
+    try {
+      const res = await apiFetch(`/clubes/${id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setClub((prev) => prev && ({
+        ...prev,
+        promedio_resenas: data.promedio_resenas,
+        cantidad_resenas: data.cantidad_resenas
+      }));
+    } catch (err) {
+      console.error('Error al actualizar el resumen de reseñas:', err);
+    }
+  };
 
   const formatearPrecio = (precio) => {
     if (precio === null || precio === undefined || precio === '') return null;
@@ -162,7 +188,11 @@ function Club() {
               <FontAwesomeIcon icon={faTableTennisPaddleBall} /> Elegí tu turno
             </h2>
 
-            {canchas.length === 0 && (
+            {canchas.length === 0 && errorDatosClub && (
+              <p className="mensaje-club">No se pudieron cargar las canchas de este club. Intentá de nuevo más tarde.</p>
+            )}
+
+            {canchas.length === 0 && !errorDatosClub && (
               <p className="mensaje-club">Este club todavía no cargó canchas.</p>
             )}
 
@@ -217,7 +247,7 @@ function Club() {
         servicios={servicios}
       />
 
-      <Resenas idClub={id} />
+      <Resenas idClub={id} onCambio={actualizarResumenResenas} />
 
       <Footer />
     </div>

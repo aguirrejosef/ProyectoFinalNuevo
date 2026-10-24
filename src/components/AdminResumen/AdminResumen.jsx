@@ -4,11 +4,12 @@ import './AdminResumen.css';
 
 const formatearMoneda = (monto) => `$${Math.round(monto).toLocaleString('es-AR')}`;
 
-function AdminResumen({ mostrandoClubes = true }) {
+function AdminResumen({ mostrandoClubes = true, refrescar }) {
     const [clubes, setClubes] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
     const [ingresoTotal, setIngresoTotal] = useState(0);
     const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         const cargar = async () => {
@@ -18,24 +19,35 @@ function AdminResumen({ mostrandoClubes = true }) {
                     apiFetch('/usuarios'),
                     apiFetch('/admin/ingresos-planes')
                 ]);
+                if (!resClubes.ok || !resUsuarios.ok || !resIngresos.ok) {
+                    throw new Error('Respuesta no OK del servidor');
+                }
                 const dataClubes = await resClubes.json();
                 const dataUsuarios = await resUsuarios.json();
                 const dataIngresos = await resIngresos.json();
                 setClubes(Array.isArray(dataClubes) ? dataClubes : []);
                 setUsuarios(Array.isArray(dataUsuarios) ? dataUsuarios : []);
                 setIngresoTotal(Number(dataIngresos?.total) || 0);
+                setError('');
             } catch (err) {
                 console.error('Error al cargar el resumen de admin:', err);
+                setError('No se pudo cargar el resumen. Revisá tu conexión e intentá de nuevo.');
             } finally {
                 setCargando(false);
             }
         };
 
         cargar();
-    }, []);
+        // No reseteamos "cargando" acá: solo se usa para el loader inicial,
+        // así un refresco por un alta/baja no hace parpadear las tarjetas.
+    }, [refrescar]);
 
     if (cargando) {
         return <p className="mensaje-resumen-admin">Cargando resumen...</p>;
+    }
+
+    if (error) {
+        return <p className="mensaje-resumen-admin mensaje-resumen-admin-error">{error}</p>;
     }
 
     // Igual que "Clubes activos"/"Canchas activas": contamos cuentas activas,

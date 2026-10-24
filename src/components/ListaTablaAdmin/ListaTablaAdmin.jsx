@@ -1,10 +1,26 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ListaTablaAdmin.css';
 import ModalBaja from '../Modal/ModalBaja';
+import Toast from '../Toast/Toast';
 import { apiFetch } from '../../api';
 
 const LIMITE = 10;
+
+// Guardamos acá la búsqueda/filtro/página para que, cuando el admin entra al
+// detalle de un club y vuelve con "Volver al panel", la tabla no se reinicie
+// (sessionStorage sobrevive a que este componente se desmonte y se vuelva a
+// montar, cosa que pasa sí o sí al cambiar de ruta en React Router).
+const CLAVE_FILTROS_GUARDADOS = 'admin-clubes-filtros';
+
+function leerFiltrosGuardados() {
+    try {
+        const guardado = sessionStorage.getItem(CLAVE_FILTROS_GUARDADOS);
+        return guardado ? JSON.parse(guardado) : null;
+    } catch {
+        return null;
+    }
+}
 
 const ETIQUETA_ESTADO = {
     activa: { texto: 'Al día', clase: 'badge-suscripcion-activa' },
@@ -17,25 +33,36 @@ const formatearFecha = (fecha) => {
     return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-function ListaTablaAdmin() {
+function ListaTablaAdmin({ onCambioEstado }) {
     const navigate = useNavigate();
+    const filtrosGuardados = leerFiltrosGuardados();
 
     const [clubes, setClubes] = useState([]);
     const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState('');
     const [total, setTotal] = useState(0);
-    const [pagina, setPagina] = useState(1);
+    const [pagina, setPagina] = useState(filtrosGuardados?.pagina || 1);
     const [totalPaginas, setTotalPaginas] = useState(1);
 
-    const [busquedaInput, setBusquedaInput] = useState('');
-    const [busqueda, setBusqueda] = useState('');
-    const [estadoFiltro, setEstadoFiltro] = useState('activo');
+    const [busquedaInput, setBusquedaInput] = useState(filtrosGuardados?.busquedaInput || '');
+    const [busqueda, setBusqueda] = useState(filtrosGuardados?.busqueda || '');
+    const [estadoFiltro, setEstadoFiltro] = useState(filtrosGuardados?.estadoFiltro || 'activo');
 
     const [procesandoId, setProcesandoId] = useState(null);
     const [clubEnConfirmacion, setClubEnConfirmacion] = useState(null);
+    const [toast, setToast] = useState(null);
+
+    const esPrimeraCarga = useRef(true);
 
     // Buscador con debounce: esperamos a que el usuario deje de tipear antes
     // de pegarle al backend, así no disparamos un pedido por cada letra.
     useEffect(() => {
+        if (esPrimeraCarga.current) {
+            // En el primer render no reseteamos nada: busqueda/pagina ya
+            // pueden venir restauradas de sessionStorage.
+            esPrimeraCarga.current = false;
+            return;
+        }
         const timer = setTimeout(() => {
             setBusqueda(busquedaInput.trim());
             setPagina(1);
@@ -43,8 +70,22 @@ function ListaTablaAdmin() {
         return () => clearTimeout(timer);
     }, [busquedaInput]);
 
+    // Guarda la búsqueda/filtro/página para restaurarlos si el admin entra
+    // al detalle de un club y vuelve con "Volver al panel".
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(
+                CLAVE_FILTROS_GUARDADOS,
+                JSON.stringify({ busquedaInput, busqueda, estadoFiltro, pagina })
+            );
+        } catch {
+            // sessionStorage no disponible (ej. modo incógnito estricto): no pasa nada, simplemente no persiste.
+        }
+    }, [busquedaInput, busqueda, estadoFiltro, pagina]);
+
     const cargar = useCallback(async () => {
         setCargando(true);
+        setError('');
         try {
             const params = new URLSearchParams({
                 pagina: String(pagina),
@@ -54,12 +95,15 @@ function ListaTablaAdmin() {
             if (busqueda) params.set('busqueda', busqueda);
 
             const res = await apiFetch(`/admin/clubes/buscar?${params.toString()}`);
+            if (!res.ok) throw new Error('Respuesta no OK del servidor');
             const data = await res.json();
             setClubes(Array.isArray(data.clubes) ? data.clubes : []);
             setTotal(data.total || 0);
             setTotalPaginas(data.totalPaginas || 1);
-        } catch (error) {
-            console.error('Error al cargar los clubes:', error);
+        } catch (err) {
+            console.error('Error al cargar los clubes:', err);
+            setClubes([]);
+            setError('No se pudo cargar la lista de clubes. Revisá tu conexión e intentá de nuevo.');
         } finally {
             setCargando(false);
         }
@@ -69,8 +113,16 @@ function ListaTablaAdmin() {
         cargar();
     }, [cargar]);
 
-    const handleCambioEstado = (idClub, activo) => {
-        setClubes((actuales) => actuales.map((c) => (c.id_club === idClub ? { ...c, activo } : c)));
+    const handleCambioEstado = async () => {
+        // Volvemos a pedirle la página actual al backend en vez de solo
+        // parchear la fila: así, si el club/cliente ya no cumple el filtro
+        // de estado puesto (ej. "Activos"), desaparece de la lista en vez
+        // de quedarse ahí con el botón cambiado, y el total de la paginación
+        // también queda bien.
+        await cargar();
+        // Avisa al panel para que las tarjetas y chips de arriba (que se
+        // cargaron una sola vez al entrar) se refresquen también.
+        onCambioEstado?.();
     };
 
     const handleDarBaja = async (club, motivo) => {
@@ -84,17 +136,20 @@ function ListaTablaAdmin() {
             });
             if (response.ok) {
                 const data = await response.json().catch(() => ({}));
-                handleCambioEstado(club.id_club, 0);
-                if (data.turnos_cancelados > 0) {
-                    alert(`Club dado de baja. Se cancelaron ${data.turnos_cancelados} turno(s) futuro(s) y se avisó a cada cliente por correo.`);
-                }
+                await handleCambioEstado();
+                setToast({
+                    tipo: 'exito',
+                    mensaje: data.turnos_cancelados > 0
+                        ? `Club dado de baja. Se cancelaron ${data.turnos_cancelados} turno(s) futuro(s) y se avisó a cada cliente por correo.`
+                        : 'Club dado de baja correctamente.'
+                });
             } else {
                 const data = await response.json().catch(() => ({}));
-                alert(data.message || 'Error al dar de baja el club');
+                setToast({ tipo: 'error', mensaje: data.message || 'Error al dar de baja el club' });
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Ocurrió un error al intentar dar de baja el club');
+            setToast({ tipo: 'error', mensaje: 'Ocurrió un error al intentar dar de baja el club' });
         } finally {
             setProcesandoId(null);
             setClubEnConfirmacion(null);
@@ -109,14 +164,15 @@ function ListaTablaAdmin() {
                 body: JSON.stringify({ activo: 1 })
             });
             if (response.ok) {
-                handleCambioEstado(club.id_club, 1);
+                await handleCambioEstado();
+                setToast({ tipo: 'exito', mensaje: 'Club reactivado correctamente.' });
             } else {
                 const data = await response.json().catch(() => ({}));
-                alert(data.message || 'Error al reactivar el club');
+                setToast({ tipo: 'error', mensaje: data.message || 'Error al reactivar el club' });
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Ocurrió un error al intentar reactivar el club');
+            setToast({ tipo: 'error', mensaje: 'Ocurrió un error al intentar reactivar el club' });
         } finally {
             setProcesandoId(null);
         }
@@ -150,7 +206,8 @@ function ListaTablaAdmin() {
             </div>
 
             {cargando && <p className="mensaje-lista-admin">Cargando...</p>}
-            {!cargando && clubes.length === 0 && <p className="mensaje-lista-admin">No se encontraron clubes.</p>}
+            {!cargando && error && <p className="mensaje-lista-admin mensaje-error-lista-admin">{error}</p>}
+            {!cargando && !error && clubes.length === 0 && <p className="mensaje-lista-admin">No se encontraron clubes.</p>}
 
             {!cargando && clubes.length > 0 && (
                 <div className="tabla-clubes-wrap">
@@ -242,8 +299,11 @@ function ListaTablaAdmin() {
                     onCancel={() => setClubEnConfirmacion(null)}
                     mensaje="¿Dar de baja este club? Dejará de verse en las búsquedas públicas, pero podés reactivarlo cuando quieras."
                     pedirMotivo
+                    procesando={procesandoId === clubEnConfirmacion.id_club}
                 />
             )}
+
+            <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
         </div>
     );
 }

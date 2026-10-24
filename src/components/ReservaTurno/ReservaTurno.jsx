@@ -14,6 +14,7 @@ import {
     faCircleInfo
 } from '@fortawesome/free-solid-svg-icons';
 import './ReservaTurno.css';
+import '../Modal/ModalConfirmacion.css';
 
 const DURACIONES_MIN = [60, 90, 120];
 
@@ -75,7 +76,7 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
     const [duracionElegida, setDuracionElegida] = useState(null);
     const [mensaje, setMensaje] = useState('');
 
-    const [titular, setTitular] = useState({
+    const [titular] = useState({
         nombre: [localStorage.getItem('nombre'), localStorage.getItem('apellido')].filter(Boolean).join(' '),
         telefono: localStorage.getItem('telefono') || '',
         correo: localStorage.getItem('correo') || ''
@@ -199,16 +200,26 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
                     });
                     return;
                 }
-                setMensaje(data.message || 'No se pudo reservar el turno');
                 if (res.status === 409) {
+                    // cargarDisponibilidad() limpia el mensaje al arrancar, así
+                    // que hay que esperarla antes de mostrar el error del 409;
+                    // si no, el mensaje queda borrado antes de que se vea.
                     setPaso('eligiendo');
-                    cargarDisponibilidad();
+                    await cargarDisponibilidad();
                 }
+                setMensaje(data.message || 'No se pudo reservar el turno');
                 return;
             }
 
             if (!data.init_point) {
-                setMensaje('El turno se creó pero los pagos no están disponibles en este momento. Contactá al club.');
+                // Sin link de pago no hay forma de confirmar la reserva, así
+                // que liberamos el horario de una (si no, quedaría "reservado"
+                // ocupando el turno 10 minutos sin que el cliente pueda hacer
+                // nada al respecto).
+                apiFetch(`/turnos/${data.id_turno}/cancelar`, { method: 'PUT' }).catch((err) =>
+                    console.error('Error al liberar el turno sin pago disponible:', err)
+                );
+                setMensaje('No se pudo generar el pago en este momento, así que no se confirmó la reserva. Contactá al club o intentá de nuevo más tarde.');
                 return;
             }
 
@@ -231,8 +242,12 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
         // pantalla de confirmación (que ya consulta el estado del pago solo).
         // Así no dependemos de que Mercado Pago nos redirija de vuelta, algo
         // que solo funciona si el sitio tiene una URL pública.
+        // Mandamos el init_point también por la URL (no solo abrirlo acá),
+        // para que la pantalla de confirmación pueda ofrecer un botón para
+        // volver a abrirlo si el navegador bloqueó el popup o el usuario
+        // cerró la pestaña sin pagar.
         window.open(reserva.init_point, '_blank');
-        navigate(`/reserva-confirmacion?turno=${reserva.id_turno}`);
+        navigate(`/reserva-confirmacion?turno=${reserva.id_turno}&initPoint=${encodeURIComponent(reserva.init_point)}`);
     };
 
     const handleCancelarReserva = async () => {
@@ -337,32 +352,23 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
                     <div className="revision-columna-derecha">
                         <div className="revision-card">
                             <h3 className="revision-card-titulo">Titular de la reserva</h3>
-                            <p className="revision-nota-voucher">Te enviaremos el comprobante de la reserva por email.</p>
+                            <p className="revision-nota-voucher">
+                                Te enviaremos el comprobante de la reserva por email. Si estos datos
+                                están desactualizados, actualizalos desde tu perfil.
+                            </p>
                             <div className="revision-titular-grid">
-                                <label className="revision-campo-ancho">
+                                <div className="revision-campo-ancho revision-campo-solo-lectura">
                                     <span><FontAwesomeIcon icon={faUser} /> Nombre y apellido</span>
-                                    <input
-                                        type="text"
-                                        value={titular.nombre}
-                                        onChange={(e) => setTitular({ ...titular, nombre: e.target.value })}
-                                    />
-                                </label>
-                                <label>
+                                    <strong>{titular.nombre || '-'}</strong>
+                                </div>
+                                <div className="revision-campo-solo-lectura">
                                     <span><FontAwesomeIcon icon={faPhone} /> Teléfono</span>
-                                    <input
-                                        type="tel"
-                                        value={titular.telefono}
-                                        onChange={(e) => setTitular({ ...titular, telefono: e.target.value })}
-                                    />
-                                </label>
-                                <label>
+                                    <strong>{titular.telefono || '-'}</strong>
+                                </div>
+                                <div className="revision-campo-solo-lectura">
                                     <span><FontAwesomeIcon icon={faEnvelope} /> E-mail</span>
-                                    <input
-                                        type="email"
-                                        value={titular.correo}
-                                        onChange={(e) => setTitular({ ...titular, correo: e.target.value })}
-                                    />
-                                </label>
+                                    <strong>{titular.correo || '-'}</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -390,7 +396,7 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
                             </div>
                         </div>
 
-                        {mensaje && <p className="reserva-mensaje">{mensaje}</p>}
+                        {mensaje && <p className="reserva-mensaje reserva-mensaje-error">{mensaje}</p>}
 
                         <div className="revision-acciones">
                             <button type="button" className="btn-volver-revision" onClick={() => setPaso('eligiendo')}>
@@ -563,7 +569,7 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
                 </>
             )}
 
-            {mensaje && <p className="reserva-mensaje">{mensaje}</p>}
+            {mensaje && <p className="reserva-mensaje reserva-mensaje-error">{mensaje}</p>}
 
             <button
                 type="button"

@@ -27,19 +27,29 @@ function CalendarioTurnos({
 
     const [diasConTurnos, setDiasConTurnos] = useState({});
     const [cargandoMes, setCargandoMes] = useState(true);
+    const [errorMes, setErrorMes] = useState('');
 
     const [diaSeleccionado, setDiaSeleccionado] = useState(aFechaStr(hoy.getFullYear(), hoy.getMonth() + 1, hoy.getDate()));
     const [turnosDia, setTurnosDia] = useState([]);
     const [cargandoDia, setCargandoDia] = useState(true);
+    const [errorDia, setErrorDia] = useState('');
 
     const cargarMes = useCallback(async () => {
         setCargandoMes(true);
+        setErrorMes('');
         try {
             const res = await apiFetch(`/club/turnos-calendario?anio=${anio}&mes=${mes}`);
             const data = await res.json();
-            setDiasConTurnos(res.ok && data.dias ? data.dias : {});
+            if (!res.ok) {
+                setDiasConTurnos({});
+                setErrorMes(data.message || 'No se pudo cargar el calendario.');
+                return;
+            }
+            setDiasConTurnos(data.dias || {});
         } catch (error) {
             console.error('Error al cargar el calendario:', error);
+            setDiasConTurnos({});
+            setErrorMes('No se pudo cargar el calendario. Revisá tu conexión.');
         } finally {
             setCargandoMes(false);
         }
@@ -52,12 +62,20 @@ function CalendarioTurnos({
     const cargarDia = useCallback(async () => {
         if (!diaSeleccionado) return;
         setCargandoDia(true);
+        setErrorDia('');
         try {
             const res = await apiFetch(`/club/turnos-periodo?fecha=${diaSeleccionado}&limite=50`);
             const data = await res.json();
-            setTurnosDia(res.ok && Array.isArray(data.turnos) ? data.turnos : []);
+            if (!res.ok) {
+                setTurnosDia([]);
+                setErrorDia(data.message || 'No se pudieron cargar los turnos de este día.');
+                return;
+            }
+            setTurnosDia(Array.isArray(data.turnos) ? data.turnos : []);
         } catch (error) {
             console.error('Error al cargar los turnos del día:', error);
+            setTurnosDia([]);
+            setErrorDia('No se pudieron cargar los turnos de este día. Revisá tu conexión.');
         } finally {
             setCargandoDia(false);
         }
@@ -94,6 +112,8 @@ function CalendarioTurnos({
                     <button type="button" onClick={handleMesSiguiente}>›</button>
                 </div>
 
+                {errorMes && <p className="panel-club-vacio panel-club-error">{errorMes}</p>}
+
                 <div className="calendario-grilla-dias">
                     {DIAS_SEMANA.map((d) => <span key={d} className="calendario-dia-semana">{d}</span>)}
 
@@ -126,7 +146,11 @@ function CalendarioTurnos({
 
                 {cargandoDia && <p className="panel-club-vacio">Cargando...</p>}
 
-                {!cargandoDia && turnosDia.length === 0 && (
+                {!cargandoDia && errorDia && (
+                    <p className="panel-club-vacio panel-club-error">{errorDia}</p>
+                )}
+
+                {!cargandoDia && !errorDia && turnosDia.length === 0 && (
                     <p className="panel-club-vacio">No hay turnos este día.</p>
                 )}
 
@@ -147,7 +171,7 @@ function CalendarioTurnos({
                                 <span className={`item-turno-estado-badge estado-badge-${t.estado}`}>
                                     {nombresEstadoItem[t.estado] || t.estado}
                                 </span>
-                                {t.monto_sena && (
+                                {t.monto_sena && t.estado !== 'cancelado' && (
                                     t.resto_pagado_en ? (
                                         <span className="item-turno-resto-cobrado">✓ Resto cobrado</span>
                                     ) : (

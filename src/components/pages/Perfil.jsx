@@ -20,6 +20,8 @@ import {
     faCalendarCheck
 } from '@fortawesome/free-solid-svg-icons';
 import { iconoServicio } from '../../utils/iconoServicio';
+import Toast from '../Toast/Toast';
+import '../Modal/ModalConfirmacion.css';
 
 // Fila de solo-lectura (icono + etiqueta + valor) o de edición (icono + etiqueta + input)
 function CampoPerfil({ icon, label, name, value, editando, onChange, type = 'text' }) {
@@ -54,6 +56,7 @@ function Perfil() {
 
     const [rol, setRol] = useState(null);
     const [usuarioId, setUsuarioId] = useState(null);
+    const [toast, setToast] = useState(null);
     const [foto, setFoto] = useState('');
     const [subiendoFotoPerfil, setSubiendoFotoPerfil] = useState(false);
     const [editando, setEditando] = useState(false);
@@ -101,6 +104,8 @@ function Perfil() {
     const [fotos, setFotos] = useState([]);
     const [fotoIndex, setFotoIndex] = useState(0);
     const [subiendoFotoClub, setSubiendoFotoClub] = useState(false);
+    const [mostrandoConfirmacionFoto, setMostrandoConfirmacionFoto] = useState(false);
+    const [eliminandoFoto, setEliminandoFoto] = useState(false);
 
     // ------------------ Servicios adicionales del club ------------------
     const [servicios, setServicios] = useState([]);
@@ -224,16 +229,18 @@ function Perfil() {
             const data = await res.json();
 
             if (!res.ok) {
-                alert(data.message || 'No se pudo subir la foto');
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo subir la foto' });
                 return;
             }
 
             setFoto(data.foto);
             localStorage.setItem('foto', data.foto);
+            window.dispatchEvent(new Event('perfil-actualizado'));
+            setToast({ tipo: 'exito', mensaje: 'Foto de perfil actualizada' });
 
         } catch (err) {
             console.error('Error al subir la foto de perfil:', err);
-            alert('Error al conectar con el servidor');
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
         } finally {
             setSubiendoFotoPerfil(false);
         }
@@ -267,6 +274,9 @@ function Perfil() {
             localStorage.setItem('correo', form.correo);
             localStorage.setItem('telefono', form.telefono);
             localStorage.setItem('usuario', form.usuario);
+            // El NavBar ya está montado (no se recarga la página al guardar),
+            // así que necesita este aviso para mostrar el nombre nuevo ya mismo.
+            window.dispatchEvent(new Event('perfil-actualizado'));
 
             setEditando(false);
             setMensaje('Perfil actualizado correctamente ✅');
@@ -419,7 +429,7 @@ function Perfil() {
             const data = await res.json();
 
             if (!res.ok) {
-                alert(data.message || 'No se pudo subir la foto');
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo subir la foto' });
                 return;
             }
 
@@ -428,37 +438,54 @@ function Perfil() {
                 setFotoIndex(nuevas.length - 1);
                 return nuevas;
             });
+            setToast({ tipo: 'exito', mensaje: 'Foto agregada al carrusel' });
 
         } catch (err) {
             console.error('Error al subir foto del club:', err);
-            alert('Error al conectar con el servidor');
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
         } finally {
             setSubiendoFotoClub(false);
         }
+    };
+
+    const handleAbrirConfirmacionFoto = () => {
+        if (!fotos[fotoIndex]) return;
+        setMostrandoConfirmacionFoto(true);
+    };
+
+    const handleCerrarConfirmacionFoto = () => {
+        if (eliminandoFoto) return;
+        setMostrandoConfirmacionFoto(false);
     };
 
     const handleEliminarFotoActual = async () => {
         const fotoActual = fotos[fotoIndex];
         if (!fotoActual) return;
 
-        const confirmar = window.confirm('¿Eliminar esta foto del club?');
-        if (!confirmar) return;
-
+        setEliminandoFoto(true);
         try {
             const res = await apiFetch(`/club/fotos/${fotoActual.id_foto}`, {
                 method: 'DELETE'
             });
 
-            if (!res.ok) return;
+            if (!res.ok) {
+                setToast({ tipo: 'error', mensaje: 'No se pudo eliminar la foto' });
+                return;
+            }
 
             setFotos((prev) => {
                 const nuevas = prev.filter((f) => f.id_foto !== fotoActual.id_foto);
                 setFotoIndex((idx) => Math.min(idx, Math.max(nuevas.length - 1, 0)));
                 return nuevas;
             });
+            setMostrandoConfirmacionFoto(false);
+            setToast({ tipo: 'exito', mensaje: 'Foto eliminada' });
 
         } catch (err) {
             console.error('Error al eliminar foto del club:', err);
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
+        } finally {
+            setEliminandoFoto(false);
         }
     };
 
@@ -487,7 +514,7 @@ function Perfil() {
             const data = await res.json();
 
             if (!res.ok) {
-                alert(data.message || 'No se pudo agregar el servicio');
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo agregar el servicio' });
                 return;
             }
 
@@ -496,6 +523,7 @@ function Perfil() {
 
         } catch (err) {
             console.error('Error al agregar servicio:', err);
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
         } finally {
             setAgregandoServicio(false);
         }
@@ -507,12 +535,17 @@ function Perfil() {
                 method: 'DELETE'
             });
 
-            if (!res.ok) return;
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo eliminar el servicio' });
+                return;
+            }
 
             setServicios((prev) => prev.filter((s) => s.id_servicio !== idServicio));
 
         } catch (err) {
             console.error('Error al eliminar servicio:', err);
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
         }
     };
 
@@ -632,7 +665,7 @@ function Perfil() {
 
             {Number(rol) === 3 && (
                 <button className="btn-mis-turnos" onClick={() => navigate('/mis-turnos')}>
-                    Ver mis turnos
+                    Ver mis reservas
                 </button>
             )}
 
@@ -787,7 +820,7 @@ function Perfil() {
                                                 </>
                                             )}
 
-                                            <button type="button" className="carrusel-btn-eliminar" onClick={handleEliminarFotoActual}>
+                                            <button type="button" className="carrusel-btn-eliminar" onClick={handleAbrirConfirmacionFoto}>
                                                 🗑️
                                             </button>
 
@@ -1106,6 +1139,24 @@ function Perfil() {
             </div>
 
             <Footer />
+            <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
+
+            {mostrandoConfirmacionFoto && (
+                <div className="overlay-modal" onClick={handleCerrarConfirmacionFoto}>
+                    <div className="modal-cancha" onClick={(e) => e.stopPropagation()}>
+                        <h3>Eliminar foto</h3>
+                        <p>¿Seguro que querés eliminar esta foto del club?</p>
+                        <div className="modal-cancha-botones">
+                            <button type="button" className="btn-modal-cancelar" onClick={handleCerrarConfirmacionFoto} disabled={eliminandoFoto}>
+                                No, volver
+                            </button>
+                            <button type="button" className="btn-modal-eliminar" onClick={handleEliminarFotoActual} disabled={eliminandoFoto}>
+                                {eliminandoFoto ? 'Eliminando...' : 'Sí, eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

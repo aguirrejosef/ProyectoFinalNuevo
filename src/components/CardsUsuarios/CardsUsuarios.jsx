@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './CardsUsuarios.css';
 import { apiFetch } from '../../api';
+import ModalBaja from '../Modal/ModalBaja';
+import Toast from '../Toast/Toast';
 
 const UMBRAL_CLIENTE_FRECUENTE = 5;
 const LIMITE_ADMIN = 12;
 const LIMITE_CLUB = 12;
 
-const Usuarios = () => {
+const Usuarios = ({ onCambioEstado }) => {
   const rol = localStorage.getItem('rol');
   const miId = Number(localStorage.getItem('id'));
   const esClub = Number(rol) === 2;
@@ -14,6 +16,7 @@ const Usuarios = () => {
   // ------------------ Vista CLUB: búsqueda, filtro, orden y paginado reales en el backend ------------------
   const [clientesClub, setClientesClub] = useState([]);
   const [cargandoClub, setCargandoClub] = useState(true);
+  const [errorClub, setErrorClub] = useState('');
   const [totalClub, setTotalClub] = useState(0);
   const [paginaClub, setPaginaClub] = useState(1);
   const [totalPaginasClub, setTotalPaginasClub] = useState(1);
@@ -25,6 +28,7 @@ const Usuarios = () => {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [turnosCliente, setTurnosCliente] = useState([]);
   const [cargandoTurnos, setCargandoTurnos] = useState(false);
+  const [errorTurnosCliente, setErrorTurnosCliente] = useState('');
 
   // ------------------ Vista ADMIN: búsqueda, filtro y paginado reales en el backend ------------------
   const [usuariosAdmin, setUsuariosAdmin] = useState([]);
@@ -38,6 +42,9 @@ const Usuarios = () => {
   const [procesandoId, setProcesandoId] = useState(null);
   const [campoOrdenAdmin, setCampoOrdenAdmin] = useState('fecha_registro');
   const [direccionOrdenAdmin, setDireccionOrdenAdmin] = useState('desc');
+  const [clienteEnConfirmacion, setClienteEnConfirmacion] = useState(null);
+  const [errorAdmin, setErrorAdmin] = useState('');
+  const [toast, setToast] = useState(null);
 
   // Buscador del club con debounce
   useEffect(() => {
@@ -52,6 +59,7 @@ const Usuarios = () => {
   const cargarClientesClub = useCallback(async () => {
     if (!esClub) return;
     setCargandoClub(true);
+    setErrorClub('');
     try {
       const params = new URLSearchParams({
         pagina: String(paginaClub),
@@ -64,11 +72,20 @@ const Usuarios = () => {
 
       const res = await apiFetch(`/club/clientes-buscar?${params.toString()}`);
       const data = await res.json();
+
+      if (!res.ok) {
+        setClientesClub([]);
+        setErrorClub(data.message || 'No se pudo cargar la lista de clientes.');
+        return;
+      }
+
       setClientesClub(Array.isArray(data.clientes) ? data.clientes : []);
       setTotalClub(data.total || 0);
       setTotalPaginasClub(data.totalPaginas || 1);
     } catch (error) {
       console.error('Error al cargar clientes del club:', error);
+      setClientesClub([]);
+      setErrorClub('No se pudo cargar la lista de clientes. Revisá tu conexión.');
     } finally {
       setCargandoClub(false);
     }
@@ -91,6 +108,7 @@ const Usuarios = () => {
   const cargarUsuariosAdmin = useCallback(async () => {
     if (esClub) return;
     setCargandoAdmin(true);
+    setErrorAdmin('');
     try {
       const params = new URLSearchParams({
         pagina: String(paginaAdmin),
@@ -103,12 +121,15 @@ const Usuarios = () => {
       if (busquedaAdmin) params.set('busqueda', busquedaAdmin);
 
       const res = await apiFetch(`/usuarios/buscar?${params.toString()}`);
+      if (!res.ok) throw new Error('Respuesta no OK del servidor');
       const data = await res.json();
       setUsuariosAdmin(Array.isArray(data.usuarios) ? data.usuarios : []);
       setTotalAdmin(data.total || 0);
       setTotalPaginasAdmin(data.totalPaginas || 1);
     } catch (error) {
       console.error('Error al cargar usuarios:', error);
+      setUsuariosAdmin([]);
+      setErrorAdmin('No se pudo cargar la lista de clientes. Revisá tu conexión e intentá de nuevo.');
     } finally {
       setCargandoAdmin(false);
     }
@@ -146,11 +167,19 @@ const Usuarios = () => {
     return '?';
   };
 
+  const NOMBRES_ESTADO = {
+    reservado: 'Reservado',
+    completado: 'Completado',
+    cancelado: 'Cancelado',
+    pendiente_pago: 'Pendiente de pago'
+  };
+
   const claseEstado = (estado) => {
     const e = (estado || '').toLowerCase();
     if (e === 'reservado') return 'estado-badge estado-reservado';
     if (e === 'cancelado') return 'estado-badge estado-cancelado';
     if (e === 'completado') return 'estado-badge estado-completado';
+    if (e === 'pendiente_pago') return 'estado-badge estado-pendiente_pago';
     return 'estado-badge';
   };
 
@@ -159,15 +188,23 @@ const Usuarios = () => {
     setClienteSeleccionado(user);
     setCargandoTurnos(true);
     setTurnosCliente([]);
+    setErrorTurnosCliente('');
 
     try {
       const res = await apiFetch(
         `/club/turnos-cliente?id_usuario=${user.id_usuario}`
       );
       const data = await res.json();
+
+      if (!res.ok) {
+        setErrorTurnosCliente((data && data.message) || 'No se pudieron cargar los turnos de este cliente.');
+        return;
+      }
+
       setTurnosCliente(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error al cargar turnos del cliente:', error);
+      setErrorTurnosCliente('No se pudieron cargar los turnos de este cliente. Revisá tu conexión.');
     } finally {
       setCargandoTurnos(false);
     }
@@ -179,6 +216,8 @@ const Usuarios = () => {
   };
 
   // ------------------ Dar de baja / reactivar usuario (solo admin) ------------------
+  // Reactivar es directo; dar de baja pide confirmación primero (ver
+  // handleClickEstadoUsuario), igual que ya pasa con los clubes.
   const handleCambiarEstadoUsuario = async (user) => {
     const nuevoActivo = user.activo === 0 ? 1 : 0;
     setProcesandoId(user.id_usuario);
@@ -190,18 +229,35 @@ const Usuarios = () => {
       });
 
       if (res.ok) {
-        setUsuariosAdmin((actuales) =>
-          actuales.map((u) => (u.id_usuario === user.id_usuario ? { ...u, activo: nuevoActivo } : u))
-        );
+        // Volvemos a pedir la página actual al backend en vez de solo
+        // parchear la fila: así, si el cliente ya no cumple el filtro de
+        // estado puesto (ej. "Activos"), desaparece de la lista, y el total
+        // de la paginación también queda bien.
+        await cargarUsuariosAdmin();
+        // Avisa al panel para que las tarjetas y chips de arriba se refresquen también.
+        onCambioEstado?.();
+        setToast({
+          tipo: 'exito',
+          mensaje: nuevoActivo ? 'Cliente reactivado correctamente.' : 'Cliente dado de baja correctamente.'
+        });
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.message || 'No se pudo cambiar el estado del usuario');
+        setToast({ tipo: 'error', mensaje: data.message || 'No se pudo cambiar el estado del usuario' });
       }
     } catch (error) {
       console.error('Error al cambiar estado del usuario:', error);
-      alert('Ocurrió un error al conectar con el servidor');
+      setToast({ tipo: 'error', mensaje: 'Ocurrió un error al conectar con el servidor' });
     } finally {
       setProcesandoId(null);
+      setClienteEnConfirmacion(null);
+    }
+  };
+
+  const handleClickEstadoUsuario = (user) => {
+    if (user.activo === 0) {
+      handleCambiarEstadoUsuario(user); // reactivar: directo, sin confirmación
+    } else {
+      setClienteEnConfirmacion(user); // dar de baja: pide confirmación antes
     }
   };
 
@@ -253,7 +309,7 @@ const Usuarios = () => {
     return (
       <div className="usuarios-contenedor">
 
-        <h1 className="usuarios-titulo">Listado de Usuarios</h1>
+        <h1 className="usuarios-titulo">Listado de Clientes</h1>
 
         <div className="controles-lista-admin">
           <input
@@ -271,7 +327,9 @@ const Usuarios = () => {
 
         {cargandoClub && <p className="usuarios-vacio">Cargando...</p>}
 
-        {!cargandoClub && clientesClub.length === 0 && (
+        {!cargandoClub && errorClub && <p className="usuarios-vacio usuarios-error">{errorClub}</p>}
+
+        {!cargandoClub && !errorClub && clientesClub.length === 0 && (
           <p className="usuarios-vacio">
             {busquedaClub || estadoFiltroClub !== 'activo'
               ? 'No se encontró ningún cliente con esa búsqueda o filtro.'
@@ -284,17 +342,17 @@ const Usuarios = () => {
             <table className="tabla-usuarios">
               <thead>
                 <tr>
-                  <th onClick={() => handleOrdenarClub('nombre')}>
+                  <th className="th-ordenable" onClick={() => handleOrdenarClub('nombre')}>
                     Cliente {flechaColumnaClub('nombre')}
                   </th>
                   <th className="col-oculto-movil">Contacto</th>
-                  <th className="col-oculto-movil" onClick={() => handleOrdenarClub('fecha_registro')}>
+                  <th className="col-oculto-movil th-ordenable" onClick={() => handleOrdenarClub('fecha_registro')}>
                     Cliente desde {flechaColumnaClub('fecha_registro')}
                   </th>
-                  <th className="centrado" onClick={() => handleOrdenarClub('total_turnos')}>
+                  <th className="centrado th-ordenable" onClick={() => handleOrdenarClub('total_turnos')}>
                     Turnos {flechaColumnaClub('total_turnos')}
                   </th>
-                  <th className="centrado" onClick={() => handleOrdenarClub('ultima_reserva')}>
+                  <th className="centrado th-ordenable" onClick={() => handleOrdenarClub('ultima_reserva')}>
                     Última reserva {flechaColumnaClub('ultima_reserva')}
                   </th>
                   <th className="centrado">Último turno</th>
@@ -362,7 +420,7 @@ const Usuarios = () => {
 
                       <td className="centrado">
                         {user.ultimo_estado && (
-                          <span className={claseEstado(user.ultimo_estado)}>{user.ultimo_estado}</span>
+                          <span className={claseEstado(user.ultimo_estado)}>{NOMBRES_ESTADO[user.ultimo_estado] || user.ultimo_estado}</span>
                         )}
                       </td>
 
@@ -414,13 +472,17 @@ const Usuarios = () => {
 
               <h4 className="detalle-subtitulo">Historial de turnos en tu club</h4>
 
-              {cargandoTurnos && <p className="detalle-vacio">Cargando turnos...</p>}
+              {cargandoTurnos && <p className="detalle-vacio-usuario">Cargando turnos...</p>}
 
-              {!cargandoTurnos && turnosCliente.length === 0 && (
-                <p className="detalle-vacio">Este cliente todavía no tiene turnos registrados.</p>
+              {!cargandoTurnos && errorTurnosCliente && (
+                <p className="detalle-vacio-usuario detalle-error">{errorTurnosCliente}</p>
               )}
 
-              {!cargandoTurnos && turnosCliente.length > 0 && (
+              {!cargandoTurnos && !errorTurnosCliente && turnosCliente.length === 0 && (
+                <p className="detalle-vacio-usuario">Este cliente todavía no tiene turnos registrados.</p>
+              )}
+
+              {!cargandoTurnos && !errorTurnosCliente && turnosCliente.length > 0 && (
                 <div className="detalle-lista">
                   {turnosCliente.map((t) => (
                     <div key={t.id_turno} className="detalle-item">
@@ -429,7 +491,7 @@ const Usuarios = () => {
                         <span>{formatearHora(t.hora_inicio)} - {formatearHora(t.hora_fin)}</span>
                       </div>
                       <span className="detalle-item-cancha">{t.cancha}</span>
-                      <span className={claseEstado(t.estado)}>{t.estado}</span>
+                      <span className={claseEstado(t.estado)}>{NOMBRES_ESTADO[t.estado] || t.estado}</span>
                     </div>
                   ))}
                 </div>
@@ -463,7 +525,8 @@ const Usuarios = () => {
       </div>
 
       {cargandoAdmin && <p className="usuarios-vacio">Cargando...</p>}
-      {!cargandoAdmin && usuariosAdmin.length === 0 && <p className="usuarios-vacio">No se encontraron clientes.</p>}
+      {!cargandoAdmin && errorAdmin && <p className="usuarios-vacio usuarios-error">{errorAdmin}</p>}
+      {!cargandoAdmin && !errorAdmin && usuariosAdmin.length === 0 && <p className="usuarios-vacio">No se encontraron clientes.</p>}
 
       {!cargandoAdmin && usuariosAdmin.length > 0 && (
         <div className="tabla-usuarios-admin-wrap">
@@ -530,7 +593,7 @@ const Usuarios = () => {
                           type="button"
                           className={`btn-estado-usuario ${usuarioActivo ? 'btn-dar-baja' : 'btn-reactivar'}`}
                           disabled={procesandoId === user.id_usuario}
-                          onClick={() => handleCambiarEstadoUsuario(user)}
+                          onClick={() => handleClickEstadoUsuario(user)}
                         >
                           {procesandoId === user.id_usuario
                             ? 'Procesando...'
@@ -555,6 +618,18 @@ const Usuarios = () => {
           <button type="button" disabled={paginaAdmin >= totalPaginasAdmin} onClick={() => setPaginaAdmin((p) => p + 1)}>Siguiente ›</button>
         </div>
       )}
+
+      {clienteEnConfirmacion && (
+        <ModalBaja
+          show={!!clienteEnConfirmacion}
+          onAccept={() => handleCambiarEstadoUsuario(clienteEnConfirmacion)}
+          onCancel={() => setClienteEnConfirmacion(null)}
+          mensaje={`¿Dar de baja a ${clienteEnConfirmacion.nombre || clienteEnConfirmacion.usuario}? Va a dejar de poder iniciar sesión hasta que lo reactives.`}
+          procesando={procesandoId === clienteEnConfirmacion.id_usuario}
+        />
+      )}
+
+      <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
     </div>
   );
 };

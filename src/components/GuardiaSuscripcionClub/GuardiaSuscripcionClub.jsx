@@ -57,7 +57,11 @@ function GuardiaSuscripcionClub({ children }) {
 
     if (!esClub) return children;
 
-    if (cargando) return null;
+    // Evitamos el parpadeo en blanco mientras se consulta el estado: mejor
+    // un mensaje breve que un hueco vacío por una fracción de segundo.
+    if (cargando) {
+        return <p className="guardia-suscripcion-cargando">Verificando el estado de tu cuenta...</p>;
+    }
 
     if (motivo) {
         const contenido = CONTENIDO_POR_MOTIVO[motivo];

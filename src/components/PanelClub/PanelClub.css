@@ -25,7 +25,8 @@
 
 .panel-club-header h1 {
   color: #0d3b66;
-  font-size: 32px;
+  font-size: 28px;
+  font-weight: 700;
   margin: 0 0 4px 0;
 }
 
@@ -355,10 +356,10 @@
 }
 
 .buscador-turnos-periodo {
-  padding: 10px 16px;
-  border: 1px solid #c3d3e8;
-  border-radius: 20px;
-  font-size: 14px;
+  padding: 15px 22px;
+  border: 1px solid #d5dbe4;
+  border-radius: 30px;
+  font-size: 18px;
   min-width: 220px;
   outline: none;
   transition: border-color 200ms ease, box-shadow 200ms ease;
@@ -381,19 +382,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-top: 18px;
-  font-size: 14px;
+  gap: 18px;
+  margin-top: 20px;
+  font-size: 15.5px;
   color: #555;
 }
 
 .paginado-turnos-periodo button {
-  padding: 8px 16px;
-  border: 1px solid #c3d3e8;
+  padding: 9px 18px;
+  border: 1px solid #d5dbe4;
   border-radius: 20px;
   background: #fff;
   cursor: pointer;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -412,6 +413,11 @@
   font-size: 15.5px;
   text-align: center;
   padding: 20px 0;
+}
+
+.panel-club-error {
+  color: #c62828;
+  font-weight: 600;
 }
 
 .lista-turnos-hoy {

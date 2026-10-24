@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
+import Toast from '../Toast/Toast';
 import './BalanceAdmin.css';
 import { apiFetch } from '../../api';
 
@@ -27,6 +28,7 @@ function BalanceAdmin() {
     const [direccionOrden, setDireccionOrden] = useState('desc');
     const [pagina, setPagina] = useState(1);
     const [generandoExcel, setGenerandoExcel] = useState(false);
+    const [toast, setToast] = useState(null);
 
     useEffect(() => {
         const cargar = async () => {
@@ -74,7 +76,7 @@ function BalanceAdmin() {
             const res = await apiFetch('/admin/balance-mensual/excel');
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                alert(data.message || 'No se pudo generar el Excel');
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo generar el Excel' });
                 return;
             }
             const blob = await res.blob();
@@ -88,7 +90,7 @@ function BalanceAdmin() {
             window.URL.revokeObjectURL(url);
         } catch (err) {
             console.error('Error al generar el Excel:', err);
-            alert('Error al conectar con el servidor');
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
         } finally {
             setGenerandoExcel(false);
         }
@@ -170,15 +172,17 @@ function BalanceAdmin() {
                                             </table>
                                         </div>
 
-                                        <div className="paginado-lista-admin">
-                                            <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-                                                Anterior
-                                            </button>
-                                            <span>Página {pagina} de {totalPaginas}</span>
-                                            <button type="button" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
-                                                Siguiente
-                                            </button>
-                                        </div>
+                                        {totalPaginas > 1 && (
+                                            <div className="paginado-lista-admin">
+                                                <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
+                                                    ‹ Anterior
+                                                </button>
+                                                <span>Página {pagina} de {totalPaginas} ({mesesFiltrados.length} meses)</span>
+                                                <button type="button" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
+                                                    Siguiente ›
+                                                </button>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </>
@@ -187,6 +191,7 @@ function BalanceAdmin() {
                 )}
             </div>
             <Footer />
+            <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
         </div>
     );
 }

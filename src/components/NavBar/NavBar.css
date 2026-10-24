@@ -35,7 +35,7 @@
     color: white;
 }
 
-#btn-navbar:hover {
+.btn-iniciarSesion:hover {
     cursor: pointer;
     background-color: white;
     color: #004AAD;
@@ -75,14 +75,6 @@
 }
 
 
-/* Contenedor del logo */
-
-.contenedor-img-nav {
-    width: 200px;
-    height: 100px;
-}
-
-
 /* Estilos para los botones de navegación */
 
 .nav-buttons {
@@ -117,7 +109,7 @@
 }
 
 .nav-btn:focus-visible {
-    outline: 2px solid #f2f3ef;
+    outline: 2px solid #f5a623;
     outline-offset: 2px;
 }
 
@@ -133,11 +125,13 @@
 /* USUARIO DE GOOGLE - PARTE DERECHA*/
 
 .usuario-navbar {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 10px;
     width: 100%;
+    flex-shrink: 0;
 }
 
 
@@ -193,14 +187,6 @@
     font-weight: bold;
     font-size: 16px;
 }
-.usuario-navbar {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-}
-
 .nombre-usuario-navbar {
     display: flex;
     align-items: center;

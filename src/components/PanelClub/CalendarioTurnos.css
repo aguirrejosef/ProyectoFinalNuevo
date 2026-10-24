@@ -95,6 +95,10 @@
   background: #004AAD;
 }
 
+.calendario-dia-seleccionado:hover {
+  background: #003580;
+}
+
 .calendario-dia-seleccionado .calendario-numero-dia {
   color: #fff;
 }

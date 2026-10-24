@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../api';
+import Toast from '../Toast/Toast';
+import '../Modal/ModalConfirmacion.css';
 import './Resenas.css';
 
 function Estrellas({ puntuacion, interactivo, onElegir }) {
@@ -19,26 +21,36 @@ function Estrellas({ puntuacion, interactivo, onElegir }) {
     );
 }
 
-function Resenas({ idClub }) {
+function Resenas({ idClub, onCambio }) {
     const rol = localStorage.getItem('rol');
     const miId = Number(localStorage.getItem('id'));
     const esCliente = Number(rol) === 3;
 
     const [resenas, setResenas] = useState([]);
     const [cargando, setCargando] = useState(true);
+    const [errorCarga, setErrorCarga] = useState('');
     const [puntuacionForm, setPuntuacionForm] = useState(0);
     const [comentarioForm, setComentarioForm] = useState('');
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState('');
+    const [toast, setToast] = useState(null);
+    const [resenaAEliminar, setResenaAEliminar] = useState(null);
+    const [eliminando, setEliminando] = useState(false);
 
     const cargarResenas = async () => {
         setCargando(true);
+        setErrorCarga('');
         try {
             const res = await apiFetch(`/clubes/${idClub}/resenas`);
+            if (!res.ok) {
+                setErrorCarga('No se pudieron cargar las reseñas');
+                return;
+            }
             const data = await res.json();
             setResenas(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Error al cargar las reseñas:', err);
+            setErrorCarga('No se pudieron cargar las reseñas');
         } finally {
             setCargando(false);
         }
@@ -80,7 +92,9 @@ function Resenas({ idClub }) {
                 return;
             }
 
+            setToast({ tipo: 'exito', mensaje: miResena ? 'Reseña actualizada' : 'Reseña publicada' });
             await cargarResenas();
+            onCambio?.();
 
         } catch (err) {
             console.error('Error al guardar la reseña:', err);
@@ -90,16 +104,27 @@ function Resenas({ idClub }) {
         }
     };
 
-    const handleEliminar = async (idResena) => {
+    const handleEliminar = async () => {
+        if (!resenaAEliminar) return;
+
+        setEliminando(true);
         try {
-            const res = await apiFetch(`/resenas/${idResena}`, { method: 'DELETE' });
+            const res = await apiFetch(`/resenas/${resenaAEliminar}`, { method: 'DELETE' });
             if (res.ok) {
                 setPuntuacionForm(0);
                 setComentarioForm('');
+                setToast({ tipo: 'exito', mensaje: 'Reseña eliminada' });
                 await cargarResenas();
+                onCambio?.();
+            } else {
+                setToast({ tipo: 'error', mensaje: 'No se pudo eliminar la reseña' });
             }
         } catch (err) {
             console.error('Error al eliminar la reseña:', err);
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
+        } finally {
+            setEliminando(false);
+            setResenaAEliminar(null);
         }
     };
 
@@ -111,11 +136,15 @@ function Resenas({ idClub }) {
 
             {cargando && <p className="mensaje-resenas-vacio">Cargando reseñas...</p>}
 
-            {!cargando && resenas.length === 0 && (
+            {!cargando && errorCarga && (
+                <p className="mensaje-resenas-vacio error-form-resena">{errorCarga}</p>
+            )}
+
+            {!cargando && !errorCarga && resenas.length === 0 && (
                 <p className="mensaje-resenas-vacio">Todavía no hay reseñas de este club.</p>
             )}
 
-            {!cargando && resenas.length > 0 && (
+            {!cargando && !errorCarga && resenas.length > 0 && (
                 <div className="lista-resenas">
                     {resenas.map((r) => (
                         <div key={r.id_resena} className="item-resena">
@@ -128,7 +157,7 @@ function Resenas({ idClub }) {
                                     {new Date(r.fecha).toLocaleDateString('es-AR')}
                                 </span>
                                 {(r.id_usuario === miId || esAdmin) && (
-                                    <button type="button" className="btn-eliminar-resena" onClick={() => handleEliminar(r.id_resena)}>
+                                    <button type="button" className="btn-eliminar-resena" onClick={() => setResenaAEliminar(r.id_resena)}>
                                         Eliminar
                                     </button>
                                 )}
@@ -155,6 +184,25 @@ function Resenas({ idClub }) {
                     </button>
                 </form>
             )}
+
+            {resenaAEliminar && (
+                <div className="overlay-modal" onClick={() => !eliminando && setResenaAEliminar(null)}>
+                    <div className="modal-cancha" onClick={(e) => e.stopPropagation()}>
+                        <h3>Eliminar reseña</h3>
+                        <p>¿Seguro que querés eliminar esta reseña? Esta acción no se puede deshacer.</p>
+                        <div className="modal-cancha-botones">
+                            <button type="button" className="btn-modal-cancelar" onClick={() => setResenaAEliminar(null)} disabled={eliminando}>
+                                No, volver
+                            </button>
+                            <button type="button" className="btn-modal-eliminar" onClick={handleEliminar} disabled={eliminando}>
+                                {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <Toast mensaje={toast?.mensaje} tipo={toast?.tipo} onCerrar={() => setToast(null)} />
         </div>
     );
 }
