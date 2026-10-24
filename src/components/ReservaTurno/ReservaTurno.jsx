@@ -247,14 +247,13 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
         // volver a abrirlo si el navegador bloqueó el popup o el usuario
         // cerró la pestaña sin pagar.
         //
-        // sessionStorage es por pestaña (no se comparte ni heredándolo desde
-        // acá, porque la pestaña nueva abre mercadopago.com, no nuestro
-        // sitio). Así, si Mercado Pago después redirige esa otra pestaña de
-        // vuelta a esta misma URL, se nota que no es ESTA pestaña por no
-        // tener esta marca, y actúa distinto (ver ReservaConfirmacion.jsx).
-        sessionStorage.setItem(`pestana-original-turno-${reserva.id_turno}`, '1');
+        // &origen=espera marca que ESTA es la pestaña que se queda esperando.
+        // El back_url que le damos a Mercado Pago (para la OTRA pestaña, la
+        // que vuelve sola tras pagar) no lo incluye, así que esa otra pestaña
+        // se puede distinguir leyendo su propia URL, sin depender de
+        // sessionStorage/localStorage (ver ReservaConfirmacion.jsx).
         window.open(reserva.init_point, '_blank');
-        navigate(`/reserva-confirmacion?turno=${reserva.id_turno}&initPoint=${encodeURIComponent(reserva.init_point)}`);
+        navigate(`/reserva-confirmacion?turno=${reserva.id_turno}&initPoint=${encodeURIComponent(reserva.init_point)}&origen=espera`);
     };
 
     const handleCancelarReserva = async () => {

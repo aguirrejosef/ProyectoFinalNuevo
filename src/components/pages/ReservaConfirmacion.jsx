@@ -24,20 +24,14 @@ function ReservaConfirmacion() {
 
     const [estado, setEstado] = useState('cargando'); // cargando | pagado | rechazado | pendiente | error
 
-    // sessionStorage es por pestaña. La pestaña original (donde el cliente
-    // venía reservando) la marca ella misma antes de abrir Mercado Pago (ver
-    // ReservaTurno.jsx). Si Mercado Pago después vuelve solo a esta misma URL
-    // pero en la OTRA pestaña (la que abrió), esa no va a tener la marca —
-    // así la distinguimos sin depender de window.opener, que se puede perder
-    // al navegar a través del dominio de Mercado Pago.
-    const [esPestanaOriginal] = useState(() => {
-        if (!idTurno) return true;
-        try {
-            return sessionStorage.getItem(`pestana-original-turno-${idTurno}`) === '1';
-        } catch {
-            return true;
-        }
-    });
+    // La pestaña original (donde el cliente venía reservando) llega acá con
+    // ?origen=espera (ver ReservaTurno.jsx). El back_url que le dimos a
+    // Mercado Pago para la OTRA pestaña (la que abrió, y que puede volver
+    // sola tras pagar) no incluye ese parámetro, así que se distinguen
+    // leyendo la propia URL — sin depender de sessionStorage/localStorage ni
+    // de window.opener, que pueden comportarse distinto entre navegadores al
+    // atravesar el dominio de Mercado Pago.
+    const esPestanaOriginal = searchParams.get('origen') === 'espera';
 
     useEffect(() => {
         if (!idTurno) {
