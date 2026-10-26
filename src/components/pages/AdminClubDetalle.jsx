@@ -3,15 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
 import { apiFetch } from '../../api';
+import { ETIQUETA_ESTADO } from '../../utils/etiquetaEstadoSuscripcion';
 import './AdminClubDetalle.css';
 
 const PRECIOS_PLANES = { basico: 5000, estandar: 8000, premium: 12000 };
-
-const ETIQUETA_ESTADO = {
-    activa: { texto: 'Al día', clase: 'badge-suscripcion-activa' },
-    pausada: { texto: 'Pausada', clase: 'badge-suscripcion-pausada' },
-    cancelada: { texto: 'Cancelada', clase: 'badge-suscripcion-cancelada' }
-};
 
 const formatearFecha = (fecha) => {
     if (!fecha) return 'No informada';

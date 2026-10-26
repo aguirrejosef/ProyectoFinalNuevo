@@ -520,6 +520,7 @@ function Perfil() {
 
             setServicios((prev) => [...prev, { id_servicio: data.id_servicio, nombre }]);
             setNuevoServicio('');
+            setToast({ tipo: 'exito', mensaje: 'Servicio agregado' });
 
         } catch (err) {
             console.error('Error al agregar servicio:', err);
@@ -542,6 +543,7 @@ function Perfil() {
             }
 
             setServicios((prev) => prev.filter((s) => s.id_servicio !== idServicio));
+            setToast({ tipo: 'exito', mensaje: 'Servicio eliminado' });
 
         } catch (err) {
             console.error('Error al eliminar servicio:', err);
@@ -595,9 +597,17 @@ function Perfil() {
                 const data = await res.json();
                 if (!res.ok) {
                     setErrorDias(data.message || 'No se pudo guardar el día');
+                    return;
                 }
+                setToast({ tipo: 'exito', mensaje: 'Horario guardado' });
             } else {
-                await apiFetch(`/club/dias-atencion/${clubId}/${numeroDia}`, { method: 'DELETE' });
+                const res = await apiFetch(`/club/dias-atencion/${clubId}/${numeroDia}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    setErrorDias(data.message || 'No se pudo cerrar el día');
+                    return;
+                }
+                setToast({ tipo: 'exito', mensaje: 'Día cerrado' });
             }
         } catch (err) {
             console.error('Error al guardar día de atención:', err);

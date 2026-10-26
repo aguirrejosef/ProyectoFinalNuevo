@@ -4,6 +4,7 @@ import './ListaTablaAdmin.css';
 import ModalBaja from '../Modal/ModalBaja';
 import Toast from '../Toast/Toast';
 import { apiFetch } from '../../api';
+import { ETIQUETA_ESTADO } from '../../utils/etiquetaEstadoSuscripcion';
 
 const LIMITE = 10;
 
@@ -21,12 +22,6 @@ function leerFiltrosGuardados() {
         return null;
     }
 }
-
-const ETIQUETA_ESTADO = {
-    activa: { texto: 'Al día', clase: 'badge-suscripcion-activa' },
-    pausada: { texto: 'Pausada', clase: 'badge-suscripcion-pausada' },
-    cancelada: { texto: 'Cancelada', clase: 'badge-suscripcion-cancelada' }
-};
 
 const formatearFecha = (fecha) => {
     if (!fecha) return '-';
@@ -97,9 +92,19 @@ function ListaTablaAdmin({ onCambioEstado }) {
             const res = await apiFetch(`/admin/clubes/buscar?${params.toString()}`);
             if (!res.ok) throw new Error('Respuesta no OK del servidor');
             const data = await res.json();
+            const nuevoTotalPaginas = data.totalPaginas || 1;
+
+            // Si se dio de baja/reactivó el único club de la última página,
+            // esa página deja de existir: volvemos a la última válida en vez
+            // de quedarnos mostrando una lista vacía.
+            if (pagina > nuevoTotalPaginas) {
+                setPagina(nuevoTotalPaginas);
+                return;
+            }
+
             setClubes(Array.isArray(data.clubes) ? data.clubes : []);
             setTotal(data.total || 0);
-            setTotalPaginas(data.totalPaginas || 1);
+            setTotalPaginas(nuevoTotalPaginas);
         } catch (err) {
             console.error('Error al cargar los clubes:', err);
             setClubes([]);

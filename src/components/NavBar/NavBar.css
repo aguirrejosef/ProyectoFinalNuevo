@@ -85,6 +85,21 @@
     flex-wrap: nowrap;
 }
 
+/* El admin tiene hasta 7 botones de nav; en pantallas angostas no entran en
+   una sola fila con flex-wrap:nowrap, así que acá se permite que pasen a la
+   siguiente línea en vez de desbordar o quedar tapados. */
+@media (max-width: 900px) {
+    .contenedor {
+        height: auto;
+        padding: 14px 0;
+    }
+
+    .nav-buttons {
+        flex-wrap: wrap;
+        row-gap: 12px;
+    }
+}
+
 .nav-btn {
     display: flex;
     align-items: center;

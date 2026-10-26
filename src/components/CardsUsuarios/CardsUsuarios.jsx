@@ -123,9 +123,19 @@ const Usuarios = ({ onCambioEstado }) => {
       const res = await apiFetch(`/usuarios/buscar?${params.toString()}`);
       if (!res.ok) throw new Error('Respuesta no OK del servidor');
       const data = await res.json();
+      const nuevoTotalPaginas = data.totalPaginas || 1;
+
+      // Si se dio de baja/reactivó el único cliente de la última página, esa
+      // página deja de existir: volvemos a la última válida en vez de
+      // quedarnos mostrando una lista vacía.
+      if (paginaAdmin > nuevoTotalPaginas) {
+        setPaginaAdmin(nuevoTotalPaginas);
+        return;
+      }
+
       setUsuariosAdmin(Array.isArray(data.usuarios) ? data.usuarios : []);
       setTotalAdmin(data.total || 0);
-      setTotalPaginasAdmin(data.totalPaginas || 1);
+      setTotalPaginasAdmin(nuevoTotalPaginas);
     } catch (error) {
       console.error('Error al cargar usuarios:', error);
       setUsuariosAdmin([]);
@@ -526,7 +536,13 @@ const Usuarios = ({ onCambioEstado }) => {
 
       {cargandoAdmin && <p className="usuarios-vacio">Cargando...</p>}
       {!cargandoAdmin && errorAdmin && <p className="usuarios-vacio usuarios-error">{errorAdmin}</p>}
-      {!cargandoAdmin && !errorAdmin && usuariosAdmin.length === 0 && <p className="usuarios-vacio">No se encontraron clientes.</p>}
+      {!cargandoAdmin && !errorAdmin && usuariosAdmin.length === 0 && (
+        <p className="usuarios-vacio">
+          {busquedaAdmin || estadoFiltroAdmin !== 'activo'
+            ? 'No se encontró ningún cliente con esa búsqueda o filtro.'
+            : 'Todavía no hay clientes registrados.'}
+        </p>
+      )}
 
       {!cargandoAdmin && usuariosAdmin.length > 0 && (
         <div className="tabla-usuarios-admin-wrap">

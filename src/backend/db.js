@@ -324,15 +324,26 @@ async function sincronizarPagoDeTurno(idTurno) {
   )[0];
 
   if (ultimoPago.status === 'approved') {
-    await pool.execute('UPDATE pagos SET estado = ? WHERE id_turno = ?', ['pagado', idTurno]);
+    // El webhook de Mercado Pago y el polling de la pantalla de confirmación
+    // pueden llamar a esta función casi al mismo tiempo. El chequeo de
+    // pagoRows de arriba no alcanza para evitar una carrera (ambas llamadas
+    // pueden leerlo como 'pendiente' antes de que cualquiera escriba), así
+    // que acá el UPDATE solo afecta la fila si todavía sigue 'pendiente':
+    // la segunda llamada que llegue encuentra 0 filas afectadas y no repite
+    // ni la actualización del turno ni el mail.
+    const [resultadoUpdate] = await pool.execute(
+      "UPDATE pagos SET estado = 'pagado' WHERE id_turno = ? AND estado = 'pendiente'",
+      [idTurno]
+    );
+    if (resultadoUpdate.affectedRows === 0) {
+      return { estado: 'pagado' };
+    }
+
     await pool.execute(
       `UPDATE turnos SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado') WHERE id_turno = ?`,
       [idTurno]
     );
 
-    // Este bloque solo se ejecuta la primera vez que se detecta el pago
-    // aprobado (la próxima vez que se llame a esta función, pagoRows[0].estado
-    // ya es 'pagado' y se corta arriba), así que el mail se manda una sola vez.
     const [turnoRows] = await pool.execute(
       `SELECT t.fecha, h.hora_inicio, h.hora_fin,
               c.nombre AS nombre_cancha, cl.nombre AS nombre_club,
@@ -357,11 +368,39 @@ async function sincronizarPagoDeTurno(idTurno) {
   }
 
   if (['rejected', 'cancelled'].includes(ultimoPago.status)) {
-    await pool.execute('DELETE FROM pagos WHERE id_turno = ?', [idTurno]);
+    // Mismo resguardo que en la rama 'approved': solo seguimos si esta
+    // llamada fue la que efectivamente borró la fila (todavía 'pendiente').
+    const [resultadoDelete] = await pool.execute(
+      "DELETE FROM pagos WHERE id_turno = ? AND estado = 'pendiente'",
+      [idTurno]
+    );
+    if (resultadoDelete.affectedRows === 0) {
+      return { estado: 'rechazado' };
+    }
+
     await pool.execute(
       `UPDATE turnos SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado') WHERE id_turno = ?`,
       [idTurno]
     );
+
+    const [turnoRows] = await pool.execute(
+      `SELECT t.fecha, h.hora_inicio, h.hora_fin,
+              c.nombre AS nombre_cancha, cl.nombre AS nombre_club,
+              u.correo AS correo_cliente, u.nombre AS nombre_cliente
+       FROM turnos t
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN club cl ON c.id_club = cl.id_club
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN usuarios u ON t.id_usuario = u.id_usuario
+       WHERE t.id_turno = ?`,
+      [idTurno]
+    );
+    if (turnoRows.length > 0 && turnoRows[0].correo_cliente) {
+      enviarEmailPagoRechazadoTurno(turnoRows[0]).catch((error) => {
+        console.error('Error al enviar el correo de pago rechazado:', error);
+      });
+    }
+
     return { estado: 'rechazado' };
   }
 
@@ -435,6 +474,33 @@ async function enviarEmailConfirmacionTurno(turno) {
         ${turno.monto_sena ? `<li><b>Seña abonada:</b> $${Number(turno.monto_sena).toLocaleString('es-AR')}</li>` : ''}
       </ul>
       <p>El resto de la cancha se abona directamente en el club. ¡Te esperamos!</p>
+    `
+  });
+}
+
+// Le avisa por mail al cliente que Mercado Pago rechazó el pago de la seña y
+// el horario volvió a quedar libre.
+async function enviarEmailPagoRechazadoTurno(turno) {
+  const fecha = new Date(turno.fecha).toLocaleDateString('es-AR', {
+    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+  const horaInicio = String(turno.hora_inicio).slice(0, 5);
+  const horaFin = String(turno.hora_fin).slice(0, 5);
+
+  await transporter.sendMail({
+    from: `"${turno.nombre_club}" <${process.env.EMAIL_USER}>`,
+    to: turno.correo_cliente,
+    subject: `No se pudo procesar tu pago en ${turno.nombre_club}`,
+    html: `
+      <p>Hola ${turno.nombre_cliente || ''},</p>
+      <p>Mercado Pago no pudo procesar el pago de la seña para este turno, así que no se confirmó la reserva y el horario volvió a estar disponible:</p>
+      <ul>
+        <li><b>Club:</b> ${turno.nombre_club}</li>
+        <li><b>Cancha:</b> ${turno.nombre_cancha}</li>
+        <li><b>Fecha:</b> ${fecha}</li>
+        <li><b>Horario:</b> ${horaInicio} a ${horaFin} hs</li>
+      </ul>
+      <p>Si el dinero fue debitado de tu cuenta, Mercado Pago lo devuelve automáticamente. Podés intentar reservar de nuevo cuando quieras.</p>
     `
   });
 }
@@ -3155,10 +3221,10 @@ app.post('/turnos', verificarToken, async (req, res) => {
           pending: `${process.env.FRONTEND_URL}/reserva-confirmacion?turno=${idTurno}`
         },
         // La pestaña de Mercado Pago vuelve sola a esta misma URL al aprobarse
-        // el pago. El frontend distingue esa pestaña (vía sessionStorage, ver
-        // ReservaConfirmacion.jsx) de la pestaña original que se quedó
-        // esperando, para no mandarla a una ruta protegida: solo intenta
-        // cerrarse sola.
+        // el pago. El frontend distingue esa pestaña (vía el parámetro
+        // ?origen=espera, ver ReservaTurno.jsx y ReservaConfirmacion.jsx) de
+        // la pestaña original que se quedó esperando, para no mandarla a una
+        // ruta protegida: solo intenta cerrarse sola.
         ...(FRONTEND_URL_ES_PUBLICA ? { auto_return: 'approved' } : {}),
         expires: true,
         expiration_date_to: expiraEn,
@@ -4407,7 +4473,11 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     // Si tenía un pago sin completar (seña abandonada), lo limpiamos
     await pool.query("DELETE FROM pagos WHERE id_turno = ? AND estado = 'pendiente'", [id]);
 
-    if (turno.correo_cliente) {
+    // Si el turno todavía estaba 'pendiente_pago' (nunca se llegó a confirmar/pagar),
+    // no mandamos el mail de cancelación: el cliente nunca recibió tampoco el de
+    // confirmación, así que avisarle que "canceló" algo que no llegó a existir
+    // como reserva solo genera confusión.
+    if (turno.correo_cliente && turno.estado_actual === 'reservado') {
       enviarEmailCancelacionTurno(turno, motivo?.trim()).catch((error) => {
         console.error('Error al enviar el correo de cancelación:', error);
       });
