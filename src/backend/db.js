@@ -329,6 +329,30 @@ async function sincronizarPagoDeTurno(idTurno) {
       `UPDATE turnos SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado') WHERE id_turno = ?`,
       [idTurno]
     );
+
+    // Este bloque solo se ejecuta la primera vez que se detecta el pago
+    // aprobado (la próxima vez que se llame a esta función, pagoRows[0].estado
+    // ya es 'pagado' y se corta arriba), así que el mail se manda una sola vez.
+    const [turnoRows] = await pool.execute(
+      `SELECT t.fecha, h.hora_inicio, h.hora_fin,
+              c.nombre AS nombre_cancha, cl.nombre AS nombre_club,
+              u.correo AS correo_cliente, u.nombre AS nombre_cliente,
+              p.monto AS monto_sena
+       FROM turnos t
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN club cl ON c.id_club = cl.id_club
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN usuarios u ON t.id_usuario = u.id_usuario
+       LEFT JOIN pagos p ON p.id_turno = t.id_turno
+       WHERE t.id_turno = ?`,
+      [idTurno]
+    );
+    if (turnoRows.length > 0 && turnoRows[0].correo_cliente) {
+      enviarEmailConfirmacionTurno(turnoRows[0]).catch((error) => {
+        console.error('Error al enviar el correo de confirmación de turno:', error);
+      });
+    }
+
     return { estado: 'pagado' };
   }
 
@@ -355,8 +379,41 @@ const transporter = nodemailer.createTransport({
 
 });
 
-// Le avisa por mail al cliente que su turno fue cancelado por el club, con el motivo.
+// Le avisa por mail al cliente que su turno se canceló. `motivo` solo existe
+// cuando cancela el club/admin en nombre del cliente (ver PUT /turnos/:id/cancelar);
+// si cancela el propio cliente, el texto es distinto y no hay motivo que mostrar.
 async function enviarEmailCancelacionTurno(turno, motivo) {
+  const fecha = new Date(turno.fecha).toLocaleDateString('es-AR', {
+    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+  const horaInicio = String(turno.hora_inicio).slice(0, 5);
+  const horaFin = String(turno.hora_fin).slice(0, 5);
+  const canceloElCliente = !motivo;
+
+  await transporter.sendMail({
+    from: `"${turno.nombre_club}" <${process.env.EMAIL_USER}>`,
+    to: turno.correo_cliente,
+    subject: canceloElCliente
+      ? `Cancelaste tu turno en ${turno.nombre_club}`
+      : `Tu turno en ${turno.nombre_club} fue cancelado`,
+    html: `
+      <p>Hola ${turno.nombre_cliente || ''},</p>
+      <p>${canceloElCliente
+        ? 'Te confirmamos que cancelaste el siguiente turno:'
+        : `Te informamos que <b>${turno.nombre_club}</b> canceló tu turno:`}</p>
+      <ul>
+        <li><b>Cancha:</b> ${turno.nombre_cancha}</li>
+        <li><b>Fecha:</b> ${fecha}</li>
+        <li><b>Horario:</b> ${horaInicio} a ${horaFin} hs</li>
+      </ul>
+      ${canceloElCliente ? '' : `<p><b>Motivo:</b> ${motivo}</p>`}
+      <p>Podés reservar un nuevo turno cuando quieras desde la plataforma.</p>
+    `
+  });
+}
+
+// Le confirma por mail al cliente que su turno quedó reservado (seña acreditada).
+async function enviarEmailConfirmacionTurno(turno) {
   const fecha = new Date(turno.fecha).toLocaleDateString('es-AR', {
     weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
   });
@@ -366,17 +423,18 @@ async function enviarEmailCancelacionTurno(turno, motivo) {
   await transporter.sendMail({
     from: `"${turno.nombre_club}" <${process.env.EMAIL_USER}>`,
     to: turno.correo_cliente,
-    subject: `Tu turno en ${turno.nombre_club} fue cancelado`,
+    subject: `¡Reserva confirmada en ${turno.nombre_club}!`,
     html: `
       <p>Hola ${turno.nombre_cliente || ''},</p>
-      <p>Te informamos que <b>${turno.nombre_club}</b> canceló tu turno:</p>
+      <p>Tu seña se acreditó y tu turno quedó reservado:</p>
       <ul>
+        <li><b>Club:</b> ${turno.nombre_club}</li>
         <li><b>Cancha:</b> ${turno.nombre_cancha}</li>
         <li><b>Fecha:</b> ${fecha}</li>
         <li><b>Horario:</b> ${horaInicio} a ${horaFin} hs</li>
+        ${turno.monto_sena ? `<li><b>Seña abonada:</b> $${Number(turno.monto_sena).toLocaleString('es-AR')}</li>` : ''}
       </ul>
-      <p><b>Motivo:</b> ${motivo}</p>
-      <p>Podés reservar un nuevo turno cuando quieras desde la plataforma.</p>
+      <p>El resto de la cancha se abona directamente en el club. ¡Te esperamos!</p>
     `
   });
 }
@@ -4349,8 +4407,8 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     // Si tenía un pago sin completar (seña abandonada), lo limpiamos
     await pool.query("DELETE FROM pagos WHERE id_turno = ? AND estado = 'pendiente'", [id]);
 
-    if (!esElCliente && turno.correo_cliente) {
-      enviarEmailCancelacionTurno(turno, motivo.trim()).catch((error) => {
+    if (turno.correo_cliente) {
+      enviarEmailCancelacionTurno(turno, motivo?.trim()).catch((error) => {
         console.error('Error al enviar el correo de cancelación:', error);
       });
     }
