@@ -5,6 +5,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prueba: agranda toda la app (texto, botones, espaciados) un 50%.
+     Para volver atrás, borrar esta línea. */
+  zoom: 1.5;
 }
 
 code {
