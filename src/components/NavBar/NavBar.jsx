@@ -216,7 +216,7 @@ function NavBar() {
                                             Mis Reservas
                                         </button>
                                     )}
-                                    <button onClick={handleLogout}>
+                                    <button className="btn-cerrar-sesion-navbar" onClick={handleLogout}>
                                         Cerrar Sesión
                                     </button>
                                 </div>

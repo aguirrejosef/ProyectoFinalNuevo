@@ -266,6 +266,15 @@
     background-color: #f0f0f0;
 }
 
+.btn-cerrar-sesion-navbar {
+    color: #c62828;
+    font-weight: 700;
+}
+
+.btn-cerrar-sesion-navbar:hover {
+    background-color: #fdecea;
+}
+
 /* Aviso de turno próximo, arriba del todo en el menú desplegable */
 
 .proximo-turno-aviso {
