@@ -106,7 +106,7 @@ function FormRegistro() {
         // pantalla de confirmación (que consulta el estado del registro
         // sola), igual que al pagar la seña de una reserva.
         window.open(data.init_point, '_blank');
-        navigate(`/registro-club/confirmacion?registro=${data.id_registro}`);
+        navigate(`/registro-club/confirmacion?registro=${data.id_registro}&origen=espera`);
         return;
       }
 

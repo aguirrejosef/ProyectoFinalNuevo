@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import NavBar from '../NavBar/NavBar';
 import Footer from '../Footer/Footer';
@@ -10,7 +10,10 @@ import './ReservaConfirmacion.css';
 // la reserva) en vez de solo unos segundos.
 const INTENTOS_MAXIMOS = 120;
 const ESPERA_ENTRE_INTENTOS_MS = 5000;
-const ESPERA_REDIRECCION_MS = 2500;
+// Si la pestaña original no recibe el aviso de la otra pestaña en este
+// tiempo (por ej. si la cerraron sin apretar el botón), le mostramos el
+// botón igual para que pueda continuar por su cuenta.
+const ESPERA_RESPALDO_MS = 5000;
 // Un solo error de red (wifi que titila un segundo) no debería tirar toda
 // la espera a la basura; recién si falla varias veces seguidas asumimos que
 // el problema es real.
@@ -23,6 +26,8 @@ function ReservaConfirmacion() {
     const initPoint = searchParams.get('initPoint');
 
     const [estado, setEstado] = useState('cargando'); // cargando | pagado | rechazado | pendiente | error
+    const [mostrarBotonRespaldo, setMostrarBotonRespaldo] = useState(false);
+    const canalRef = useRef(null);
 
     // La pestaña original (donde el cliente venía reservando) llega acá con
     // ?origen=espera (ver ReservaTurno.jsx). El back_url que le dimos a
@@ -94,24 +99,49 @@ function ReservaConfirmacion() {
         return () => { cancelado = true; };
     }, [idTurno]);
 
+    // Canal para que la pestaña de Mercado Pago le avise a la original que
+    // ya puede ir a Mis Reservas.
+    useEffect(() => {
+        if (!idTurno) return;
+
+        const canal = new BroadcastChannel(`turno-pago-${idTurno}`);
+        canalRef.current = canal;
+
+        if (esPestanaOriginal) {
+            canal.onmessage = (evento) => {
+                if (evento.data?.tipo === 'continuar') {
+                    navigate('/mis-turnos');
+                }
+            };
+        }
+
+        return () => canal.close();
+    }, [idTurno, esPestanaOriginal, navigate]);
+
     useEffect(() => {
         if (estado !== 'pagado') return;
 
         // El NavBar ya está montado desde antes de pagar; sin este aviso no
         // se enteraría del turno nuevo hasta la próxima navegación.
         window.dispatchEvent(new Event('turnos-actualizados'));
+    }, [estado]);
 
-        if (!esPestanaOriginal) {
-            // Esta es la pestaña que abrió Mercado Pago, no la original: no
-            // tiene por qué conservar una sesión confiable para ir a una ruta
-            // protegida, así que directamente se cierra sola.
-            window.close();
-            return;
-        }
-
-        const timer = setTimeout(() => navigate('/mis-turnos'), ESPERA_REDIRECCION_MS);
+    useEffect(() => {
+        if (estado !== 'pagado' || !esPestanaOriginal) return;
+        const timer = setTimeout(() => setMostrarBotonRespaldo(true), ESPERA_RESPALDO_MS);
         return () => clearTimeout(timer);
-    }, [estado, navigate, esPestanaOriginal]);
+    }, [estado, esPestanaOriginal]);
+
+    const handleContinuar = () => {
+        if (canalRef.current) {
+            canalRef.current.postMessage({ tipo: 'continuar' });
+        }
+        if (esPestanaOriginal) {
+            navigate('/mis-turnos');
+        } else {
+            window.close();
+        }
+    };
 
     const contenidoPorEstado = {
         cargando: {
@@ -122,7 +152,9 @@ function ReservaConfirmacion() {
         },
         pagado: {
             titulo: '¡Reserva confirmada! 🎉',
-            texto: esPestanaOriginal ? 'Te llevamos a Mis Reservas en un momento...' : 'Ya podés cerrar esta pestaña.'
+            texto: esPestanaOriginal
+                ? 'Hacé clic en "Ver mis reservas" en la otra pestaña para continuar.'
+                : 'Hacé clic en "Ver mis reservas" para continuar.'
         },
         rechazado: {
             titulo: 'El pago no se completó',
@@ -164,7 +196,23 @@ function ReservaConfirmacion() {
                         </div>
                     )}
 
-                    {estado !== 'cargando' && esPestanaOriginal && (
+                    {estado === 'pagado' && !esPestanaOriginal && (
+                        <div className="botones-confirmacion-pago">
+                            <button type="button" onClick={handleContinuar}>
+                                Ver mis reservas
+                            </button>
+                        </div>
+                    )}
+
+                    {estado === 'pagado' && esPestanaOriginal && mostrarBotonRespaldo && (
+                        <div className="botones-confirmacion-pago">
+                            <button type="button" onClick={handleContinuar}>
+                                Ver mis reservas
+                            </button>
+                        </div>
+                    )}
+
+                    {estado !== 'cargando' && estado !== 'pagado' && esPestanaOriginal && (
                         <div className="botones-confirmacion-pago">
                             <button type="button" onClick={() => navigate('/mis-turnos')}>
                                 Ver mis reservas
@@ -177,7 +225,7 @@ function ReservaConfirmacion() {
                         </div>
                     )}
 
-                    {estado !== 'cargando' && !esPestanaOriginal && (
+                    {estado !== 'cargando' && estado !== 'pagado' && !esPestanaOriginal && (
                         <div className="botones-confirmacion-pago">
                             <button type="button" onClick={() => window.close()}>
                                 Cerrar pestaña
