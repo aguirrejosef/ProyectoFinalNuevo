@@ -24,14 +24,14 @@ const PLANES = [
     precio: '$5.000/mes',
     destacado: false,
     beneficios: [
-      'Hasta 2 canchas publicadas',
+      'Hasta 4 canchas publicadas',
       'Gestión de turnos',
       'Panel de administración del club'
     ],
-    idealPara: 'Clubes chicos que recién empiezan a tomar reservas online, con una o dos canchas y un volumen de turnos manejable todavía a mano.',
+    idealPara: 'Clubes chicos que recién empiezan a tomar reservas online, con pocas canchas y un volumen de turnos manejable todavía a mano.',
     descripcionLarga: 'El plan Básico está pensado para que cualquier club, por más chico que sea, pueda empezar a recibir reservas por internet sin pagar de más por funciones que todavía no necesita. Con este plan tu club aparece en las búsquedas públicas de SUP, tus clientes pueden ver tus canchas, consultar disponibilidad en tiempo real y reservar un turno pagando la seña de forma online, sin que vos tengas que estar atendiendo el teléfono o el WhatsApp todo el día para confirmar horarios a mano.',
     detalleBeneficios: [
-      { titulo: 'Hasta 2 canchas publicadas', texto: 'Podés cargar hasta dos canchas, cada una con su propia foto, tipo de superficie, horario de disponibilidad y precio — incluso un precio distinto para los turnos nocturnos si tu club los maneja así.' },
+      { titulo: 'Hasta 4 canchas publicadas', texto: 'Podés cargar hasta cuatro canchas, cada una con su propia foto, tipo de superficie, horario de disponibilidad y precio — incluso un precio distinto para los turnos nocturnos si tu club los maneja así.' },
       { titulo: 'Gestión de turnos', texto: 'Desde tu panel ves todos los turnos reservados ordenados por fecha, podés cancelarlos si hace falta (se le avisa al cliente por correo) y marcar cuándo te pagaron el resto de la reserva en el club.' },
       { titulo: 'Panel de administración del club', texto: 'Un panel propio, separado del que usan tus clientes, donde manejás en un solo lugar la información de tu club, tus canchas, tus turnos y tus datos de contacto.' },
       { titulo: 'Cobro de señas con Mercado Pago', texto: 'Cada reserva se confirma con una seña que el cliente paga online en el momento de reservar, así se reducen las reservas que después nadie usa, y el resto del pago lo cobrás vos directamente en el club.' }

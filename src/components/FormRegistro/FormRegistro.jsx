@@ -10,6 +10,10 @@ const PLANES = [
   { id: 'premium', label: 'Premium', precio: 12000 }
 ];
 
+// Debe coincidir con LIMITE_CANCHAS_POR_PLAN en src/backend/db.js. Premium no
+// tiene tope (Infinity), ahí se deja elegir libremente.
+const LIMITE_CANCHAS_POR_PLAN = { basico: 4, estandar: 6, premium: Infinity };
+
 const formatearPrecioPlan = (precio) => `$${precio.toLocaleString('es-AR')}/mes`;
  
 function FormRegistro() {
@@ -26,7 +30,17 @@ function FormRegistro() {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [plan, setPlan] = useState(location.state?.planSeleccionado || 'basico');
- 
+
+  const limiteCanchasPlan = LIMITE_CANCHAS_POR_PLAN[plan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+
+  const handleCambiarPlan = (nuevoPlan) => {
+    setPlan(nuevoPlan);
+    const limite = LIMITE_CANCHAS_POR_PLAN[nuevoPlan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+    if (canchas && Number(canchas) > limite) {
+      setCanchas(String(limite));
+    }
+  };
+
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [mensaje, setMensaje] = useState('');
@@ -170,8 +184,15 @@ function FormRegistro() {
             type="number"
             value={canchas}
             onChange={(e) => setCanchas(e.target.value)}
+            min={1}
+            max={Number.isFinite(limiteCanchasPlan) ? limiteCanchasPlan : undefined}
             required
           />
+          <small>
+            {Number.isFinite(limiteCanchasPlan)
+              ? `El plan ${PLANES.find((p) => p.id === plan)?.label} permite hasta ${limiteCanchasPlan} canchas.`
+              : 'El plan Premium no tiene límite de canchas.'}
+          </small>
         </div>
  
         <div className="form-group">
@@ -198,7 +219,7 @@ function FormRegistro() {
           <label>Plan:</label>
           <select
             value={plan}
-            onChange={(e) => setPlan(e.target.value)}
+            onChange={(e) => handleCambiarPlan(e.target.value)}
             required
           >
             {PLANES.map((p) => (

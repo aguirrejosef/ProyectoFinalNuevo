@@ -703,6 +703,11 @@ app.post('/usuarios/registro-club', async (req, res) => {
 
   const planElegido = PRECIOS_PLANES[plan] ? plan : 'basico';
 
+  const limiteCanchasPlan = LIMITE_CANCHAS_POR_PLAN[planElegido] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+  if (parseInt(canchas) > limiteCanchasPlan) {
+    return res.status(400).json({ message: `El plan ${NOMBRES_PLAN[planElegido]} permite hasta ${limiteCanchasPlan} canchas` });
+  }
+
   try {
     const [existingUser] = await pool.execute(
       'SELECT id_usuario FROM usuarios WHERE correo = ? OR usuario = ?',
@@ -736,7 +741,7 @@ app.post('/usuarios/registro-club', async (req, res) => {
       body: {
         reason: `Plan ${planElegido} - SaleUnPadel (${nombreClub})`,
         external_reference: String(idRegistro),
-        payer_email: correo,
+        payer_email: process.env.MP_PAYER_EMAIL_PRUEBA || correo,
         back_url: FRONTEND_URL_ES_PUBLICA
           ? `${process.env.FRONTEND_URL}/registro-club/confirmacion?registro=${idRegistro}`
           : BACK_URL_RELLENO,
@@ -2414,7 +2419,7 @@ app.post('/club/:id/cambiar-plan', verificarToken, requireRol(2), async (req, re
       body: {
         reason: `Plan ${plan} - SaleUnPadel (${club.nombre})`,
         external_reference: `cambio-plan-${id}`,
-        payer_email: correo,
+        payer_email: process.env.MP_PAYER_EMAIL_PRUEBA || correo,
         back_url: FRONTEND_URL_ES_PUBLICA
           ? `${process.env.FRONTEND_URL}/planes?cambioPlan=${id}`
           : BACK_URL_RELLENO,
@@ -2665,7 +2670,7 @@ app.delete('/club/servicios/:id', verificarToken, requireRol(1, 2), async (req, 
  // Cada plan tope hasta cuántas canchas ACTIVAS puede tener publicadas un
  // club a la vez (Premium no tiene límite). Se valida tanto al agregar una
  // cancha nueva como al reactivar una que estaba dada de baja.
- const LIMITE_CANCHAS_POR_PLAN = { basico: 2, estandar: 6, premium: Infinity };
+ const LIMITE_CANCHAS_POR_PLAN = { basico: 4, estandar: 6, premium: Infinity };
 
  // ------------------ Agregar una cancha nueva al club ------------------
 app.post('/club/canchas', verificarToken, requireRol(1, 2), async (req, res) => {
