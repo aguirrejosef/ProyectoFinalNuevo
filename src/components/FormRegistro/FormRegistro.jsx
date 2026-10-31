@@ -25,20 +25,20 @@ function FormRegistro() {
   const [provincia, setProvincia] = useState('');
   const [localidad, setLocalidad] = useState('');
   const [direccion, setDireccion] = useState('');
-  const [canchas, setCanchas] = useState('');
   const [correo, setCorreo] = useState('');
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [plan, setPlan] = useState(location.state?.planSeleccionado || 'basico');
+  const [canchas, setCanchas] = useState(() => {
+    const planInicial = location.state?.planSeleccionado || 'basico';
+    return planInicial === 'premium' ? '' : String(LIMITE_CANCHAS_POR_PLAN[planInicial]);
+  });
 
-  const limiteCanchasPlan = LIMITE_CANCHAS_POR_PLAN[plan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+  const esPlanLibre = plan === 'premium';
 
   const handleCambiarPlan = (nuevoPlan) => {
     setPlan(nuevoPlan);
-    const limite = LIMITE_CANCHAS_POR_PLAN[nuevoPlan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
-    if (canchas && Number(canchas) > limite) {
-      setCanchas(String(limite));
-    }
+    setCanchas(nuevoPlan === 'premium' ? '' : String(LIMITE_CANCHAS_POR_PLAN[nuevoPlan]));
   };
 
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
@@ -179,23 +179,6 @@ function FormRegistro() {
         </div>
  
         <div className="form-group">
-          <label>Cantidad de canchas:</label>
-          <input
-            type="number"
-            value={canchas}
-            onChange={(e) => setCanchas(e.target.value)}
-            min={1}
-            max={Number.isFinite(limiteCanchasPlan) ? limiteCanchasPlan : undefined}
-            required
-          />
-          <small>
-            {Number.isFinite(limiteCanchasPlan)
-              ? `El plan ${PLANES.find((p) => p.id === plan)?.label} permite hasta ${limiteCanchasPlan} canchas.`
-              : 'El plan Premium no tiene límite de canchas.'}
-          </small>
-        </div>
- 
-        <div className="form-group">
           <label>Correo Electrónico:</label>
           <input
             type="email"
@@ -227,7 +210,25 @@ function FormRegistro() {
             ))}
           </select>
         </div>
- 
+
+        <div className="form-group">
+          <label>Cantidad de canchas:</label>
+          <input
+            type="number"
+            value={canchas}
+            onChange={(e) => setCanchas(e.target.value)}
+            min={1}
+            readOnly={!esPlanLibre}
+            disabled={!esPlanLibre}
+            required
+          />
+          <small>
+            {esPlanLibre
+              ? 'Plan Premium: ingresá la cantidad de canchas que vas a publicar.'
+              : `El plan ${PLANES.find((p) => p.id === plan)?.label} incluye ${canchas} canchas.`}
+          </small>
+        </div>
+
         <div className="form-group">
           <label>Contraseña:</label>
           <input
