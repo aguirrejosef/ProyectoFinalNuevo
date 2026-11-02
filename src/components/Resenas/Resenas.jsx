@@ -38,7 +38,7 @@ function Resenas({ idClub, onCambio }) {
     const [eliminando, setEliminando] = useState(false);
     const [pagina, setPagina] = useState(1);
 
-    const RESENAS_POR_PAGINA = 4;
+    const RESENAS_POR_PAGINA = 3;
     const totalPaginas = Math.max(1, Math.ceil(resenas.length / RESENAS_POR_PAGINA));
     const resenasPagina = resenas.slice((pagina - 1) * RESENAS_POR_PAGINA, pagina * RESENAS_POR_PAGINA);
 
