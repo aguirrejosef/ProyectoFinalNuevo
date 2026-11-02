@@ -20,8 +20,12 @@
    - .home-pagina (Home): ya tiene su propio min-height:100vh en Home.css.
      Tener el 100vh calculado dos veces, en dos niveles anidados, puede
      desincronizarse por redondeo al hacer zoom y dejar un hueco en blanco
-     debajo del footer; que sea la única fuente de esa altura acá. */
-.App > div:not(.contenedor):not(.contenedor-footer):not(.contenedor-turnos):not(.home-pagina) {
+     debajo del footer; que sea la única fuente de esa altura acá.
+   - .toast, .modal-overlay, .overlay-modal: son avisos/popups con
+     position:fixed que también terminan como hijos directos de .App en
+     páginas con fragment. min-height:100vh los estira a toda la pantalla
+     (se vieron como una caja enorme en vez de un aviso chico). */
+.App > div:not(.contenedor):not(.contenedor-footer):not(.contenedor-turnos):not(.home-pagina):not(.toast):not(.modal-overlay):not(.overlay-modal) {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
