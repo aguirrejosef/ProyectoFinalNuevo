@@ -14,6 +14,27 @@
   margin: 0 0 18px;
 }
 
+.resenas-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.resenas-layout-sin-form {
+  grid-template-columns: 1fr;
+}
+
+.resenas-columna-lista {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .resenas-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mensaje-resenas-vacio {
   color: #777;
   text-align: center;

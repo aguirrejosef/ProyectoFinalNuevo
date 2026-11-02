@@ -140,50 +140,54 @@ function Resenas({ idClub, onCambio }) {
                 <p className="mensaje-resenas-vacio error-form-resena">{errorCarga}</p>
             )}
 
-            {!cargando && !errorCarga && resenas.length === 0 && (
-                <p className="mensaje-resenas-vacio">Todavía no hay reseñas de este club.</p>
-            )}
+            <div className={`resenas-layout ${esCliente ? '' : 'resenas-layout-sin-form'}`}>
+                {esCliente && (
+                    <form className="form-resena" onSubmit={handleEnviar}>
+                        <h3>{miResena ? 'Editar mi reseña' : 'Dejar una reseña'}</h3>
+                        <Estrellas puntuacion={puntuacionForm} interactivo onElegir={setPuntuacionForm} />
+                        <textarea
+                            value={comentarioForm}
+                            onChange={(e) => setComentarioForm(e.target.value)}
+                            placeholder="Contanos cómo te fue (opcional)"
+                            rows={3}
+                        />
+                        {error && <p className="error-form-resena">{error}</p>}
+                        <button type="submit" disabled={guardando}>
+                            {guardando ? 'Guardando...' : miResena ? 'Actualizar reseña' : 'Publicar reseña'}
+                        </button>
+                    </form>
+                )}
 
-            {!cargando && !errorCarga && resenas.length > 0 && (
-                <div className="lista-resenas">
-                    {resenas.map((r) => (
-                        <div key={r.id_resena} className="item-resena">
-                            <div className="item-resena-header">
-                                <span className="item-resena-nombre">
-                                    {r.nombre ? `${r.nombre} ${r.apellido || ''}`.trim() : r.usuario}
-                                </span>
-                                <Estrellas puntuacion={r.puntuacion} />
-                                <span className="item-resena-fecha">
-                                    {new Date(r.fecha).toLocaleDateString('es-AR')}
-                                </span>
-                                {(r.id_usuario === miId || esAdmin) && (
-                                    <button type="button" className="btn-eliminar-resena" onClick={() => setResenaAEliminar(r.id_resena)}>
-                                        Eliminar
-                                    </button>
-                                )}
-                            </div>
-                            {r.comentario && <p className="item-resena-comentario">{r.comentario}</p>}
+                <div className="resenas-columna-lista">
+                    {!cargando && !errorCarga && resenas.length === 0 && (
+                        <p className="mensaje-resenas-vacio">Todavía no hay reseñas de este club.</p>
+                    )}
+
+                    {!cargando && !errorCarga && resenas.length > 0 && (
+                        <div className="lista-resenas">
+                            {resenas.map((r) => (
+                                <div key={r.id_resena} className="item-resena">
+                                    <div className="item-resena-header">
+                                        <span className="item-resena-nombre">
+                                            {r.nombre ? `${r.nombre} ${r.apellido || ''}`.trim() : r.usuario}
+                                        </span>
+                                        <Estrellas puntuacion={r.puntuacion} />
+                                        <span className="item-resena-fecha">
+                                            {new Date(r.fecha).toLocaleDateString('es-AR')}
+                                        </span>
+                                        {(r.id_usuario === miId || esAdmin) && (
+                                            <button type="button" className="btn-eliminar-resena" onClick={() => setResenaAEliminar(r.id_resena)}>
+                                                Eliminar
+                                            </button>
+                                        )}
+                                    </div>
+                                    {r.comentario && <p className="item-resena-comentario">{r.comentario}</p>}
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
-            )}
-
-            {esCliente && (
-                <form className="form-resena" onSubmit={handleEnviar}>
-                    <h3>{miResena ? 'Editar mi reseña' : 'Dejar una reseña'}</h3>
-                    <Estrellas puntuacion={puntuacionForm} interactivo onElegir={setPuntuacionForm} />
-                    <textarea
-                        value={comentarioForm}
-                        onChange={(e) => setComentarioForm(e.target.value)}
-                        placeholder="Contanos cómo te fue (opcional)"
-                        rows={3}
-                    />
-                    {error && <p className="error-form-resena">{error}</p>}
-                    <button type="submit" disabled={guardando}>
-                        {guardando ? 'Guardando...' : miResena ? 'Actualizar reseña' : 'Publicar reseña'}
-                    </button>
-                </form>
-            )}
+            </div>
 
             {resenaAEliminar && (
                 <div className="overlay-modal" onClick={() => !eliminando && setResenaAEliminar(null)}>
