@@ -726,6 +726,10 @@ app.post('/usuarios/registro-club', async (req, res) => {
     return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
   }
 
+  if (!Number.isInteger(parseInt(canchas)) || parseInt(canchas) <= 0) {
+    return res.status(400).json({ message: 'La cantidad de canchas debe ser mayor a 0' });
+  }
+
   const planElegido = PRECIOS_PLANES[plan] ? plan : 'basico';
 
   const limiteCanchasPlan = LIMITE_CANCHAS_POR_PLAN[planElegido] ?? LIMITE_CANCHAS_POR_PLAN.basico;
@@ -2067,7 +2071,7 @@ app.get('/admin/clubes/:id', verificarToken, requireRol(1), async (req, res) => 
       return res.status(404).json({ message: 'Club no encontrado' });
     }
 
-    res.json(rows[0]);
+    res.json({ ...rows[0], precio_plan: PRECIOS_PLANES[rows[0].plan] ?? null });
   } catch (error) {
     console.error('Error en /admin/clubes/:id:', error);
     res.status(500).json({ message: 'Error al obtener el club' });
@@ -2430,6 +2434,20 @@ app.post('/club/:id/cambiar-plan', verificarToken, requireRol(2), async (req, re
     // nuevo el mismo plan que ya está vigente.
     if (club.plan === plan && !club.en_mora) {
       return res.status(400).json({ message: 'Ese ya es tu plan actual' });
+    }
+
+    // Si está bajando de plan, el nuevo tope de canchas activas tiene que
+    // alcanzar para las que ya tiene publicadas; si no, quedaría con más
+    // canchas activas de las que su plan nuevo permite.
+    const limiteNuevoPlan = LIMITE_CANCHAS_POR_PLAN[plan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+    const [[{ canchasActivas }]] = await pool.execute(
+      'SELECT COUNT(*) AS canchasActivas FROM canchas WHERE id_club = ? AND activo = 1',
+      [id]
+    );
+    if (canchasActivas > limiteNuevoPlan) {
+      return res.status(400).json({
+        message: `No podés cambiar a este plan: tenés ${canchasActivas} canchas activas y el plan permite hasta ${limiteNuevoPlan}. Dá de baja canchas antes de cambiar de plan.`
+      });
     }
 
     if (!mpClient) {
@@ -3098,6 +3116,7 @@ app.post('/turnos', verificarToken, async (req, res) => {
     return res.status(400).json({ message: 'Duración de turno inválida' });
   }
 
+  let conn;
   try {
     const [usuarioRows] = await pool.execute(
       'SELECT nombre, apellido, dni, telefono FROM usuarios WHERE id_usuario = ?',
@@ -3116,31 +3135,45 @@ app.post('/turnos', verificarToken, async (req, res) => {
       return res.status(400).json({ message: 'No se puede reservar una fecha pasada' });
     }
 
-    const [canchaRows] = await pool.execute(
+    // Desde acá se chequea disponibilidad y se crea el turno dentro de una
+    // transacción que bloquea la fila de la cancha (FOR UPDATE): así, si dos
+    // clientes piden el mismo horario casi al mismo tiempo, el segundo espera
+    // a que el primero termine (commit o rollback) antes de leer qué turnos
+    // hay activos, en vez de los dos leyendo "libre" a la vez y terminando
+    // con dos reservas pisándose el mismo horario.
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [canchaRows] = await conn.execute(
       `SELECT c.estado, c.activo, c.precio, c.precio_nocturno, c.nombre AS nombre_cancha,
               cl.id_club, cl.nombre AS nombre_club, cl.hora_inicio_nocturno
        FROM canchas c INNER JOIN club cl ON c.id_club = cl.id_club
-       WHERE c.id_cancha = ?`,
+       WHERE c.id_cancha = ?
+       FOR UPDATE`,
       [id_cancha]
     );
 
     if (canchaRows.length === 0 || !canchaRows[0].activo) {
+      await conn.rollback();
       return res.status(404).json({ message: 'La cancha no existe' });
     }
     if (canchaRows[0].estado !== 'disponible') {
+      await conn.rollback();
       return res.status(400).json({ message: 'Esta cancha no está disponible actualmente' });
     }
     if (!canchaRows[0].precio) {
+      await conn.rollback();
       return res.status(400).json({ message: 'Esta cancha todavía no tiene un precio configurado' });
     }
 
     const idClub = canchaRows[0].id_club;
 
-    const [diaRows] = await pool.execute(
+    const [diaRows] = await conn.execute(
       `SELECT hora_apertura, hora_cierre FROM club_dias_atencion WHERE id_club = ? AND numero_dia = WEEKDAY(?)`,
       [idClub, fecha]
     );
     if (diaRows.length === 0) {
+      await conn.rollback();
       return res.status(400).json({ message: 'El club no atiende ese día' });
     }
 
@@ -3150,20 +3183,22 @@ app.post('/turnos', verificarToken, async (req, res) => {
     const cierreMin = horaAMinutos(diaRows[0].hora_cierre);
 
     if (inicioMin < aperturaMin || finMin > cierreMin) {
+      await conn.rollback();
       return res.status(400).json({ message: 'Ese horario está fuera de la atención del club' });
     }
 
-    const [validezHoy] = await pool.execute(
+    const [validezHoy] = await conn.execute(
       'SELECT (? = CURDATE() AND ? <= CURTIME()) AS yaPaso',
       [fecha, hora_inicio]
     );
     if (validezHoy[0].yaPaso) {
+      await conn.rollback();
       return res.status(400).json({ message: 'Ese horario ya pasó' });
     }
 
     const horaFin = minutosAHora(finMin);
 
-    const [turnosActivos] = await pool.execute(
+    const [turnosActivos] = await conn.execute(
       `SELECT h.hora_inicio, h.hora_fin
        FROM turnos t
        INNER JOIN horarios h ON t.id_horario = h.id_horario
@@ -3179,11 +3214,12 @@ app.post('/turnos', verificarToken, async (req, res) => {
     );
 
     if (hayChoque) {
+      await conn.rollback();
       return res.status(409).json({ message: 'Ese horario ya está reservado, elegí otro' });
     }
 
     // Buscamos o creamos la franja horaria puntual (hora_inicio - hora_fin) para este club
-    const [horarioExistente] = await pool.execute(
+    const [horarioExistente] = await conn.execute(
       'SELECT id_horario FROM horarios WHERE id_club = ? AND hora_inicio = ? AND hora_fin = ?',
       [idClub, hora_inicio, horaFin]
     );
@@ -3192,14 +3228,14 @@ app.post('/turnos', verificarToken, async (req, res) => {
     if (horarioExistente.length > 0) {
       idHorario = horarioExistente[0].id_horario;
     } else {
-      const [nuevoHorario] = await pool.execute(
+      const [nuevoHorario] = await conn.execute(
         'INSERT INTO horarios (id_club, hora_inicio, hora_fin) VALUES (?, ?, ?)',
         [idClub, hora_inicio, horaFin]
       );
       idHorario = nuevoHorario.insertId;
     }
 
-    const [result] = await pool.execute(
+    const [result] = await conn.execute(
       `INSERT INTO turnos (id_usuario, id_cancha, id_horario, id_estado, fecha, fecha_creacion)
        VALUES (?, ?, ?, (SELECT id_estado FROM estados_turno WHERE nombre = 'pendiente_pago'), ?, NOW())`,
       [req.usuario.id, id_cancha, idHorario, fecha]
@@ -3219,10 +3255,14 @@ app.post('/turnos', verificarToken, async (req, res) => {
     const precioTotal = precioHora * (Number(minutos) / 60);
     const montoSena = Math.round(precioTotal * PORCENTAJE_SENA);
 
-    await pool.execute(
+    await conn.execute(
       'INSERT INTO pagos (id_turno, id_metodo, monto, estado) VALUES (?, ?, ?, ?)',
       [idTurno, ID_METODO_MERCADOPAGO, montoSena, 'pendiente']
     );
+
+    await conn.commit();
+    conn.release();
+    conn = undefined;
 
     if (!mpClient) {
       return res.status(201).json({
@@ -3272,6 +3312,10 @@ app.post('/turnos', verificarToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error al reservar turno:', error);
+    if (conn) {
+      try { await conn.rollback(); } catch (_) { /* la conexión puede haberse caído */ }
+      conn.release();
+    }
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });

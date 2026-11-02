@@ -163,8 +163,8 @@ function ReservaConfirmacion() {
         pagado: {
             titulo: '¡Reserva confirmada! 🎉',
             texto: esPestanaOriginal
-                ? 'Hacé clic en "Ver mis reservas" en la otra pestaña para continuar.'
-                : 'Hacé clic en "Ver mis reservas" para continuar.'
+                ? 'Hacé clic en "Ver mis reservas".'
+                : 'Ya podés ver tu reserva en la otra pestaña.'
         },
         rechazado: {
             titulo: 'El pago no se completó',

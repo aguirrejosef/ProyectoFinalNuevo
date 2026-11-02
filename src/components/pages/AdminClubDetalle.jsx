@@ -6,8 +6,6 @@ import { apiFetch } from '../../api';
 import { ETIQUETA_ESTADO } from '../../utils/etiquetaEstadoSuscripcion';
 import './AdminClubDetalle.css';
 
-const PRECIOS_PLANES = { basico: 5000, estandar: 8000, premium: 12000 };
-
 const formatearFecha = (fecha) => {
     if (!fecha) return 'No informada';
     return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -71,7 +69,7 @@ function AdminClubDetalle() {
         : club.en_mora
             ? { texto: 'Falta de pago', clase: 'badge-suscripcion-mora' }
             : ETIQUETA_ESTADO[club.estado_suscripcion] || null;
-    const precioPlan = club.plan && PRECIOS_PLANES[club.plan] ? PRECIOS_PLANES[club.plan] : null;
+    const precioPlan = club.precio_plan ?? null;
 
     return (
         <div>

@@ -79,9 +79,19 @@ const Usuarios = ({ onCambioEstado }) => {
         return;
       }
 
+      const nuevoTotalPaginas = data.totalPaginas || 1;
+
+      // Si un filtro/búsqueda nuevo deja menos páginas que la que se estaba
+      // mirando, esa página deja de existir: volvemos a la última válida en
+      // vez de quedarnos mostrando una lista vacía.
+      if (paginaClub > nuevoTotalPaginas) {
+        setPaginaClub(nuevoTotalPaginas);
+        return;
+      }
+
       setClientesClub(Array.isArray(data.clientes) ? data.clientes : []);
       setTotalClub(data.total || 0);
-      setTotalPaginasClub(data.totalPaginas || 1);
+      setTotalPaginasClub(nuevoTotalPaginas);
     } catch (error) {
       console.error('Error al cargar clientes del club:', error);
       setClientesClub([]);
