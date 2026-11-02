@@ -29,9 +29,21 @@
   min-width: 0;
 }
 
+/* Se queda fija mientras se scrollea la lista de al lado (si no, cuando
+   hay muchas reseñas el formulario queda cortito y deja un hueco vacío
+   debajo, por la diferencia de altura entre las dos columnas). */
+.resenas-layout .form-resena {
+  position: sticky;
+  top: 20px;
+}
+
 @media (max-width: 900px) {
   .resenas-layout {
     grid-template-columns: 1fr;
+  }
+
+  .resenas-layout .form-resena {
+    position: static;
   }
 }
 
