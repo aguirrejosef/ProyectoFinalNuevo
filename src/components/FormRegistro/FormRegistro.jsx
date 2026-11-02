@@ -246,7 +246,7 @@ function FormRegistro() {
  
       </form>
  
-      {modalVisible && <Modal mensaje={mensaje} />}
+      {modalVisible && <Modal tituloMsj="Registro" cuerpoMsj={mensaje} />}
     </div>
   );
 }
