@@ -36,6 +36,15 @@ function Resenas({ idClub, onCambio }) {
     const [toast, setToast] = useState(null);
     const [resenaAEliminar, setResenaAEliminar] = useState(null);
     const [eliminando, setEliminando] = useState(false);
+    const [pagina, setPagina] = useState(1);
+
+    const RESENAS_POR_PAGINA = 4;
+    const totalPaginas = Math.max(1, Math.ceil(resenas.length / RESENAS_POR_PAGINA));
+    const resenasPagina = resenas.slice((pagina - 1) * RESENAS_POR_PAGINA, pagina * RESENAS_POR_PAGINA);
+
+    useEffect(() => {
+        if (pagina > totalPaginas) setPagina(totalPaginas);
+    }, [pagina, totalPaginas]);
 
     const cargarResenas = async () => {
         setCargando(true);
@@ -57,6 +66,7 @@ function Resenas({ idClub, onCambio }) {
     };
 
     useEffect(() => {
+        setPagina(1);
         cargarResenas();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [idClub]);
@@ -164,27 +174,37 @@ function Resenas({ idClub, onCambio }) {
                     )}
 
                     {!cargando && !errorCarga && resenas.length > 0 && (
-                        <div className="lista-resenas">
-                            {resenas.map((r) => (
-                                <div key={r.id_resena} className="item-resena">
-                                    <div className="item-resena-header">
-                                        <span className="item-resena-nombre">
-                                            {r.nombre ? `${r.nombre} ${r.apellido || ''}`.trim() : r.usuario}
-                                        </span>
-                                        <Estrellas puntuacion={r.puntuacion} />
-                                        <span className="item-resena-fecha">
-                                            {new Date(r.fecha).toLocaleDateString('es-AR')}
-                                        </span>
-                                        {(r.id_usuario === miId || esAdmin) && (
-                                            <button type="button" className="btn-eliminar-resena" onClick={() => setResenaAEliminar(r.id_resena)}>
-                                                Eliminar
-                                            </button>
-                                        )}
+                        <>
+                            <div className="lista-resenas">
+                                {resenasPagina.map((r) => (
+                                    <div key={r.id_resena} className="item-resena">
+                                        <div className="item-resena-header">
+                                            <span className="item-resena-nombre">
+                                                {r.nombre ? `${r.nombre} ${r.apellido || ''}`.trim() : r.usuario}
+                                            </span>
+                                            <Estrellas puntuacion={r.puntuacion} />
+                                            <span className="item-resena-fecha">
+                                                {new Date(r.fecha).toLocaleDateString('es-AR')}
+                                            </span>
+                                            {(r.id_usuario === miId || esAdmin) && (
+                                                <button type="button" className="btn-eliminar-resena" onClick={() => setResenaAEliminar(r.id_resena)}>
+                                                    Eliminar
+                                                </button>
+                                            )}
+                                        </div>
+                                        {r.comentario && <p className="item-resena-comentario">{r.comentario}</p>}
                                     </div>
-                                    {r.comentario && <p className="item-resena-comentario">{r.comentario}</p>}
+                                ))}
+                            </div>
+
+                            {totalPaginas > 1 && (
+                                <div className="paginado-resenas">
+                                    <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>‹ Anterior</button>
+                                    <span>Página {pagina} de {totalPaginas}</span>
+                                    <button type="button" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>Siguiente ›</button>
                                 </div>
-                            ))}
-                        </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
