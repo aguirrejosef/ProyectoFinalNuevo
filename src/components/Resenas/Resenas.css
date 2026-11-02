@@ -18,7 +18,7 @@
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .resenas-layout-sin-form {
@@ -29,12 +29,15 @@
   min-width: 0;
 }
 
-/* Se queda fija mientras se scrollea la lista de al lado (si no, cuando
-   hay muchas reseñas el formulario queda cortito y deja un hueco vacío
-   debajo, por la diferencia de altura entre las dos columnas). */
+/* Estira la tarjeta del formulario a la misma altura que la columna de
+   reseñas de al lado (si no, cuando hay varias reseñas la columna de la
+   derecha queda bastante más alta y el formulario corto deja un hueco
+   vacío debajo, bien desparejo). */
 .resenas-layout .form-resena {
-  position: sticky;
-  top: 20px;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 900px) {
@@ -43,7 +46,7 @@
   }
 
   .resenas-layout .form-resena {
-    position: static;
+    height: auto;
   }
 }
 
