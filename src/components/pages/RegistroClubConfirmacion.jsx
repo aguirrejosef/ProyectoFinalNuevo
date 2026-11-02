@@ -131,7 +131,7 @@ function RegistroClubConfirmacion() {
         aprobado: {
             titulo: '¡Tu club ya está registrado! 🎉',
             texto: esPestanaOriginal
-                ? 'Hacé clic en "Iniciar sesión" en la otra pestaña para continuar.'
+                ? 'Hacé clic en "Iniciar sesión".'
                 : 'Ya podés iniciar sesión con el usuario y la contraseña que elegiste.'
         },
         rechazado: {
