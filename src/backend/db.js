@@ -221,6 +221,11 @@ async function sincronizarRegistroClubPendiente(idRegistro) {
     const idClubNuevo = await registrarClubDesdePendiente(pendiente, proximaFechaPago);
     await registrarPagosPlanDesdeMP(idClubNuevo, pendiente.mp_preapproval_id);
     await pool.execute("UPDATE registros_club_pendientes SET estado = 'aprobado' WHERE id_registro = ?", [idRegistro]);
+    if (pendiente.correo) {
+      enviarEmailRegistroClub(pendiente).catch((error) => {
+        console.error('Error al enviar el correo de registro de club:', error);
+      });
+    }
     return { estado: 'aprobado' };
   }
 
@@ -518,6 +523,26 @@ async function enviarEmailBajaClub(nombreClub, nombreDueno, correoDueno, motivo)
       <p><b>Motivo:</b> ${motivo}</p>
       <p>Mientras tanto, tu club deja de aparecer en las búsquedas públicas y no vas a poder gestionarlo desde tu panel.
       Si creés que se trata de un error o querés más información, escribinos para resolverlo.</p>
+    `
+  });
+}
+
+// Le confirma por mail al dueño del club que su registro y el pago del plan
+// quedaron aprobados (se dispara apenas Mercado Pago autoriza la suscripción).
+async function enviarEmailRegistroClub(pendiente) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: pendiente.correo,
+    subject: `¡Tu club ${pendiente.nombre_club} ya está activo en SUP!`,
+    html: `
+      <p>Hola,</p>
+      <p>Te confirmamos que el pago de tu plan se acreditó y <b>${pendiente.nombre_club}</b> ya está registrado y activo en SUP - Sale un Pádel.</p>
+      <ul>
+        <li><b>Plan:</b> ${NOMBRES_PLAN[pendiente.plan] || pendiente.plan}</li>
+        <li><b>Canchas cargadas:</b> ${pendiente.canchas}</li>
+        <li><b>Usuario para iniciar sesión:</b> ${pendiente.usuario}</li>
+      </ul>
+      <p>Ya podés iniciar sesión con el usuario y la contraseña que elegiste para empezar a recibir reservas.</p>
     `
   });
 }
