@@ -134,32 +134,6 @@ function Club() {
     <div className="pagina-club">
       <NavBar />
 
-      {fotos.length > 0 && (
-        <div className="carrusel-club">
-          <img src={fotos[fotoIndex]?.url} alt={club.nombre} className="carrusel-club-img" />
-
-          {fotos.length > 1 && (
-            <>
-              <button type="button" className="carrusel-club-flecha carrusel-club-flecha-izq" onClick={handleFotoAnterior} aria-label="Foto anterior">
-                ‹
-              </button>
-              <button type="button" className="carrusel-club-flecha carrusel-club-flecha-der" onClick={handleFotoSiguiente} aria-label="Foto siguiente">
-                ›
-              </button>
-              <div className="carrusel-club-puntos">
-                {fotos.map((_, i) => (
-                  <span
-                    key={i}
-                    className={`carrusel-club-punto ${i === fotoIndex ? 'carrusel-club-punto-activo' : ''}`}
-                    onClick={() => setFotoIndex(i)}
-                  ></span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
       <div className="tarjeta-encabezado-club">
         <h1 className="nombre-club">{club.nombre}</h1>
         {club.cantidad_resenas > 0 && (
@@ -246,6 +220,32 @@ function Club() {
         horariosAtencion={club.horarios_atencion}
         servicios={servicios}
       />
+
+      {fotos.length > 0 && (
+        <div className="carrusel-club">
+          <img src={fotos[fotoIndex]?.url} alt={club.nombre} className="carrusel-club-img" />
+
+          {fotos.length > 1 && (
+            <>
+              <button type="button" className="carrusel-club-flecha carrusel-club-flecha-izq" onClick={handleFotoAnterior} aria-label="Foto anterior">
+                ‹
+              </button>
+              <button type="button" className="carrusel-club-flecha carrusel-club-flecha-der" onClick={handleFotoSiguiente} aria-label="Foto siguiente">
+                ›
+              </button>
+              <div className="carrusel-club-puntos">
+                {fotos.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`carrusel-club-punto ${i === fotoIndex ? 'carrusel-club-punto-activo' : ''}`}
+                    onClick={() => setFotoIndex(i)}
+                  ></span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <Resenas idClub={id} onCambio={actualizarResumenResenas} />
 
