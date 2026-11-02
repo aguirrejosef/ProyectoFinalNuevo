@@ -11,9 +11,10 @@ import './ReservaConfirmacion.css';
 const INTENTOS_MAXIMOS = 120;
 const ESPERA_ENTRE_INTENTOS_MS = 5000;
 // Si la pestaña original no recibe el aviso de la otra pestaña en este
-// tiempo (por ej. si la cerraron sin apretar el botón), le mostramos el
+// tiempo (por ej. si la cerraron sin apretar el botón, o Mercado Pago
+// todavía no la redirigió de vuelta con auto_return), le mostramos el
 // botón igual para que pueda continuar por su cuenta.
-const ESPERA_RESPALDO_MS = 5000;
+const ESPERA_RESPALDO_MS = 15000;
 // Un solo error de red (wifi que titila un segundo) no debería tirar toda
 // la espera a la basura; recién si falla varias veces seguidas asumimos que
 // el problema es real.
@@ -142,6 +143,15 @@ function ReservaConfirmacion() {
             window.close();
         }
     };
+
+    // La pestaña de Mercado Pago no tiene por qué esperar un clic nuestro:
+    // en cuanto llega acá con el pago ya confirmado, avisa a la pestaña
+    // original y se cierra sola.
+    useEffect(() => {
+        if (estado !== 'pagado' || esPestanaOriginal) return;
+        handleContinuar();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [estado, esPestanaOriginal]);
 
     const contenidoPorEstado = {
         cargando: {

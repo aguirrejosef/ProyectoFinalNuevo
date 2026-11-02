@@ -10,9 +10,12 @@ import './ReservaConfirmacion.css';
 const INTENTOS_MAXIMOS = 120;
 const ESPERA_ENTRE_INTENTOS_MS = 5000;
 // Si la pestaña original no recibe el aviso de la otra pestaña en este
-// tiempo (por ej. si la cerraron sin apretar el botón), le mostramos el
-// botón igual para que pueda continuar por su cuenta.
-const ESPERA_RESPALDO_MS = 5000;
+// tiempo, le mostramos el botón igual para que pueda continuar por su
+// cuenta. Mercado Pago no vuelve solo tras pagar una suscripción: el
+// usuario tiene que hacer clic en "Ir al sitio del vendedor" en su propia
+// pantalla de pago antes de llegar a nuestra página, así que este tiempo
+// tiene que ser generoso (es un respaldo real, no el camino esperado).
+const ESPERA_RESPALDO_MS = 90000;
 
 function RegistroClubConfirmacion() {
     const [searchParams] = useSearchParams();
@@ -107,6 +110,16 @@ function RegistroClubConfirmacion() {
             window.close();
         }
     };
+
+    // La pestaña de Mercado Pago no tiene por qué esperar un clic nuestro:
+    // en cuanto llega acá con el pago ya aprobado, avisa a la pestaña
+    // original y se cierra sola. El único clic que el usuario necesita es
+    // el de Mercado Pago ("Ir al sitio del vendedor"), inevitable.
+    useEffect(() => {
+        if (estado !== 'aprobado' || esPestanaOriginal) return;
+        handleContinuar();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [estado, esPestanaOriginal]);
 
     const contenidoPorEstado = {
         cargando: {
