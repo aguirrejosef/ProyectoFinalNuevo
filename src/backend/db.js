@@ -2405,16 +2405,29 @@ app.put('/club/:id/plan', verificarToken, requireRol(1, 2), async (req, res) => 
       return res.status(403).json({ message: 'No autorizado' });
     }
 
+    // Misma validación que /club/:id/cambiar-plan: no dejar que un club
+    // quede con más canchas activas de las que el plan nuevo permite.
+    const limiteNuevoPlan = LIMITE_CANCHAS_POR_PLAN[plan] ?? LIMITE_CANCHAS_POR_PLAN.basico;
+    const [[{ canchasActivas }]] = await pool.execute(
+      'SELECT COUNT(*) AS canchasActivas FROM canchas WHERE id_club = ? AND activo = 1',
+      [id]
+    );
+    if (canchasActivas > limiteNuevoPlan) {
+      return res.status(400).json({
+        message: `No podés cambiar a este plan: tenés ${canchasActivas} canchas activas y el plan permite hasta ${limiteNuevoPlan}. Dá de baja canchas antes de cambiar de plan.`
+      });
+    }
+
     const conn = await pool.getConnection();
- 
+
     await conn.execute(
       'UPDATE club SET plan = ? WHERE id_club = ?',
       [plan, id]
     );
- 
+
     conn.release();
     res.json({ message: 'Plan actualizado correctamente' });
- 
+
   } catch (error) {
     console.error('Error al actualizar plan:', error);
     res.status(500).json({ message: 'Error en el servidor' });
@@ -2913,12 +2926,17 @@ app.put('/canchas/:id', verificarToken, requireRol(1, 2), async (req, res) => {
  
  
 // ------------------ Activar / Desactivar cancha ------------------
+const ESTADOS_CANCHA_VALIDOS = ['disponible', 'mantenimiento'];
+
 app.put('/canchas/:id/estado', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id } = req.params;
   const { estado } = req.body;
 
   if (!estado) {
     return res.status(400).json({ message: 'Falta el estado' });
+  }
+  if (!ESTADOS_CANCHA_VALIDOS.includes(estado)) {
+    return res.status(400).json({ message: 'Estado de cancha inválido' });
   }
 
   try {
@@ -4566,15 +4584,22 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
       return res.status(400).json({ message: 'Indicá el motivo de la cancelación' });
     }
 
+    // Filtramos también por el estado leído más arriba (todavía 'reservado'):
+    // entre ese SELECT y este UPDATE, la tarea que completa turnos vencidos
+    // (completarTurnosVencidos, corre cada 15 min) podría haber pasado este
+    // mismo turno a 'completado' si justo en el medio se cumplió su horario.
+    // Sin este filtro, la cancelación lo pisaría igual y un turno ya jugado
+    // quedaría marcado como cancelado.
     const [result] = await pool.query(
       `UPDATE turnos
        SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado')
-       WHERE id_turno = ?`,
+       WHERE id_turno = ?
+         AND id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado')`,
       [id]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Turno no encontrado' });
+      return res.status(400).json({ message: 'Este turno ya no se puede cancelar (puede que ya se haya jugado)' });
     }
 
     // Si tenía un pago sin completar (seña abandonada), lo limpiamos

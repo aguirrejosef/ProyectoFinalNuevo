@@ -88,7 +88,9 @@ function MisCanchas() {
     };
 
     const handleToggleEstado = async (cancha) => {
-        const nuevoEstado = cancha.estado === 'disponible' ? 'inactiva' : 'disponible';
+        // La columna canchas.estado es un ENUM('disponible','mantenimiento') en
+        // la base; 'inactiva' no existe ahí y quedaba guardado como string vacío.
+        const nuevoEstado = cancha.estado === 'disponible' ? 'mantenimiento' : 'disponible';
         setProcesandoId(cancha.id_cancha);
 
         try {
