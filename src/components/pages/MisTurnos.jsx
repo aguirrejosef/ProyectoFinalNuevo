@@ -354,21 +354,34 @@ function MisTurnos() {
                                 </div>
                             )}
 
-                            {turnoSeleccionado.monto_sena != null && (
+                            {/* Mientras no se jugó (reservado), separamos seña ya pagada y resto
+                                pendiente de cobrar en el club. Una vez completado, asumimos que
+                                se cobró todo y mostramos un solo total; si se canceló, la seña
+                                queda pagada pero no hay resto que mostrar. */}
+                            {turnoSeleccionado.monto_sena != null && turnoSeleccionado.estado?.toLowerCase() === 'reservado' && (
+                                <>
+                                    <div className="detalle-fila">
+                                        <span className="detalle-etiqueta">Seña pagada</span>
+                                        <span>{formatearPrecio(turnoSeleccionado.monto_sena)}</span>
+                                    </div>
+                                    <div className="detalle-fila">
+                                        <span className="detalle-etiqueta">Resto a pagar en el club</span>
+                                        <span>{formatearPrecio(turnoSeleccionado.resto_a_pagar)}</span>
+                                    </div>
+                                </>
+                            )}
+
+                            {turnoSeleccionado.monto_sena != null && turnoSeleccionado.estado?.toLowerCase() === 'completado' && (
                                 <div className="detalle-fila">
-                                    <span className="detalle-etiqueta">Seña pagada</span>
-                                    <span>{formatearPrecio(turnoSeleccionado.monto_sena)}</span>
+                                    <span className="detalle-etiqueta">Pagado</span>
+                                    <span>{formatearPrecio(turnoSeleccionado.precio_total)}</span>
                                 </div>
                             )}
 
-                            {turnoSeleccionado.monto_sena != null && turnoSeleccionado.estado?.toLowerCase() !== 'cancelado' && (
+                            {turnoSeleccionado.monto_sena != null && turnoSeleccionado.estado?.toLowerCase() === 'cancelado' && (
                                 <div className="detalle-fila">
-                                    <span className="detalle-etiqueta">Resto a pagar en el club</span>
-                                    <span>
-                                        {turnoSeleccionado.resto_pagado
-                                            ? 'Ya abonado'
-                                            : formatearPrecio(turnoSeleccionado.resto_a_pagar)}
-                                    </span>
+                                    <span className="detalle-etiqueta">Seña pagada (no reembolsable)</span>
+                                    <span>{formatearPrecio(turnoSeleccionado.monto_sena)}</span>
                                 </div>
                             )}
 
