@@ -3155,14 +3155,17 @@ app.post('/turnos', verificarToken, async (req, res) => {
 
     if (canchaRows.length === 0 || !canchaRows[0].activo) {
       await conn.rollback();
+      conn.release();
       return res.status(404).json({ message: 'La cancha no existe' });
     }
     if (canchaRows[0].estado !== 'disponible') {
       await conn.rollback();
+      conn.release();
       return res.status(400).json({ message: 'Esta cancha no está disponible actualmente' });
     }
     if (!canchaRows[0].precio) {
       await conn.rollback();
+      conn.release();
       return res.status(400).json({ message: 'Esta cancha todavía no tiene un precio configurado' });
     }
 
@@ -3174,6 +3177,7 @@ app.post('/turnos', verificarToken, async (req, res) => {
     );
     if (diaRows.length === 0) {
       await conn.rollback();
+      conn.release();
       return res.status(400).json({ message: 'El club no atiende ese día' });
     }
 
@@ -3184,6 +3188,7 @@ app.post('/turnos', verificarToken, async (req, res) => {
 
     if (inicioMin < aperturaMin || finMin > cierreMin) {
       await conn.rollback();
+      conn.release();
       return res.status(400).json({ message: 'Ese horario está fuera de la atención del club' });
     }
 
@@ -3193,6 +3198,7 @@ app.post('/turnos', verificarToken, async (req, res) => {
     );
     if (validezHoy[0].yaPaso) {
       await conn.rollback();
+      conn.release();
       return res.status(400).json({ message: 'Ese horario ya pasó' });
     }
 
@@ -3215,6 +3221,7 @@ app.post('/turnos', verificarToken, async (req, res) => {
 
     if (hayChoque) {
       await conn.rollback();
+      conn.release();
       return res.status(409).json({ message: 'Ese horario ya está reservado, elegí otro' });
     }
 
@@ -4705,20 +4712,39 @@ app.get('/turnos', verificarToken, async (req, res) => {
           cl.direccion AS direccion,
           cl.telefono AS telefono_club,
           cl.localidad AS localidad_club,
-          e.nombre AS estado
+          e.nombre AS estado,
+          p.monto AS monto_sena,
+          p.resto_pagado_en
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
        INNER JOIN club cl ON c.id_club = cl.id_club
        INNER JOIN horarios h ON t.id_horario = h.id_horario
        INNER JOIN estados_turno e ON t.id_estado = e.id_estado
+       LEFT JOIN pagos p ON p.id_turno = t.id_turno
        ${whereSql}
        ORDER BY t.fecha ${orden}, h.hora_inicio ASC
        LIMIT ${limite} OFFSET ${offset}`,
       params
     );
 
+    // El cliente paga la seña (PORCENTAJE_SENA) por Mercado Pago; el resto
+    // se abona en el club al jugar. Mandamos ambos montos ya calculados para
+    // que el frontend pueda mostrar cuánto falta pagar en cada turno.
+    const turnos = rows.map(({ monto_sena, resto_pagado_en, ...t }) => {
+      const montoSena = monto_sena !== null ? Number(monto_sena) : null;
+      const precioTotal = montoSena !== null ? Math.round((montoSena / PORCENTAJE_SENA) * 100) / 100 : null;
+      const restoAPagar = precioTotal !== null ? Math.round((precioTotal - montoSena) * 100) / 100 : null;
+      return {
+        ...t,
+        monto_sena: montoSena,
+        precio_total: precioTotal,
+        resto_a_pagar: restoAPagar,
+        resto_pagado: Boolean(resto_pagado_en)
+      };
+    });
+
     res.json({
-      turnos: rows,
+      turnos,
       total,
       pagina,
       limite,

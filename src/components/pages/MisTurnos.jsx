@@ -162,6 +162,8 @@ function MisTurnos() {
     };
  
     const formatearHora = (hora) => hora ? hora.slice(0, 5) : '';
+
+    const formatearPrecio = (monto) => `$${Number(monto).toLocaleString('es-AR')}`;
  
     const handleCambiarTab = (tab) => {
         setTabActiva(tab);
@@ -349,6 +351,24 @@ function MisTurnos() {
                                 <div className="detalle-fila">
                                     <span className="detalle-etiqueta">Teléfono del club</span>
                                     <span>{turnoSeleccionado.telefono_club}</span>
+                                </div>
+                            )}
+
+                            {turnoSeleccionado.monto_sena != null && (
+                                <div className="detalle-fila">
+                                    <span className="detalle-etiqueta">Seña pagada</span>
+                                    <span>{formatearPrecio(turnoSeleccionado.monto_sena)}</span>
+                                </div>
+                            )}
+
+                            {turnoSeleccionado.monto_sena != null && turnoSeleccionado.estado?.toLowerCase() !== 'cancelado' && (
+                                <div className="detalle-fila">
+                                    <span className="detalle-etiqueta">Resto a pagar en el club</span>
+                                    <span>
+                                        {turnoSeleccionado.resto_pagado
+                                            ? 'Ya abonado'
+                                            : formatearPrecio(turnoSeleccionado.resto_a_pagar)}
+                                    </span>
                                 </div>
                             )}
 
