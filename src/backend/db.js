@@ -619,6 +619,32 @@ const MS_ENTRE_REVISIONES_RECORDATORIO = 60 * 60 * 1000; // cada 1 hora
 setInterval(revisarRecordatoriosTurnos, MS_ENTRE_REVISIONES_RECORDATORIO);
 revisarRecordatoriosTurnos();
 
+// Un turno "reservado" cuyo horario ya terminó debería dejar de figurar como
+// próximo a jugarse. Nada más lo pasa a "completado" automáticamente (no hay
+// forma de que el cliente o el club lo confirmen a mano), así que lo hacemos
+// acá: se llama al arrancar el servidor y después cada 15 minutos.
+async function completarTurnosVencidos() {
+  try {
+    const [resultado] = await pool.execute(
+      `UPDATE turnos t
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       SET t.id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'completado')
+       WHERE et.nombre = 'reservado'
+         AND (t.fecha < CURDATE() OR (t.fecha = CURDATE() AND h.hora_fin <= CURTIME()))`
+    );
+    if (resultado.affectedRows > 0) {
+      console.log(`Turnos pasados a completado automáticamente: ${resultado.affectedRows}`);
+    }
+  } catch (error) {
+    console.error('Error al completar turnos vencidos:', error);
+  }
+}
+
+const MS_ENTRE_REVISIONES_TURNOS_VENCIDOS = 15 * 60 * 1000; // cada 15 minutos
+setInterval(completarTurnosVencidos, MS_ENTRE_REVISIONES_TURNOS_VENCIDOS);
+completarTurnosVencidos();
+
 // Le pregunta a Mercado Pago, club por club, si hubo cobros nuevos de la
 // suscripción del plan. Es el mismo chequeo que ya se hace al instante
 // cuando un club termina de pagar (ver registrarPagosPlanDesdeMP), pero acá
