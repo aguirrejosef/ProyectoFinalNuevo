@@ -50,12 +50,9 @@ const storageCanchas = multer.diskStorage({
 // servidor sin tener que configurar una ruta de archivo por entorno. Si no
 // existe ninguno de los dos, se conecta sin SSL (XAMPP local de toda la vida).
 const rutaCertificadoCA = process.env.DB_SSL_CA || path.join(__dirname, 'tidb-ca.pem');
-const existeCertificadoCA = fs.existsSync(rutaCertificadoCA);
-console.log('[diagnostico SSL] ruta certificado:', rutaCertificadoCA, '| existe:', existeCertificadoCA, '| __dirname:', __dirname);
-const sslConfig = existeCertificadoCA
+const sslConfig = fs.existsSync(rutaCertificadoCA)
   ? { ca: fs.readFileSync(rutaCertificadoCA), minVersion: 'TLSv1.2' }
   : undefined;
-console.log('[diagnostico SSL] sslConfig definido:', Boolean(sslConfig));
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
