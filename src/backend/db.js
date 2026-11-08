@@ -7,6 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 require('dotenv').config();
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const fs = require('fs');
 const app = express();
 const port = 3000;
 const multer = require('multer');
@@ -35,14 +36,23 @@ const storageCanchas = multer.diskStorage({
       app.use('/uploads', express.static('uploads'));
 
 // Pool de MySQL
+// DB_SSL_CA es la ruta a un certificado CA (lo pide TiDB Cloud y cualquier
+// base en la nube que exija TLS); en XAMPP local se deja sin definir y la
+// conexión sigue siendo sin SSL, como siempre.
+const sslConfig = process.env.DB_SSL_CA
+  ? { ca: fs.readFileSync(process.env.DB_SSL_CA), minVersion: 'TLSv1.2' }
+  : undefined;
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'padel',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ...(sslConfig ? { ssl: sslConfig } : {})
 });
 
 // ------------------ Autenticación / Autorización ------------------

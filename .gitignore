@@ -30,3 +30,6 @@ src/backend/uploads/*
 
 # config local del editor (MCP servers, etc), no es parte del proyecto
 .vscode/mcp.json
+
+# Dump de la base con datos sensibles (hashes de password, emails, telefonos) - nunca a git
+padel.sql
