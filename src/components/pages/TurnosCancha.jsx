@@ -82,11 +82,11 @@ function TurnosCancha() {
  
                         {turnos.map((t) => (
                             <div key={t.id_turno} className="fila-turnos-cancha">
-                                <span>{formatearFecha(t.fecha)}</span>
-                                <span>{formatearHora(t.hora_inicio)} a {formatearHora(t.hora_fin)}</span>
-                                <span>{t.cliente_nombre} {t.cliente_apellido}</span>
-                                <span>{t.cliente_telefono || '-'}</span>
-                                <span className={`estado-turno-cancha estado-${t.estado?.toLowerCase()}`}>
+                                <span data-label="Fecha">{formatearFecha(t.fecha)}</span>
+                                <span data-label="Horario">{formatearHora(t.hora_inicio)} a {formatearHora(t.hora_fin)}</span>
+                                <span data-label="Cliente">{t.cliente_nombre} {t.cliente_apellido}</span>
+                                <span data-label="Teléfono">{t.cliente_telefono || '-'}</span>
+                                <span data-label="Estado" className={`estado-turno-cancha estado-${t.estado?.toLowerCase()}`}>
                                     {NOMBRES_ESTADO[t.estado] || t.estado}
                                 </span>
                             </div>

@@ -9,3 +9,12 @@
     align-items: center;
     justify-content: center;
 }
+
+@media (max-width: 480px) {
+  .contenedor-btnFlotanteWsp {
+    width: 60px;
+    height: 60px;
+    bottom: 12px;
+    right: 12px;
+  }
+}

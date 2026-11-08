@@ -99,12 +99,20 @@
     grid-template-columns: 1fr;
     gap: 4px;
   }
- 
+
   .fila-header {
     display: none;
   }
- 
+
   .fila-turnos-cancha {
     padding: 16px 20px;
+  }
+
+  /* Sin la fila de encabezado, cada dato necesita su propia etiqueta para
+     saber qué es qué (fecha, horario, cliente, etc.). */
+  .fila-turnos-cancha > [data-label]::before {
+    content: attr(data-label) ": ";
+    font-weight: 700;
+    color: #0d3b66;
   }
 }

@@ -100,6 +100,71 @@
     }
 }
 
+/* Menú hamburguesa, solo visible en mobile */
+
+.btn-hamburguesa {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    background: none;
+    border: 2px solid white;
+    border-radius: 10px;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.btn-hamburguesa span {
+    display: block;
+    width: 22px;
+    height: 2.5px;
+    border-radius: 2px;
+    background-color: white;
+}
+
+.nav-buttons-mobile {
+    display: none;
+}
+
+/* Por debajo de este ancho, los botones de navegación dejan de entrar cómodos
+   en la misma fila que el logo y el usuario: se reemplazan por una
+   hamburguesa que despliega los mismos botones apilados debajo de la barra. */
+@media (max-width: 700px) {
+    /* .contenedor-grid (la barra) y .nav-buttons-mobile (el panel) son
+       hermanos dentro de .contenedor, que por defecto es una fila: sin esto
+       quedarían uno al lado del otro en vez de uno abajo del otro. */
+    .contenedor {
+        flex-direction: column;
+    }
+
+    .grid-item2 {
+        display: none;
+    }
+
+    .btn-hamburguesa {
+        display: flex;
+    }
+
+    .nav-buttons-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 20px 18px;
+        background-color: #004AAD;
+    }
+
+    .nav-buttons-mobile .nav-btn {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
 .nav-btn {
     display: flex;
     align-items: center;

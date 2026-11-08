@@ -13,6 +13,7 @@ function NavBar() {
     const [nombre, setNombre] = useState('');
     const [foto, setFoto] = useState('');
     const [menuAbierto, setMenuAbierto] = useState(false);
+    const [menuMobileAbierto, setMenuMobileAbierto] = useState(false);
     const [proximoInfo, setProximoInfo] = useState(null);
 
     const menuRef = useRef(null);
@@ -168,6 +169,18 @@ function NavBar() {
                     </div>
                 </div>
 
+                <button
+                    type="button"
+                    className="btn-hamburguesa"
+                    aria-label={menuMobileAbierto ? 'Cerrar menú' : 'Abrir menú'}
+                    aria-expanded={menuMobileAbierto}
+                    onClick={() => setMenuMobileAbierto((abierto) => !abierto)}
+                >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+
                 <div className="grid-item4">
                     {rol ? (
                         <div className="usuario-navbar" ref={menuRef}>
@@ -230,6 +243,23 @@ function NavBar() {
                     )}
                 </div>
             </div>
+
+            {menuMobileAbierto && (
+                <div className="nav-buttons-mobile">
+                    {botonesVisibles.map((btn, i) => (
+                        <button
+                            key={i}
+                            className="nav-btn"
+                            onClick={() => {
+                                setMenuMobileAbierto(false);
+                                navigate(btn.path);
+                            }}
+                        >
+                            {btn.label}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
