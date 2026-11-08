@@ -9,7 +9,9 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const fs = require('fs');
 const app = express();
-const port = 3000;
+// Render (y la mayoría de los hosts en la nube) asignan el puerto solos vía
+// esta variable; en local, sin la variable definida, se sigue usando 3000.
+const port = process.env.PORT || 3000;
 const multer = require('multer');
 const path = require('path');
 const { MercadoPagoConfig, Preference, Payment, PreApproval, Invoice } = require('mercadopago');
@@ -18,6 +20,11 @@ const ExcelJS = require('exceljs');
 if (!process.env.JWT_SECRET) {
   throw new Error('Falta JWT_SECRET en el archivo .env');
 }
+
+// URL pública del propio backend, para armar los links de las fotos subidas
+// (canchas, club, perfil). En local sigue siendo localhost:3000 si no se
+// define; en producción hay que setear BACKEND_URL a la URL real del server.
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 app.use(cors());
 app.use(express.json());
@@ -36,12 +43,19 @@ const storageCanchas = multer.diskStorage({
       app.use('/uploads', express.static('uploads'));
 
 // Pool de MySQL
-// DB_SSL_CA es la ruta a un certificado CA (lo pide TiDB Cloud y cualquier
-// base en la nube que exija TLS); en XAMPP local se deja sin definir y la
-// conexión sigue siendo sin SSL, como siempre.
-const sslConfig = process.env.DB_SSL_CA
-  ? { ca: fs.readFileSync(process.env.DB_SSL_CA), minVersion: 'TLSv1.2' }
+// Para conectar con TLS (lo exige TiDB Cloud y cualquier base en la nube)
+// hace falta el certificado de la CA. Se usa DB_SSL_CA si apunta a una ruta
+// absoluta propia; si no, se cae al certificado que ya viaja con el proyecto
+// (tidb-ca.pem, al lado de este archivo) — así funciona igual en cualquier
+// servidor sin tener que configurar una ruta de archivo por entorno. Si no
+// existe ninguno de los dos, se conecta sin SSL (XAMPP local de toda la vida).
+const rutaCertificadoCA = process.env.DB_SSL_CA || path.join(__dirname, 'tidb-ca.pem');
+const existeCertificadoCA = fs.existsSync(rutaCertificadoCA);
+console.log('[diagnostico SSL] ruta certificado:', rutaCertificadoCA, '| existe:', existeCertificadoCA, '| __dirname:', __dirname);
+const sslConfig = existeCertificadoCA
+  ? { ca: fs.readFileSync(rutaCertificadoCA), minVersion: 'TLSv1.2' }
   : undefined;
+console.log('[diagnostico SSL] sslConfig definido:', Boolean(sslConfig));
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -2595,7 +2609,7 @@ app.post('/canchas/upload-foto', verificarToken, requireRol(1, 2), uploadCancha.
   }
  
   // Devolvemos la URL completa, lista para guardar en canchas.foto
-  const url = `http://localhost:3000/uploads/canchas/${req.file.filename}`;
+  const url = `${BACKEND_URL}/uploads/canchas/${req.file.filename}`;
   res.json({ foto: url });
 });
  const storageClub = multer.diskStorage({
@@ -2632,7 +2646,7 @@ app.post('/canchas/upload-foto', verificarToken, requireRol(1, 2), uploadCancha.
         }
 
         try {
-          const url = `http://localhost:3000/uploads/perfiles/${req.file.filename}`;
+          const url = `${BACKEND_URL}/uploads/perfiles/${req.file.filename}`;
           await pool.execute('UPDATE usuarios SET foto = ? WHERE id_usuario = ?', [url, id]);
           res.json({ foto: url });
         } catch (error) {
@@ -2674,7 +2688,7 @@ app.post('/club/fotos/upload', verificarToken, requireRol(1, 2), uploadClubFoto.
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    const url = `http://localhost:3000/uploads/club/${req.file.filename}`;
+    const url = `${BACKEND_URL}/uploads/club/${req.file.filename}`;
  
     const conn = await pool.getConnection();
     const [result] = await conn.execute(
