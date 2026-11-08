@@ -2153,29 +2153,53 @@ app.delete('/clubes/:id', verificarToken, requireRol(1), async (req, res) => {
       [id]
     );
 
+    let turnosCancelados = [];
     if (turnosAfectados.length > 0) {
       const idsTurnos = turnosAfectados.map((t) => t.id_turno);
       const placeholders = idsTurnos.map(() => '?').join(',');
 
+      // Filtramos también por id_estado='reservado': entre el SELECT de
+      // arriba y este UPDATE, completarTurnosVencidos() (corre cada 15 min)
+      // podría haber completado alguno de estos turnos si su horario de hoy
+      // ya terminó. Sin este filtro se cancelaría igual un turno ya jugado.
       await pool.query(
         `UPDATE turnos SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado')
-         WHERE id_turno IN (${placeholders})`,
+         WHERE id_turno IN (${placeholders})
+           AND id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado')`,
         idsTurnos
       );
 
-      // Las señas ya pagadas no se tocan (no hay reintegro automático); solo
-      // se limpian los pagos pendientes, igual que en la cancelación manual.
-      await pool.query(
-        `DELETE FROM pagos WHERE id_turno IN (${placeholders}) AND estado = 'pendiente'`,
+      // Algún turno puede haber quedado afuera del UPDATE de arriba (si se
+      // completó en el medio): solo avisamos por los que de verdad quedaron
+      // cancelados, para no mandarle a un cliente un mail de "se canceló tu
+      // turno" cuando en realidad ya lo jugó.
+      const [realmenteCancelados] = await pool.query(
+        `SELECT t.id_turno FROM turnos t
+         INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+         WHERE t.id_turno IN (${placeholders}) AND et.nombre = 'cancelado'`,
         idsTurnos
       );
+      const idsCancelados = new Set(realmenteCancelados.map((t) => t.id_turno));
+      turnosCancelados = turnosAfectados.filter((t) => idsCancelados.has(t.id_turno));
 
-      const motivoParaClientes = `El club ${nombre} fue dado de baja en la plataforma.`;
-      for (const t of turnosAfectados) {
-        if (t.correo_cliente) {
-          enviarEmailCancelacionTurno({ ...t, nombre_club: nombre }, motivoParaClientes).catch((error) => {
-            console.error('Error al enviar el correo de cancelación por baja de club:', error);
-          });
+      if (turnosCancelados.length > 0) {
+        const placeholdersCancelados = turnosCancelados.map(() => '?').join(',');
+        const idsTurnosCancelados = turnosCancelados.map((t) => t.id_turno);
+
+        // Las señas ya pagadas no se tocan (no hay reintegro automático); solo
+        // se limpian los pagos pendientes, igual que en la cancelación manual.
+        await pool.query(
+          `DELETE FROM pagos WHERE id_turno IN (${placeholdersCancelados}) AND estado = 'pendiente'`,
+          idsTurnosCancelados
+        );
+
+        const motivoParaClientes = `El club ${nombre} fue dado de baja en la plataforma.`;
+        for (const t of turnosCancelados) {
+          if (t.correo_cliente) {
+            enviarEmailCancelacionTurno({ ...t, nombre_club: nombre }, motivoParaClientes).catch((error) => {
+              console.error('Error al enviar el correo de cancelación por baja de club:', error);
+            });
+          }
         }
       }
     }
@@ -2188,7 +2212,7 @@ app.delete('/clubes/:id', verificarToken, requireRol(1), async (req, res) => {
 
     res.json({
       message: 'Club dado de baja correctamente',
-      turnos_cancelados: turnosAfectados.length
+      turnos_cancelados: turnosCancelados.length
     });
 
   } catch (error) {
@@ -2198,12 +2222,16 @@ app.delete('/clubes/:id', verificarToken, requireRol(1), async (req, res) => {
 });
 
 // ------------------ Reactivar un club dado de baja (solo admin) ------------------
+// Este endpoint liviano es solo para REACTIVAR (activo:1). Dar de baja un
+// club tiene su propia ruta (DELETE /clubes/:id) porque además exige un
+// motivo, cancela los turnos reservados futuros y avisa por mail al dueño y
+// a cada cliente afectado; aceptar activo:0 acá saltearía todo eso.
 app.put('/clubes/:id/estado', verificarToken, requireRol(1), async (req, res) => {
   const { id } = req.params;
   const { activo } = req.body;
 
-  if (activo !== 0 && activo !== 1) {
-    return res.status(400).json({ message: 'El estado debe ser 0 o 1' });
+  if (activo !== 1) {
+    return res.status(400).json({ message: 'Para dar de baja un club usá DELETE /clubes/:id' });
   }
 
   try {
@@ -2973,6 +3001,17 @@ app.delete('/canchas/:id', verificarToken, requireRol(1, 2), async (req, res) =>
       return res.status(403).json({ message: 'No autorizado' });
     }
 
+    const [canchaRows] = await pool.execute(
+      `SELECT c.nombre AS nombre_cancha, cl.nombre AS nombre_club
+       FROM canchas c INNER JOIN club cl ON c.id_club = cl.id_club
+       WHERE c.id_cancha = ?`,
+      [id]
+    );
+
+    if (canchaRows.length === 0) {
+      return res.status(404).json({ message: 'Cancha no encontrada' });
+    }
+
     const conn = await pool.getConnection();
 
     const [result] = await conn.execute('UPDATE canchas SET activo = 0 WHERE id_cancha = ?', [id]);
@@ -2983,7 +3022,75 @@ app.delete('/canchas/:id', verificarToken, requireRol(1, 2), async (req, res) =>
       return res.status(404).json({ message: 'Cancha no encontrada' });
     }
 
-    res.json({ message: 'Cancha eliminada correctamente' });
+    const { nombre_cancha, nombre_club } = canchaRows[0];
+
+    // Turnos futuros que seguían reservados en esta cancha: igual que al dar
+    // de baja un club entero, se cancelan y se avisa a cada cliente, en vez
+    // de dejarlos como si fueran a jugarse en una cancha que ya no opera.
+    const [turnosAfectados] = await pool.query(
+      `SELECT
+          t.id_turno, t.fecha,
+          h.hora_inicio, h.hora_fin,
+          u.correo AS correo_cliente, u.nombre AS nombre_cliente
+       FROM turnos t
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN usuarios u ON t.id_usuario = u.id_usuario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE t.id_cancha = ? AND et.nombre = 'reservado' AND t.fecha >= CURDATE()`,
+      [id]
+    );
+
+    let turnosCancelados = [];
+    if (turnosAfectados.length > 0) {
+      const idsTurnos = turnosAfectados.map((t) => t.id_turno);
+      const placeholders = idsTurnos.map(() => '?').join(',');
+
+      // Filtramos también por id_estado='reservado': entre el SELECT de
+      // arriba y este UPDATE, completarTurnosVencidos() (corre cada 15 min)
+      // podría haber completado alguno de estos turnos si su horario de hoy
+      // ya terminó. Sin este filtro se cancelaría igual un turno ya jugado.
+      await pool.query(
+        `UPDATE turnos SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado')
+         WHERE id_turno IN (${placeholders})
+           AND id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado')`,
+        idsTurnos
+      );
+
+      const [realmenteCancelados] = await pool.query(
+        `SELECT t.id_turno FROM turnos t
+         INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+         WHERE t.id_turno IN (${placeholders}) AND et.nombre = 'cancelado'`,
+        idsTurnos
+      );
+      const idsCancelados = new Set(realmenteCancelados.map((t) => t.id_turno));
+      turnosCancelados = turnosAfectados.filter((t) => idsCancelados.has(t.id_turno));
+
+      if (turnosCancelados.length > 0) {
+        const placeholdersCancelados = turnosCancelados.map(() => '?').join(',');
+        const idsTurnosCancelados = turnosCancelados.map((t) => t.id_turno);
+
+        // Las señas ya pagadas no se tocan (no hay reintegro automático); solo
+        // se limpian los pagos pendientes, igual que en la cancelación manual.
+        await pool.query(
+          `DELETE FROM pagos WHERE id_turno IN (${placeholdersCancelados}) AND estado = 'pendiente'`,
+          idsTurnosCancelados
+        );
+
+        const motivoParaClientes = `La cancha ${nombre_cancha} de ${nombre_club} fue dada de baja.`;
+        for (const t of turnosCancelados) {
+          if (t.correo_cliente) {
+            enviarEmailCancelacionTurno(
+              { ...t, nombre_cancha, nombre_club },
+              motivoParaClientes
+            ).catch((error) => {
+              console.error('Error al enviar el correo de cancelación por baja de cancha:', error);
+            });
+          }
+        }
+      }
+    }
+
+    res.json({ message: 'Cancha eliminada correctamente', turnos_cancelados: turnosCancelados.length });
 
   } catch (error) {
     console.error('Error al eliminar cancha:', error);
@@ -4584,18 +4691,20 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
       return res.status(400).json({ message: 'Indicá el motivo de la cancelación' });
     }
 
-    // Filtramos también por el estado leído más arriba (todavía 'reservado'):
-    // entre ese SELECT y este UPDATE, la tarea que completa turnos vencidos
-    // (completarTurnosVencidos, corre cada 15 min) podría haber pasado este
-    // mismo turno a 'completado' si justo en el medio se cumplió su horario.
-    // Sin este filtro, la cancelación lo pisaría igual y un turno ya jugado
-    // quedaría marcado como cancelado.
+    // Filtramos también por el mismo estado leído más arriba (reservado o
+    // pendiente_pago, los dos son cancelables): entre ese SELECT y este
+    // UPDATE, la tarea que completa turnos vencidos (completarTurnosVencidos,
+    // corre cada 15 min) podría haber pasado este mismo turno de 'reservado'
+    // a 'completado' si justo en el medio se cumplió su horario. Sin este
+    // filtro, la cancelación lo pisaría igual y un turno ya jugado quedaría
+    // marcado como cancelado. Usar el estado leído (no hardcodear 'reservado')
+    // evita romper la cancelación de un turno que todavía está pendiente_pago.
     const [result] = await pool.query(
       `UPDATE turnos
        SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado')
        WHERE id_turno = ?
-         AND id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'reservado')`,
-      [id]
+         AND id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = ?)`,
+      [id, turno.estado_actual]
     );
 
     if (result.affectedRows === 0) {
