@@ -28,6 +28,16 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 app.use(cors());
 app.use(express.json());
+
+// multer necesita que estas carpetas ya existan para poder guardar un
+// archivo ahí; git no versiona carpetas vacías, así que en un servidor
+// recién clonado (Render, por ejemplo) no existen hasta que algo las crea.
+// Nota: en Render el disco no es persistente, así que esto solo evita el
+// error al subir, no hace que las fotos sobrevivan a un reinicio del server.
+for (const carpeta of ['uploads/canchas', 'uploads/club', 'uploads/perfiles']) {
+  fs.mkdirSync(carpeta, { recursive: true });
+}
+
 const storageCanchas = multer.diskStorage({
         destination: (req, file, cb) => {
           cb(null, 'uploads/canchas');
