@@ -1534,7 +1534,8 @@ app.get('/clubes', async (req, res) => {
     const [rows] = await conn.execute(`
       SELECT
         c.id_club, c.nombre, c.direccion, c.provincia, c.localidad, c.telefono, c.horarios_atencion, c.plan, c.id_dueno,
-        u.usuario AS dueno, u.foto AS foto_dueno,
+        u.usuario AS dueno,
+        (SELECT cf.url FROM club_fotos cf WHERE cf.id_club = c.id_club ORDER BY cf.id_foto ASC LIMIT 1) AS foto_club,
         (SELECT COUNT(*) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.activo = 1) AS cantidad_canchas,
         (SELECT MIN(ca.precio) FROM canchas ca WHERE ca.id_club = c.id_club AND ca.precio IS NOT NULL AND ca.activo = 1) AS precio_desde,
         (SELECT ROUND(AVG(r.puntuacion), 1) FROM resenas r WHERE r.id_club = c.id_club) AS promedio_resenas,
