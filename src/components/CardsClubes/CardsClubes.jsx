@@ -42,7 +42,7 @@ const ClubList = () => {
         <Card
           key={club.id_club}
           id={club.id_club}
-          imagen={club.foto_club || '/imagenes/padel.jpg'}
+          imagen={club.foto_dueno || '/imagenes/padel.jpg'}
           titulo={club.nombre}
           direccion={club.direccion}
           localidad={club.localidad}

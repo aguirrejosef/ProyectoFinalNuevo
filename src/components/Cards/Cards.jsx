@@ -47,7 +47,7 @@ function Cards() {
       {clubes.map((club) => (
         <div className="grid-item-card" key={club.id_club}>
           <Card
-            imagen={club.foto_club || '/imagenes/padel.jpg'}
+            imagen={club.foto_dueno || '/imagenes/padel.jpg'}
             titulo={club.nombre}
             id={club.id_club}
             direccion={club.direccion}
