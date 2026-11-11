@@ -384,12 +384,14 @@ async function sincronizarPagoDeTurno(idTurno) {
       `SELECT t.fecha, h.hora_inicio, h.hora_fin,
               c.nombre AS nombre_cancha, cl.nombre AS nombre_club,
               u.correo AS correo_cliente, u.nombre AS nombre_cliente,
+              duenio.correo AS correo_club,
               p.monto AS monto_sena
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
        INNER JOIN club cl ON c.id_club = cl.id_club
        INNER JOIN horarios h ON t.id_horario = h.id_horario
        INNER JOIN usuarios u ON t.id_usuario = u.id_usuario
+       LEFT JOIN usuarios duenio ON cl.id_dueno = duenio.id_usuario
        LEFT JOIN pagos p ON p.id_turno = t.id_turno
        WHERE t.id_turno = ?`,
       [idTurno]
@@ -397,6 +399,11 @@ async function sincronizarPagoDeTurno(idTurno) {
     if (turnoRows.length > 0 && turnoRows[0].correo_cliente) {
       enviarEmailConfirmacionTurno(turnoRows[0]).catch((error) => {
         console.error('Error al enviar el correo de confirmación de turno:', error);
+      });
+    }
+    if (turnoRows.length > 0 && turnoRows[0].correo_club) {
+      enviarEmailNuevaReservaClub(turnoRows[0]).catch((error) => {
+        console.error('Error al enviar el correo de nueva reserva al club:', error);
       });
     }
 
@@ -537,6 +544,72 @@ async function enviarEmailPagoRechazadoTurno(turno) {
         <li><b>Horario:</b> ${horaInicio} a ${horaFin} hs</li>
       </ul>
       <p>Si el dinero fue debitado de tu cuenta, Mercado Pago lo devuelve automáticamente. Podés intentar reservar de nuevo cuando quieras.</p>
+    `
+  });
+}
+
+// Le avisa por mail al dueño del club que le entró una reserva nueva (seña
+// ya acreditada).
+async function enviarEmailNuevaReservaClub(turno) {
+  const fecha = new Date(turno.fecha).toLocaleDateString('es-AR', {
+    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+  const horaInicio = String(turno.hora_inicio).slice(0, 5);
+  const horaFin = String(turno.hora_fin).slice(0, 5);
+
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: turno.correo_club,
+    subject: `Nueva reserva en ${turno.nombre_club}`,
+    html: `
+      <p>Hola,</p>
+      <p>Tenés una reserva nueva confirmada:</p>
+      <ul>
+        <li><b>Cliente:</b> ${turno.nombre_cliente || ''}</li>
+        <li><b>Cancha:</b> ${turno.nombre_cancha}</li>
+        <li><b>Fecha:</b> ${fecha}</li>
+        <li><b>Horario:</b> ${horaInicio} a ${horaFin} hs</li>
+        ${turno.monto_sena ? `<li><b>Seña abonada:</b> $${Number(turno.monto_sena).toLocaleString('es-AR')}</li>` : ''}
+      </ul>
+    `
+  });
+}
+
+// Le avisa por mail al dueño del club que un cliente canceló su turno.
+async function enviarEmailCancelacionTurnoClub(turno) {
+  const fecha = new Date(turno.fecha).toLocaleDateString('es-AR', {
+    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+  const horaInicio = String(turno.hora_inicio).slice(0, 5);
+  const horaFin = String(turno.hora_fin).slice(0, 5);
+
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: turno.correo_club,
+    subject: `Un cliente canceló su turno en ${turno.nombre_club}`,
+    html: `
+      <p>Hola,</p>
+      <p><b>${turno.nombre_cliente || ''}</b> canceló el siguiente turno:</p>
+      <ul>
+        <li><b>Cancha:</b> ${turno.nombre_cancha}</li>
+        <li><b>Fecha:</b> ${fecha}</li>
+        <li><b>Horario:</b> ${horaInicio} a ${horaFin} hs</li>
+      </ul>
+      <p>El horario volvió a quedar disponible.</p>
+    `
+  });
+}
+
+// Le da la bienvenida por mail a un cliente recién registrado.
+async function enviarEmailBienvenidaCliente(usuario) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: usuario.correo,
+    subject: '¡Bienvenido a SUP - Sale un Pádel!',
+    html: `
+      <p>Hola ${usuario.nombre || ''},</p>
+      <p>Te registraste correctamente en SUP - Sale un Pádel con el usuario <b>${usuario.usuario}</b>.</p>
+      <p>Ya podés buscar canchas y reservar tu turno cuando quieras.</p>
     `
   });
 }
@@ -918,6 +991,10 @@ app.post('/FormUsuarios', async (req, res) => {
     );
 
     conn.release();
+
+    enviarEmailBienvenidaCliente({ nombre, usuario, correo }).catch((error) => {
+      console.error('Error al enviar el correo de bienvenida:', error);
+    });
 
     const token = jwt.sign(
       { id: insertResult.insertId, usuario, rol: 3 },
@@ -4689,12 +4766,14 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
           t.id_usuario, cl.id_dueno, t.fecha,
           h.hora_inicio, h.hora_fin, et.nombre AS estado_actual,
           c.nombre AS nombre_cancha, cl.nombre AS nombre_club,
-          u.correo AS correo_cliente, u.nombre AS nombre_cliente
+          u.correo AS correo_cliente, u.nombre AS nombre_cliente,
+          duenio.correo AS correo_club
        FROM turnos t
        INNER JOIN canchas c ON t.id_cancha = c.id_cancha
        INNER JOIN club cl ON c.id_club = cl.id_club
        INNER JOIN horarios h ON t.id_horario = h.id_horario
        INNER JOIN usuarios u ON t.id_usuario = u.id_usuario
+       LEFT JOIN usuarios duenio ON cl.id_dueno = duenio.id_usuario
        INNER JOIN estados_turno et ON t.id_estado = et.id_estado
        WHERE t.id_turno = ?`,
       [id]
@@ -4756,6 +4835,14 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     if (turno.correo_cliente && turno.estado_actual === 'reservado') {
       enviarEmailCancelacionTurno(turno, motivo?.trim()).catch((error) => {
         console.error('Error al enviar el correo de cancelación:', error);
+      });
+    }
+
+    // Al club solo le avisamos si fue el cliente el que canceló: si lo
+    // canceló el propio club (o un admin en su nombre), ya lo sabe.
+    if (esElCliente && turno.correo_club && turno.estado_actual === 'reservado') {
+      enviarEmailCancelacionTurnoClub(turno).catch((error) => {
+        console.error('Error al enviar el correo de cancelación al club:', error);
       });
     }
 
