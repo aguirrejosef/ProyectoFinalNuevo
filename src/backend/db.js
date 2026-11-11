@@ -59,15 +59,12 @@ const storageCanchas = multer.diskStorage({
       app.use('/uploads', express.static('uploads'));
 
 // Pool de MySQL
-// Para conectar con TLS (lo exige TiDB Cloud y cualquier base en la nube)
-// hace falta el certificado de la CA. Se usa DB_SSL_CA si apunta a una ruta
-// absoluta propia; si no, se cae al certificado que ya viaja con el proyecto
-// (tidb-ca.pem, al lado de este archivo) — así funciona igual en cualquier
-// servidor sin tener que configurar una ruta de archivo por entorno. Si no
-// existe ninguno de los dos, se conecta sin SSL (XAMPP local de toda la vida).
-const rutaCertificadoCA = process.env.DB_SSL_CA || path.join(__dirname, 'tidb-ca.pem');
-const sslConfig = fs.existsSync(rutaCertificadoCA)
-  ? { ca: fs.readFileSync(rutaCertificadoCA), minVersion: 'TLSv1.2' }
+// Por ahora conecta local (XAMPP), sin SSL. Si en el futuro se vuelve a usar
+// una base en la nube que exija TLS (TiDB, PlanetScale, etc.), definir
+// DB_SSL_CA en el .env con la ruta al certificado de la CA; el certificado
+// de ejemplo sigue en tidb-ca.pem por si hace falta.
+const sslConfig = process.env.DB_SSL_CA && fs.existsSync(process.env.DB_SSL_CA)
+  ? { ca: fs.readFileSync(process.env.DB_SSL_CA), minVersion: 'TLSv1.2' }
   : undefined;
 
 const pool = mysql.createPool({
