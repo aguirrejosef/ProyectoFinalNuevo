@@ -1,3 +1,9 @@
+// Algunos hosts en la nube (Render incluido) no tienen salida IPv6: si Node
+// resuelve un dominio como smtp.gmail.com a su dirección IPv6, la conexión
+// falla con ENETUNREACH aunque la IPv4 del mismo dominio sí sea alcanzable.
+// Esto le dice a Node que probás siempre IPv4 primero.
+require('dns').setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
