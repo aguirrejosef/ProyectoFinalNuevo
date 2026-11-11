@@ -281,7 +281,12 @@ async function sincronizarCambioPlanClub(idClub) {
     return { estado: 'error', message: 'Los pagos no están configurados en el servidor' };
   }
 
-  const [rows] = await pool.execute('SELECT * FROM club WHERE id_club = ?', [idClub]);
+  const [rows] = await pool.execute(
+    `SELECT cl.*, u.correo AS correo_dueno, u.nombre AS nombre_dueno
+     FROM club cl LEFT JOIN usuarios u ON cl.id_dueno = u.id_usuario
+     WHERE cl.id_club = ?`,
+    [idClub]
+  );
   if (rows.length === 0) {
     return { estado: 'no_encontrado' };
   }
@@ -319,6 +324,17 @@ async function sincronizarCambioPlanClub(idClub) {
     );
 
     await registrarPagosPlanDesdeMP(idClub, club.mp_preapproval_pendiente_id);
+
+    if (club.correo_dueno) {
+      enviarEmailCambioPlanConfirmado({
+        nombre: club.nombre,
+        nombre_dueno: club.nombre_dueno,
+        correo: club.correo_dueno,
+        plan: club.plan_pendiente
+      }).catch((error) => {
+        console.error(`Error al enviar el correo de cambio de plan del club ${idClub}:`, error);
+      });
+    }
 
     return { estado: 'aprobado', plan: club.plan_pendiente };
   }
@@ -634,6 +650,96 @@ async function enviarEmailBajaClub(nombreClub, nombreDueno, correoDueno, motivo)
   });
 }
 
+// Le avisa por mail a un cliente que un administrador dio de baja su cuenta.
+async function enviarEmailBajaUsuario(usuario) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: usuario.correo,
+    subject: 'Tu cuenta en SUP - Sale un Pádel fue dada de baja',
+    html: `
+      <p>Hola ${usuario.nombre || ''},</p>
+      <p>Te informamos que un administrador de SUP - Sale un Pádel dio de baja tu cuenta.</p>
+      <p>Si creés que se trata de un error, escribinos para resolverlo.</p>
+    `
+  });
+}
+
+// Le avisa por mail al dueño del club que el cobro de su plan fue rechazado
+// (la suscripción quedó pausada en Mercado Pago).
+async function enviarEmailPagoPlanRechazado(club) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: club.correo,
+    subject: `No se pudo cobrar tu plan en ${club.nombre}`,
+    html: `
+      <p>Hola ${club.nombre_dueno || ''},</p>
+      <p>Mercado Pago no pudo cobrar el cobro mensual de tu plan en <b>${club.nombre}</b> y la suscripción quedó pausada.</p>
+      <p>Revisá el medio de pago asociado en Mercado Pago. Mientras la suscripción siga pausada, tu club puede quedar sin acceso a la plataforma.</p>
+    `
+  });
+}
+
+// Le confirma por mail al dueño del club que su cambio de plan quedó
+// aprobado (se dispara apenas Mercado Pago autoriza la nueva suscripción).
+async function enviarEmailCambioPlanConfirmado(club) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: club.correo,
+    subject: `Tu plan en ${club.nombre} fue actualizado`,
+    html: `
+      <p>Hola ${club.nombre_dueno || ''},</p>
+      <p>Te confirmamos que el pago se acreditó y tu club <b>${club.nombre}</b> ya está en el plan <b>${NOMBRES_PLAN[club.plan] || club.plan}</b>.</p>
+    `
+  });
+}
+
+// Le avisa por mail al dueño del club que su plan está por vencer (unos días
+// antes de la próxima fecha de pago).
+async function enviarEmailPlanPorVencer(club) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: club.correo,
+    subject: `Tu plan en ${club.nombre} está por vencer`,
+    html: `
+      <p>Hola ${club.nombre_dueno || ''},</p>
+      <p>En unos días vence el pago de tu plan <b>${NOMBRES_PLAN[club.plan] || club.plan}</b> en <b>${club.nombre}</b>. Mercado Pago va a intentar cobrarlo automáticamente.</p>
+      <p>Si tu medio de pago no tiene fondos o está vencido, revisalo para que no se interrumpa el servicio.</p>
+    `
+  });
+}
+
+// Le avisa por mail al dueño del club que su plan ya venció (no se acreditó
+// el pago en la fecha esperada).
+async function enviarEmailPlanVencido(club) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: club.correo,
+    subject: `Tu plan en ${club.nombre} venció`,
+    html: `
+      <p>Hola ${club.nombre_dueno || ''},</p>
+      <p>El pago de tu plan <b>${NOMBRES_PLAN[club.plan] || club.plan}</b> en <b>${club.nombre}</b> no se acreditó en la fecha esperada.</p>
+      <p>Regularizá el pago en Mercado Pago para que tu club no quede con el acceso limitado.</p>
+    `
+  });
+}
+
+// Le avisa por mail al dueño del club que recibió una reseña nueva.
+async function enviarEmailResenaNuevaClub(resena) {
+  await transporter.sendMail({
+    from: `"SUP - Sale un Pádel" <${process.env.EMAIL_USER}>`,
+    to: resena.correo_club,
+    subject: `Nueva reseña en ${resena.nombre_club}`,
+    html: `
+      <p>Hola,</p>
+      <p><b>${resena.nombre_cliente || ''}</b> dejó una reseña en <b>${resena.nombre_club}</b>:</p>
+      <ul>
+        <li><b>Puntuación:</b> ${resena.puntuacion} / 5</li>
+        ${resena.comentario ? `<li><b>Comentario:</b> ${resena.comentario}</li>` : ''}
+      </ul>
+    `
+  });
+}
+
 // Le confirma por mail al dueño del club que su registro y el pago del plan
 // quedaron aprobados (se dispara apenas Mercado Pago autoriza la suscripción).
 async function enviarEmailRegistroClub(pendiente) {
@@ -796,6 +902,47 @@ async function sincronizarPagosPlanesTodosLosClubes() {
 const MS_ENTRE_SINCRONIZACIONES_PAGOS_PLANES = 24 * 60 * 60 * 1000; // una vez por día
 setInterval(sincronizarPagosPlanesTodosLosClubes, MS_ENTRE_SINCRONIZACIONES_PAGOS_PLANES);
 sincronizarPagosPlanesTodosLosClubes();
+
+// Avisa a los clubes cuyo plan está por vencer (3 días antes) o que recién
+// venció (al día siguiente de la fecha esperada de pago). Como corre una vez
+// por día, comparar contra una fecha exacta alcanza para mandar el aviso una
+// sola vez, sin necesitar una columna extra para marcar "ya avisado".
+async function revisarVencimientosPlan() {
+  try {
+    const [porVencer] = await pool.execute(
+      `SELECT cl.id_club, cl.nombre, cl.plan, u.correo, u.nombre AS nombre_dueno
+       FROM club cl LEFT JOIN usuarios u ON cl.id_dueno = u.id_usuario
+       WHERE cl.activo = 1 AND cl.estado_suscripcion <> 'cancelada'
+         AND cl.proxima_fecha_pago = DATE_ADD(CURDATE(), INTERVAL 3 DAY)`
+    );
+    for (const club of porVencer) {
+      if (club.correo) {
+        enviarEmailPlanPorVencer(club).catch((error) => {
+          console.error(`Error al enviar aviso de plan por vencer del club ${club.id_club}:`, error);
+        });
+      }
+    }
+
+    const [vencidos] = await pool.execute(
+      `SELECT cl.id_club, cl.nombre, cl.plan, u.correo, u.nombre AS nombre_dueno
+       FROM club cl LEFT JOIN usuarios u ON cl.id_dueno = u.id_usuario
+       WHERE cl.activo = 1 AND cl.estado_suscripcion <> 'cancelada'
+         AND cl.proxima_fecha_pago = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`
+    );
+    for (const club of vencidos) {
+      if (club.correo) {
+        enviarEmailPlanVencido(club).catch((error) => {
+          console.error(`Error al enviar aviso de plan vencido del club ${club.id_club}:`, error);
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error al revisar vencimientos de plan:', error);
+  }
+}
+
+setInterval(revisarVencimientosPlan, MS_ENTRE_SINCRONIZACIONES_PAGOS_PLANES);
+revisarVencimientosPlan();
 
 // ------------------ Crear Admin Automáticamente ------------------
 (async () => {
@@ -1566,10 +1713,21 @@ app.put('/usuarios/:id/estado', verificarToken, requireRol(1), async (req, res) 
   }
 
   try {
+    const [usuarioRows] = await pool.execute('SELECT nombre, correo FROM usuarios WHERE id_usuario = ?', [id]);
+    if (usuarioRows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
     const [result] = await pool.execute('UPDATE usuarios SET activo = ? WHERE id_usuario = ?', [activo, id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if (!activo && usuarioRows[0].correo) {
+      enviarEmailBajaUsuario(usuarioRows[0]).catch((error) => {
+        console.error('Error al enviar el correo de baja de usuario:', error);
+      });
     }
 
     res.json({ message: activo ? 'Usuario reactivado' : 'Usuario dado de baja' });
@@ -1733,7 +1891,9 @@ app.post('/clubes/:id/resenas', verificarToken, requireRol(3), async (req, res) 
       [id, req.usuario.id]
     );
 
-    if (existente.length > 0) {
+    const esNueva = existente.length === 0;
+
+    if (!esNueva) {
       await pool.execute(
         'UPDATE resenas SET puntuacion = ?, comentario = ?, fecha = NOW() WHERE id_resena = ?',
         [puntuacionNum, comentario || null, existente[0].id_resena]
@@ -1743,6 +1903,28 @@ app.post('/clubes/:id/resenas', verificarToken, requireRol(3), async (req, res) 
         'INSERT INTO resenas (id_club, id_usuario, puntuacion, comentario) VALUES (?, ?, ?, ?)',
         [id, req.usuario.id, puntuacionNum, comentario || null]
       );
+    }
+
+    // Solo avisamos al club por reseñas nuevas, no cada vez que alguien edita
+    // la suya (sería mucho ruido).
+    if (esNueva) {
+      const [datosRows] = await pool.execute(
+        `SELECT cl.nombre AS nombre_club, duenio.correo AS correo_club, u.nombre AS nombre_cliente
+         FROM club cl
+         LEFT JOIN usuarios duenio ON cl.id_dueno = duenio.id_usuario
+         INNER JOIN usuarios u ON u.id_usuario = ?
+         WHERE cl.id_club = ?`,
+        [req.usuario.id, id]
+      );
+      if (datosRows.length > 0 && datosRows[0].correo_club) {
+        enviarEmailResenaNuevaClub({
+          ...datosRows[0],
+          puntuacion: puntuacionNum,
+          comentario: comentario || null
+        }).catch((error) => {
+          console.error('Error al enviar el correo de reseña nueva:', error);
+        });
+      }
     }
 
     res.json({ message: 'Reseña guardada correctamente' });
@@ -3658,10 +3840,27 @@ app.post('/pagos/webhook', async (req, res) => {
           const proximaFechaPago = preapproval.next_payment_date
             ? preapproval.next_payment_date.slice(0, 10)
             : null;
+
+          const [clubActualRows] = await pool.execute(
+            `SELECT cl.nombre, cl.estado_suscripcion, u.correo, u.nombre AS nombre_dueno
+             FROM club cl LEFT JOIN usuarios u ON cl.id_dueno = u.id_usuario
+             WHERE cl.mp_preapproval_id = ?`,
+            [idNotificado]
+          );
+
           await pool.execute(
             'UPDATE club SET estado_suscripcion = ?, proxima_fecha_pago = ? WHERE mp_preapproval_id = ?',
             [estadoSuscripcion, proximaFechaPago, idNotificado]
           );
+
+          // Solo avisamos en el momento en que se pausa (recién falló un
+          // cobro), no en cada notificación repetida mientras sigue pausada.
+          const clubActual = clubActualRows[0];
+          if (clubActual && estadoSuscripcion === 'pausada' && clubActual.estado_suscripcion !== 'pausada' && clubActual.correo) {
+            enviarEmailPagoPlanRechazado(clubActual).catch((error) => {
+              console.error('Error al enviar el correo de pago de plan rechazado:', error);
+            });
+          }
         }
       }
     }
