@@ -27,7 +27,7 @@
     height: 45%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
   }
 
@@ -37,6 +37,14 @@
     font-weight: bold;
     margin-bottom: 8px;
     color: #004AAD;
+    text-align: center;
+    /* Reserva lugar para 2 líneas siempre (hay nombres de club que ocupan una
+       sola línea y otros dos, ej. "Padel Norte Tucumán"), para que lo que
+       viene debajo arranque a la misma altura en todas las tarjetas. */
+    min-height: 2.3em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .card-rating {
@@ -89,7 +97,10 @@
     font-size: 15px;
     background-color: #004AAD;
     border: 3px solid white;
-    margin-top: 16px;
+    /* Empuja el botón siempre al fondo de la tarjeta, aunque algunas tengan
+       menos texto arriba (ej. sin reseñas todavía) — así quedan todos los
+       botones a la misma altura en una fila de tarjetas. */
+    margin-top: auto;
   }
 
   .card:hover{
