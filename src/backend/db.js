@@ -193,7 +193,7 @@ async function registrarPagosPlanDesdeMP(idClub, preapprovalId) {
     const invoices = busqueda.results || [];
 
     for (const invoice of invoices) {
-      if (invoice.payment?.status === 'approved' && invoice.transaction_amount) {
+      if (invoice.payment?.status === 'approved' && invoice.transaction_amount && invoice.id) {
         const [resultado] = await pool.execute(
           `INSERT INTO pagos_planes (id_club, mp_invoice_id, monto, fecha)
            VALUES (?, ?, ?, ?)
@@ -210,6 +210,12 @@ async function registrarPagosPlanDesdeMP(idClub, preapprovalId) {
         // no sirve para distinguir. insertId sí: es el ID nuevo real en un
         // INSERT, y 0 cuando cayó en la rama de ON DUPLICATE KEY.
         if (resultado.insertId !== 0) huboPagoNuevo = true;
+      } else if (invoice.payment?.status === 'approved' && invoice.transaction_amount && !invoice.id) {
+        // Pasó una vez: Mercado Pago devolvió un invoice aprobado sin id, y
+        // String(undefined) === 'undefined' se guardaba como si fuera un id
+        // real, duplicando el monto en el balance. Mejor perder este pago
+        // puntual que inflar los ingresos con una fila fantasma.
+        console.error(`Invoice aprobado sin id para el club ${idClub}, se omite:`, invoice);
       }
     }
   } catch (error) {
@@ -909,11 +915,20 @@ sincronizarPagosPlanesTodosLosClubes();
 // sola vez, sin necesitar una columna extra para marcar "ya avisado".
 async function revisarVencimientosPlan() {
   try {
+    // Se usa <= (rango) en vez de = (fecha exacta) y se marca con
+    // aviso_*_enviado_para qué proxima_fecha_pago ya generó el aviso: así,
+    // si el server estuvo apagado justo el día exacto (corre local, no 24/7),
+    // igual manda el aviso en la próxima corrida en vez de saltearlo para
+    // siempre, pero sin mandarlo de nuevo cada día mientras siga en el mismo
+    // estado. Cuando el club paga y proxima_fecha_pago avanza al mes
+    // siguiente, deja de matchear con lo ya marcado y el aviso se habilita
+    // solo para el próximo vencimiento.
     const [porVencer] = await pool.execute(
-      `SELECT cl.id_club, cl.nombre, cl.plan, u.correo, u.nombre AS nombre_dueno
+      `SELECT cl.id_club, cl.nombre, cl.plan, cl.proxima_fecha_pago, u.correo, u.nombre AS nombre_dueno
        FROM club cl LEFT JOIN usuarios u ON cl.id_dueno = u.id_usuario
        WHERE cl.activo = 1 AND cl.estado_suscripcion <> 'cancelada'
-         AND cl.proxima_fecha_pago = DATE_ADD(CURDATE(), INTERVAL 3 DAY)`
+         AND cl.proxima_fecha_pago BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)
+         AND (cl.aviso_vencer_enviado_para IS NULL OR cl.aviso_vencer_enviado_para <> cl.proxima_fecha_pago)`
     );
     for (const club of porVencer) {
       if (club.correo) {
@@ -921,13 +936,15 @@ async function revisarVencimientosPlan() {
           console.error(`Error al enviar aviso de plan por vencer del club ${club.id_club}:`, error);
         });
       }
+      await pool.execute('UPDATE club SET aviso_vencer_enviado_para = ? WHERE id_club = ?', [club.proxima_fecha_pago, club.id_club]);
     }
 
     const [vencidos] = await pool.execute(
-      `SELECT cl.id_club, cl.nombre, cl.plan, u.correo, u.nombre AS nombre_dueno
+      `SELECT cl.id_club, cl.nombre, cl.plan, cl.proxima_fecha_pago, u.correo, u.nombre AS nombre_dueno
        FROM club cl LEFT JOIN usuarios u ON cl.id_dueno = u.id_usuario
        WHERE cl.activo = 1 AND cl.estado_suscripcion <> 'cancelada'
-         AND cl.proxima_fecha_pago = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`
+         AND cl.proxima_fecha_pago < CURDATE()
+         AND (cl.aviso_vencido_enviado_para IS NULL OR cl.aviso_vencido_enviado_para <> cl.proxima_fecha_pago)`
     );
     for (const club of vencidos) {
       if (club.correo) {
@@ -935,6 +952,7 @@ async function revisarVencimientosPlan() {
           console.error(`Error al enviar aviso de plan vencido del club ${club.id_club}:`, error);
         });
       }
+      await pool.execute('UPDATE club SET aviso_vencido_enviado_para = ? WHERE id_club = ?', [club.proxima_fecha_pago, club.id_club]);
     }
   } catch (error) {
     console.error('Error al revisar vencimientos de plan:', error);
@@ -3842,21 +3860,24 @@ app.post('/pagos/webhook', async (req, res) => {
             : null;
 
           const [clubActualRows] = await pool.execute(
-            `SELECT cl.nombre, cl.estado_suscripcion, u.correo, u.nombre AS nombre_dueno
+            `SELECT cl.nombre, u.correo, u.nombre AS nombre_dueno
              FROM club cl LEFT JOIN usuarios u ON cl.id_dueno = u.id_usuario
              WHERE cl.mp_preapproval_id = ?`,
             [idNotificado]
           );
 
-          await pool.execute(
-            'UPDATE club SET estado_suscripcion = ?, proxima_fecha_pago = ? WHERE mp_preapproval_id = ?',
-            [estadoSuscripcion, proximaFechaPago, idNotificado]
+          // El UPDATE solo afecta la fila si el estado realmente estaba por
+          // cambiar (distinto al nuevo). Si Mercado Pago manda la misma
+          // notificación duplicada casi en simultáneo (puede pasar), la
+          // segunda vez ya no hay nada que cambiar: affectedRows da 0 y no
+          // se manda un segundo mail de "pago rechazado" para lo mismo.
+          const [resultadoUpdate] = await pool.execute(
+            'UPDATE club SET estado_suscripcion = ?, proxima_fecha_pago = ? WHERE mp_preapproval_id = ? AND estado_suscripcion <> ?',
+            [estadoSuscripcion, proximaFechaPago, idNotificado, estadoSuscripcion]
           );
 
-          // Solo avisamos en el momento en que se pausa (recién falló un
-          // cobro), no en cada notificación repetida mientras sigue pausada.
           const clubActual = clubActualRows[0];
-          if (clubActual && estadoSuscripcion === 'pausada' && clubActual.estado_suscripcion !== 'pausada' && clubActual.correo) {
+          if (resultadoUpdate.affectedRows > 0 && estadoSuscripcion === 'pausada' && clubActual?.correo) {
             enviarEmailPagoPlanRechazado(clubActual).catch((error) => {
               console.error('Error al enviar el correo de pago de plan rechazado:', error);
             });

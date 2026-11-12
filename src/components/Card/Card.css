@@ -5,26 +5,31 @@
 .card {
     width: 100%;
     max-width: 400px;
-    height: 720px;
+    /* min-height en vez de height fijo: antes, con height:720px y
+       overflow:hidden, una dirección larga a 2 líneas + el título a 2
+       líneas podían superar el alto disponible y el botón "Ver más" (que
+       se empuja al fondo) quedaba directamente cortado. Con min-height la
+       tarjeta crece si hace falta en vez de recortar contenido. */
+    min-height: 720px;
     border: 2px solid #c3d3e8;
     border-radius: 30px;
     overflow: hidden;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
   }
 
   .card-img {
     width: 100%;
-    height: 55%;
+    height: 340px;
+    flex-shrink: 0;
     object-fit: cover;
   }
 
   .card-contenido {
     padding: 16px;
     background-color: white;
-    height: 45%;
+    flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
