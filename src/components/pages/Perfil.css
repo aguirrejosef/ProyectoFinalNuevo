@@ -539,6 +539,10 @@
     font-size: 1rem;
 }
 
+.precio-servicio-icono {
+    color: #004AAD;
+}
+
 .btn-quitar-servicio-icono {
     margin-left: auto;
     background: transparent;
@@ -557,15 +561,21 @@
     display: flex;
     gap: 8px;
     margin-top: 4px;
+    flex-wrap: wrap;
 }
 
 .agregar-servicio input {
     flex: 1;
+    min-width: 120px;
     border: 1px solid #ccc;
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 0.85rem;
     outline: none;
+}
+
+.agregar-servicio input.input-precio-servicio {
+    flex: 0 0 140px;
 }
 
 .agregar-servicio input:focus {
@@ -590,6 +600,88 @@
 .btn-agregar-servicio:disabled {
     opacity: 0.6;
     cursor: default;
+}
+
+.error-perfil {
+    color: #c62828;
+    font-size: 0.85rem;
+    margin: 4px 0 0;
+}
+
+.lista-empleados {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.item-empleado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #f5f7fa;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+.item-empleado-datos {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.item-empleado-nombre {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.item-empleado-usuario {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.btn-quitar-empleado {
+    background: transparent;
+    border: 1px solid #c62828;
+    color: #c62828;
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.btn-quitar-empleado:hover {
+    background: #fdecea;
+}
+
+.agregar-empleado {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agregar-empleado-fila {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.agregar-empleado-fila input {
+    flex: 1;
+    min-width: 140px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.agregar-empleado-fila input:focus {
+    border-color: #004AAD;
 }
 
 /* ------------------ Días y horario de atención ------------------ */

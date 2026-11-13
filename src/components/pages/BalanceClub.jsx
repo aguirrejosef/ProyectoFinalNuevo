@@ -20,6 +20,8 @@ const formatearMoneda = (monto) => `${monto < 0 ? '-' : ''}$${Math.round(Math.ab
 
 const POR_PAGINA = 10;
 
+const NOMBRES_DIA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
 function BalanceClub() {
     const navigate = useNavigate();
     const [datos, setDatos] = useState(null);
@@ -31,6 +33,9 @@ function BalanceClub() {
     const [pagina, setPagina] = useState(1);
     const [toast, setToast] = useState(null);
     const [generandoExcel, setGenerandoExcel] = useState(false);
+
+    const [ocupacion, setOcupacion] = useState(null);
+    const [cargandoOcupacion, setCargandoOcupacion] = useState(true);
 
     const rol = localStorage.getItem('rol');
 
@@ -55,6 +60,22 @@ function BalanceClub() {
         };
         cargar();
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        const cargarOcupacion = async () => {
+            try {
+                const res = await apiFetch('/club/estadisticas-ocupacion');
+                if (!res.ok) return;
+                const data = await res.json();
+                setOcupacion(data);
+            } catch (err) {
+                console.error('Error al cargar la ocupación del club:', err);
+            } finally {
+                setCargandoOcupacion(false);
+            }
+        };
+        cargarOcupacion();
     }, []);
 
     useEffect(() => {
@@ -138,6 +159,66 @@ function BalanceClub() {
                                 <span className="tarjeta-balance-label">Balance neto acumulado</span>
                             </div>
                         </div>
+
+                        {!cargandoOcupacion && ocupacion && (
+                            <div className="seccion-ocupacion-club">
+                                <h2 className="titulo-seccion-ocupacion">Ocupación</h2>
+
+                                {ocupacion.por_cancha.length === 0 ? (
+                                    <p className="mensaje-balance">Todavía no hay turnos para mostrar estadísticas.</p>
+                                ) : (
+                                    <div className="grid-ocupacion-club">
+                                        <div className="bloque-ocupacion">
+                                            <h3>Canchas más reservadas</h3>
+                                            {ocupacion.por_cancha.map((c) => (
+                                                <div className="fila-barra-ocupacion" key={c.id_cancha}>
+                                                    <span className="barra-ocupacion-label">{c.nombre}</span>
+                                                    <div className="barra-ocupacion-fondo">
+                                                        <div
+                                                            className="barra-ocupacion-relleno"
+                                                            style={{ width: `${(c.cantidad / ocupacion.por_cancha[0].cantidad) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="barra-ocupacion-valor">{c.cantidad}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="bloque-ocupacion">
+                                            <h3>Días más pedidos</h3>
+                                            {ocupacion.por_dia.map((d) => (
+                                                <div className="fila-barra-ocupacion" key={d.numero_dia}>
+                                                    <span className="barra-ocupacion-label">{NOMBRES_DIA[d.numero_dia]}</span>
+                                                    <div className="barra-ocupacion-fondo">
+                                                        <div
+                                                            className="barra-ocupacion-relleno"
+                                                            style={{ width: `${(d.cantidad / Math.max(...ocupacion.por_dia.map((x) => x.cantidad))) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="barra-ocupacion-valor">{d.cantidad}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="bloque-ocupacion">
+                                            <h3>Horarios más pedidos</h3>
+                                            {ocupacion.por_horario.map((h) => (
+                                                <div className="fila-barra-ocupacion" key={h.hora_inicio}>
+                                                    <span className="barra-ocupacion-label">{h.hora_inicio.slice(0, 5)}hs</span>
+                                                    <div className="barra-ocupacion-fondo">
+                                                        <div
+                                                            className="barra-ocupacion-relleno"
+                                                            style={{ width: `${(h.cantidad / ocupacion.por_horario[0].cantidad) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="barra-ocupacion-valor">{h.cantidad}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {datos.meses.length === 0 ? (
                             <p className="mensaje-balance">Todavía no hay movimientos registrados.</p>

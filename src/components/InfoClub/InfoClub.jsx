@@ -86,6 +86,9 @@ function InfoClub({ direccion, telefono, localidad, horariosAtencion, servicios 
                                             <div key={s.id_servicio} className="item-servicio-info">
                                                 <span className="icono-servicio-info"><FontAwesomeIcon icon={iconoServicio(s.nombre)} /></span>
                                                 <span>{s.nombre}</span>
+                                                <span className="precio-servicio-info">
+                                                    {s.precio != null ? `$${Math.round(Number(s.precio)).toLocaleString('es-AR')}` : 'Incluido'}
+                                                </span>
                                             </div>
                                         ))}
                                     </div>

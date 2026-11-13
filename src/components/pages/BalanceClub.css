@@ -50,6 +50,70 @@
     font-size: 18px;
 }
 
+.seccion-ocupacion-club {
+    margin-bottom: 40px;
+}
+
+.titulo-seccion-ocupacion {
+    color: #0d3b66;
+    font-size: 20px;
+    margin: 0 0 16px;
+}
+
+.grid-ocupacion-club {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+}
+
+.bloque-ocupacion {
+    background: white;
+    border: 1px solid #e0e4ea;
+    border-radius: 14px;
+    padding: 20px;
+}
+
+.bloque-ocupacion h3 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    color: #004AAD;
+}
+
+.fila-barra-ocupacion {
+    display: grid;
+    grid-template-columns: 90px 1fr 32px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+
+.barra-ocupacion-label {
+    color: #444;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.barra-ocupacion-fondo {
+    background: #eef2f9;
+    border-radius: 6px;
+    height: 10px;
+    overflow: hidden;
+}
+
+.barra-ocupacion-relleno {
+    background: #004AAD;
+    height: 100%;
+    border-radius: 6px;
+}
+
+.barra-ocupacion-valor {
+    text-align: right;
+    font-weight: 700;
+    color: #0d3b66;
+}
+
 .grid-tarjetas-balance {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

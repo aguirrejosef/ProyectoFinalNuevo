@@ -17,7 +17,8 @@ import {
     faChevronUp,
     faChevronDown,
     faPenToSquare,
-    faCalendarCheck
+    faCalendarCheck,
+    faUsers
 } from '@fortawesome/free-solid-svg-icons';
 import { iconoServicio } from '../../utils/iconoServicio';
 import Toast from '../Toast/Toast';
@@ -110,7 +111,15 @@ function Perfil() {
     // ------------------ Servicios adicionales del club ------------------
     const [servicios, setServicios] = useState([]);
     const [nuevoServicio, setNuevoServicio] = useState('');
+    const [precioNuevoServicio, setPrecioNuevoServicio] = useState('');
     const [agregandoServicio, setAgregandoServicio] = useState(false);
+
+    // ------------------ Empleados del club (multi-usuario) ------------------
+    const [esEmpleado, setEsEmpleado] = useState(false);
+    const [empleados, setEmpleados] = useState([]);
+    const [formEmpleado, setFormEmpleado] = useState({ nombre: '', usuario: '', correo: '', password: '' });
+    const [agregandoEmpleado, setAgregandoEmpleado] = useState(false);
+    const [errorEmpleado, setErrorEmpleado] = useState('');
 
     // ------------------ Días y horario de atención (de acá salen los rangos que el cliente puede reservar) ------------------
     const NOMBRES_DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -126,6 +135,7 @@ function Perfil() {
     const [abiertoHorarios, setAbiertoHorarios] = useState(true);
     const [abiertoDiasAtencion, setAbiertoDiasAtencion] = useState(true);
     const [abiertoServicios, setAbiertoServicios] = useState(true);
+    const [abiertoEmpleados, setAbiertoEmpleados] = useState(true);
 
     useEffect(() => {
         const storedRol = localStorage.getItem('rol');
@@ -183,6 +193,7 @@ function Perfil() {
 
             if (res.ok) {
                 setClubId(data.id_club);
+                setEsEmpleado(!!data.es_empleado);
                 setFormClub({
                     nombre: data.nombre || '',
                     direccion: data.direccion || '',
@@ -196,6 +207,7 @@ function Perfil() {
                 cargarFotos(data.id_club);
                 cargarServicios(data.id_club);
                 cargarDiasAtencion(data.id_club);
+                if (!data.es_empleado) cargarEmpleados();
             } else {
                 setMensaje(data.message || 'No se pudo cargar el club');
             }
@@ -508,7 +520,7 @@ function Perfil() {
         try {
             const res = await apiFetch('/club/servicios', {
                 method: 'POST',
-                body: JSON.stringify({ id_club: clubId, nombre })
+                body: JSON.stringify({ id_club: clubId, nombre, precio: precioNuevoServicio.trim() || null })
             });
 
             const data = await res.json();
@@ -518,8 +530,9 @@ function Perfil() {
                 return;
             }
 
-            setServicios((prev) => [...prev, { id_servicio: data.id_servicio, nombre }]);
+            setServicios((prev) => [...prev, { id_servicio: data.id_servicio, nombre, precio: data.precio }]);
             setNuevoServicio('');
+            setPrecioNuevoServicio('');
             setToast({ tipo: 'exito', mensaje: 'Servicio agregado' });
 
         } catch (err) {
@@ -547,6 +560,69 @@ function Perfil() {
 
         } catch (err) {
             console.error('Error al eliminar servicio:', err);
+            setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
+        }
+    };
+
+    // ------------------ Empleados del club ------------------
+    const cargarEmpleados = async () => {
+        try {
+            const res = await apiFetch('/club/empleados');
+            const data = await res.json();
+            if (res.ok) setEmpleados(data);
+        } catch (err) {
+            console.error('Error al cargar empleados:', err);
+        }
+    };
+
+    const handleAgregarEmpleado = async () => {
+        const { nombre, usuario, correo, password } = formEmpleado;
+        if (!nombre.trim() || !usuario.trim() || !correo.trim() || !password) return;
+
+        setErrorEmpleado('');
+        setAgregandoEmpleado(true);
+        try {
+            const res = await apiFetch('/club/empleados', {
+                method: 'POST',
+                body: JSON.stringify({
+                    nombre: nombre.trim(),
+                    usuario: usuario.trim(),
+                    correo: correo.trim(),
+                    password
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setErrorEmpleado(data.message || 'No se pudo agregar el empleado');
+                return;
+            }
+
+            setEmpleados((prev) => [...prev, { id_usuario: data.id_usuario, nombre: data.nombre, usuario: data.usuario, correo: data.correo }]);
+            setFormEmpleado({ nombre: '', usuario: '', correo: '', password: '' });
+            setToast({ tipo: 'exito', mensaje: 'Empleado agregado' });
+
+        } catch (err) {
+            console.error('Error al agregar empleado:', err);
+            setErrorEmpleado('Error al conectar con el servidor');
+        } finally {
+            setAgregandoEmpleado(false);
+        }
+    };
+
+    const handleEliminarEmpleado = async (idUsuario) => {
+        try {
+            const res = await apiFetch(`/club/empleados/${idUsuario}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setToast({ tipo: 'error', mensaje: data.message || 'No se pudo eliminar el empleado' });
+                return;
+            }
+            setEmpleados((prev) => prev.filter((e) => e.id_usuario !== idUsuario));
+            setToast({ tipo: 'exito', mensaje: 'Empleado eliminado' });
+        } catch (err) {
+            console.error('Error al eliminar empleado:', err);
             setToast({ tipo: 'error', mensaje: 'Error al conectar con el servidor' });
         }
     };
@@ -1105,7 +1181,7 @@ function Perfil() {
                                                     {servicios.map((s) => (
                                                         <div key={s.id_servicio} className="item-servicio-icono">
                                                             <span className="icono-servicio"><FontAwesomeIcon icon={iconoServicio(s.nombre)} /></span>
-                                                            <span>{s.nombre}</span>
+                                                            <span>{s.nombre}{s.precio != null && <strong className="precio-servicio-icono"> · ${Math.round(Number(s.precio)).toLocaleString('es-AR')}</strong>}</span>
                                                             <button
                                                                 type="button"
                                                                 className="btn-quitar-servicio-icono"
@@ -1126,6 +1202,16 @@ function Perfil() {
                                                         onChange={(e) => setNuevoServicio(e.target.value)}
                                                         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAgregarServicio())}
                                                     />
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        className="input-precio-servicio"
+                                                        placeholder="Precio (opcional)"
+                                                        value={precioNuevoServicio}
+                                                        onChange={(e) => setPrecioNuevoServicio(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAgregarServicio())}
+                                                    />
                                                     <button
                                                         type="button"
                                                         className="btn-agregar-servicio"
@@ -1138,6 +1224,90 @@ function Perfil() {
                                             </div>
                                         )}
                                     </div>
+
+                                    {!esEmpleado && (
+                                        <div className="panel-colapsable">
+                                            <button
+                                                type="button"
+                                                className="panel-colapsable-header"
+                                                onClick={() => setAbiertoEmpleados(!abiertoEmpleados)}
+                                            >
+                                                <span><FontAwesomeIcon icon={faUsers} /> Empleados</span>
+                                                <FontAwesomeIcon icon={abiertoEmpleados ? faChevronUp : faChevronDown} className="panel-colapsable-flecha" />
+                                            </button>
+                                            {abiertoEmpleados && (
+                                                <div className="panel-colapsable-body">
+                                                    <div className="lista-empleados">
+                                                        {empleados.length === 0 && (
+                                                            <p className="mensaje-perfil">Todavía no agregaste empleados.</p>
+                                                        )}
+                                                        {empleados.map((e) => (
+                                                            <div key={e.id_usuario} className="item-empleado">
+                                                                <div className="item-empleado-datos">
+                                                                    <span className="item-empleado-nombre">{e.nombre}</span>
+                                                                    <span className="item-empleado-usuario">@{e.usuario}</span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-quitar-empleado"
+                                                                    onClick={() => handleEliminarEmpleado(e.id_usuario)}
+                                                                    aria-label={`Quitar a ${e.nombre}`}
+                                                                >
+                                                                    Quitar
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="agregar-empleado">
+                                                        <div className="agregar-empleado-fila">
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Nombre"
+                                                                value={formEmpleado.nombre}
+                                                                onChange={(e) => setFormEmpleado((prev) => ({ ...prev, nombre: e.target.value }))}
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Usuario"
+                                                                value={formEmpleado.usuario}
+                                                                onChange={(e) => setFormEmpleado((prev) => ({ ...prev, usuario: e.target.value }))}
+                                                            />
+                                                        </div>
+                                                        <div className="agregar-empleado-fila">
+                                                            <input
+                                                                type="email"
+                                                                placeholder="Correo"
+                                                                value={formEmpleado.correo}
+                                                                onChange={(e) => setFormEmpleado((prev) => ({ ...prev, correo: e.target.value }))}
+                                                            />
+                                                            <input
+                                                                type="password"
+                                                                placeholder="Contraseña"
+                                                                value={formEmpleado.password}
+                                                                onChange={(e) => setFormEmpleado((prev) => ({ ...prev, password: e.target.value }))}
+                                                            />
+                                                        </div>
+                                                        {errorEmpleado && <p className="error-perfil">{errorEmpleado}</p>}
+                                                        <button
+                                                            type="button"
+                                                            className="btn-agregar-servicio"
+                                                            onClick={handleAgregarEmpleado}
+                                                            disabled={
+                                                                agregandoEmpleado ||
+                                                                !formEmpleado.nombre.trim() ||
+                                                                !formEmpleado.usuario.trim() ||
+                                                                !formEmpleado.correo.trim() ||
+                                                                !formEmpleado.password
+                                                            }
+                                                        >
+                                                            {agregandoEmpleado ? 'Agregando...' : 'Agregar empleado'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                 </div>
                             </div>

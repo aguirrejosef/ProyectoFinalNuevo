@@ -105,12 +105,28 @@ function requireRol(...rolesPermitidos) {
   };
 }
 
+// Un empleado agregado por el dueño (tabla club_empleados) opera el panel
+// como si fuera el dueño de ESE club. Esto resuelve, a partir de cualquier
+// usuario logueado, el id que hay que usar como "id_dueno" en el resto de
+// las consultas: si es un empleado, el id del dueño real; si no, su propio id
+// (o sea, los dueños de toda la vida siguen funcionando exactamente igual).
+async function idDuenoEfectivo(idUsuario) {
+  const [rows] = await pool.execute(
+    'SELECT cl.id_dueno FROM club_empleados ce INNER JOIN club cl ON ce.id_club = cl.id_club WHERE ce.id_usuario = ?',
+    [idUsuario]
+  );
+  return rows.length > 0 ? rows[0].id_dueno : idUsuario;
+}
+
 // Verifica que el club :id (o el club dueño de :id_club recibido en query/body)
-// pertenezca al usuario autenticado, salvo que sea admin.
+// pertenezca al usuario autenticado (o a un club donde sea empleado), salvo
+// que sea admin.
 async function verificarDuenoDeClub(req, idClub) {
   if (Number(req.usuario.rol) === 1) return true; // admin
   const [rows] = await pool.execute('SELECT id_dueno FROM club WHERE id_club = ?', [idClub]);
-  return rows.length > 0 && rows[0].id_dueno === req.usuario.id;
+  if (rows.length === 0) return false;
+  const idDueno = await idDuenoEfectivo(req.usuario.id);
+  return rows[0].id_dueno === idDueno;
 }
 
 // Igual que verificarDuenoDeClub, pero a partir del id de una cancha.
@@ -120,7 +136,9 @@ async function verificarDuenoDeCancha(req, idCancha) {
     'SELECT cl.id_dueno FROM canchas c INNER JOIN club cl ON c.id_club = cl.id_club WHERE c.id_cancha = ?',
     [idCancha]
   );
-  return rows.length > 0 && rows[0].id_dueno === req.usuario.id;
+  if (rows.length === 0) return false;
+  const idDueno = await idDuenoEfectivo(req.usuario.id);
+  return rows[0].id_dueno === idDueno;
 }
 
 // ------------------ Pagos (Mercado Pago) ------------------
@@ -1486,7 +1504,7 @@ app.post('/usuarios/reset-password', async (req, res) => {
 // ------------------ Obtener Usuarios según rol ------------------
 app.get('/usuarios', verificarToken, requireRol(1, 2), async (req, res) => {
   const rol = req.usuario.rol;
-  const id_usuario = req.usuario.id;
+  const id_usuario = Number(rol) === 1 ? req.usuario.id : await idDuenoEfectivo(req.usuario.id);
 
   try {
     const conn = await pool.getConnection();
@@ -1558,7 +1576,7 @@ app.get('/usuarios', verificarToken, requireRol(1, 2), async (req, res) => {
 // traer todo y filtrar en el front, para que se comporte igual que el resto
 // de las listas paginadas (clubes, usuarios de admin).
 app.get('/club/clientes-buscar', verificarToken, requireRol(2), async (req, res) => {
-  const id_dueno = req.usuario.id;
+  const id_dueno = await idDuenoEfectivo(req.usuario.id);
 
   try {
     const pagina = Math.max(1, parseInt(req.query.pagina) || 1);
@@ -2600,21 +2618,22 @@ app.put('/clubes/:id/estado', verificarToken, requireRol(1), async (req, res) =>
 
 app.get('/club/mi-club', verificarToken, requireRol(2), async (req, res) => {
   try {
+    const idDueno = await idDuenoEfectivo(req.usuario.id);
     const conn = await pool.getConnection();
 
     const [rows] = await conn.execute(
       'SELECT * FROM club WHERE id_dueno = ?',
-      [req.usuario.id]
+      [idDueno]
     );
- 
+
     conn.release();
- 
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'No se encontró un club para este usuario' });
     }
- 
-    res.json(rows[0]);
- 
+
+    res.json({ ...rows[0], es_empleado: idDueno !== req.usuario.id });
+
   } catch (error) {
     console.error('Error en /club/mi-club:', error);
     res.status(500).json({ message: 'Error en el servidor' });
@@ -2629,7 +2648,7 @@ app.get('/club/estado-pago', verificarToken, requireRol(2), async (req, res) => 
           activo, estado_suscripcion, proxima_fecha_pago, motivo_baja,
           (activo = 1 AND estado_suscripcion <> 'cancelada' AND proxima_fecha_pago IS NOT NULL AND proxima_fecha_pago < CURDATE()) AS en_mora
        FROM club WHERE id_dueno = ?`,
-      [req.usuario.id]
+      [await idDuenoEfectivo(req.usuario.id)]
     );
 
     if (rows.length === 0) {
@@ -3064,7 +3083,7 @@ app.get('/club/servicios', async (req, res) => {
   try {
     const conn = await pool.getConnection();
     const [rows] = await conn.execute(
-      'SELECT id_servicio, nombre FROM club_servicios WHERE id_club = ? ORDER BY id_servicio ASC',
+      'SELECT id_servicio, nombre, precio FROM club_servicios WHERE id_club = ? ORDER BY id_servicio ASC',
       [id_club]
     );
     conn.release();
@@ -3076,10 +3095,18 @@ app.get('/club/servicios', async (req, res) => {
 });
  
 app.post('/club/servicios', verificarToken, requireRol(1, 2), async (req, res) => {
-  const { id_club, nombre } = req.body;
+  const { id_club, nombre, precio } = req.body;
 
   if (!id_club || !nombre) {
     return res.status(400).json({ message: 'Faltan datos' });
+  }
+
+  let precioFinal = null;
+  if (precio !== undefined && precio !== null && precio !== '') {
+    precioFinal = Number(precio);
+    if (!Number.isFinite(precioFinal) || precioFinal < 0) {
+      return res.status(400).json({ message: 'El precio no es válido' });
+    }
   }
 
   try {
@@ -3089,12 +3116,12 @@ app.post('/club/servicios', verificarToken, requireRol(1, 2), async (req, res) =
 
     const conn = await pool.getConnection();
     const [result] = await conn.execute(
-      'INSERT INTO club_servicios (id_club, nombre) VALUES (?, ?)',
-      [id_club, nombre]
+      'INSERT INTO club_servicios (id_club, nombre, precio) VALUES (?, ?, ?)',
+      [id_club, nombre, precioFinal]
     );
     conn.release();
- 
-    res.status(201).json({ id_servicio: result.insertId });
+
+    res.status(201).json({ id_servicio: result.insertId, precio: precioFinal });
  
   } catch (error) {
     console.error('Error al agregar servicio:', error);
@@ -3125,6 +3152,108 @@ app.delete('/club/servicios/:id', verificarToken, requireRol(1, 2), async (req, 
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
+
+
+// ------------------ Empleados del club (multi-usuario) ------------------
+// Solo el dueño real (no un empleado) puede gestionar la lista de empleados,
+// para que un empleado no pueda agregar o sacar a otros.
+app.get('/club/empleados', verificarToken, requireRol(2), async (req, res) => {
+  try {
+    const [clubRows] = await pool.execute('SELECT id_club FROM club WHERE id_dueno = ?', [req.usuario.id]);
+    if (clubRows.length === 0) {
+      return res.status(403).json({ message: 'Los empleados no pueden gestionar la lista de empleados' });
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT u.id_usuario, u.usuario, u.nombre, u.apellido, u.correo
+       FROM club_empleados ce INNER JOIN usuarios u ON ce.id_usuario = u.id_usuario
+       WHERE ce.id_club = ? ORDER BY u.usuario ASC`,
+      [clubRows[0].id_club]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error en /club/empleados:', error);
+    res.status(500).json({ message: 'Error al obtener los empleados' });
+  }
+});
+
+app.post('/club/empleados', verificarToken, requireRol(2), async (req, res) => {
+  const { nombre, usuario, correo, password } = req.body;
+
+  if (!nombre || !usuario || !correo || !password) {
+    return res.status(400).json({ message: 'Faltan datos obligatorios' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+
+  try {
+    const [clubRows] = await pool.execute('SELECT id_club FROM club WHERE id_dueno = ?', [req.usuario.id]);
+    if (clubRows.length === 0) {
+      return res.status(403).json({ message: 'Los empleados no pueden agregar otros empleados' });
+    }
+
+    const conn = await pool.getConnection();
+
+    const [existentes] = await conn.execute(
+      'SELECT usuario, correo FROM usuarios WHERE usuario = ? OR correo = ?',
+      [usuario, correo]
+    );
+    if (existentes.length > 0) {
+      conn.release();
+      const usuarioDuplicado = existentes.some((u) => u.usuario === usuario);
+      return res.status(400).json({
+        message: usuarioDuplicado ? 'El nombre de usuario ya está en uso' : 'El correo ya está registrado',
+        campo: usuarioDuplicado ? 'usuario' : 'correo'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [result] = await conn.execute(
+      'INSERT INTO usuarios (nombre, usuario, correo, password, metodo_registro, id_rol) VALUES (?, ?, ?, ?, ?, ?)',
+      [nombre, usuario, correo, hashedPassword, 'manual', 2]
+    );
+
+    await conn.execute(
+      'INSERT INTO club_empleados (id_usuario, id_club) VALUES (?, ?)',
+      [result.insertId, clubRows[0].id_club]
+    );
+
+    conn.release();
+
+    res.status(201).json({ id_usuario: result.insertId, nombre, usuario, correo });
+  } catch (error) {
+    console.error('Error al agregar empleado:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
+app.delete('/club/empleados/:id', verificarToken, requireRol(2), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [clubRows] = await pool.execute('SELECT id_club FROM club WHERE id_dueno = ?', [req.usuario.id]);
+    if (clubRows.length === 0) {
+      return res.status(403).json({ message: 'Los empleados no pueden quitar empleados' });
+    }
+
+    const [empleadoRows] = await pool.execute(
+      'SELECT id_club FROM club_empleados WHERE id_usuario = ?',
+      [id]
+    );
+    if (empleadoRows.length === 0 || empleadoRows[0].id_club !== clubRows[0].id_club) {
+      return res.status(404).json({ message: 'Empleado no encontrado' });
+    }
+
+    await pool.execute('DELETE FROM club_empleados WHERE id_usuario = ?', [id]);
+    res.json({ message: 'Empleado eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar empleado:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+});
+
 
  // Cada plan tope hasta cuántas canchas ACTIVAS puede tener publicadas un
  // club a la vez (Premium no tiene límite). Se valida tanto al agregar una
@@ -3230,7 +3359,7 @@ app.get('/club/canchas', async (req, res) => {
 // turnos), no que desaparezcan sin dejar rastro.
 app.get('/club/mis-canchas', verificarToken, requireRol(2), async (req, res) => {
   try {
-    const [clubRows] = await pool.execute('SELECT id_club FROM club WHERE id_dueno = ?', [req.usuario.id]);
+    const [clubRows] = await pool.execute('SELECT id_club FROM club WHERE id_dueno = ?', [await idDuenoEfectivo(req.usuario.id)]);
 
     if (clubRows.length === 0) {
       return res.status(404).json({ message: 'No se encontró un club para este usuario' });
@@ -3725,6 +3854,19 @@ app.post('/turnos', verificarToken, async (req, res) => {
       return res.status(409).json({ message: 'Ese horario ya está reservado, elegí otro' });
     }
 
+    const [bloqueos] = await conn.execute(
+      `SELECT hora_inicio, hora_fin FROM bloqueos_cancha WHERE id_cancha = ? AND fecha = ?`,
+      [id_cancha, fecha]
+    );
+    const chocaConBloqueo = bloqueos.some((b) =>
+      rangosSeSuperponen(inicioMin, finMin, horaAMinutos(b.hora_inicio), horaAMinutos(b.hora_fin))
+    );
+    if (chocaConBloqueo) {
+      await conn.rollback();
+      conn.release();
+      return res.status(409).json({ message: 'El club bloqueó ese horario, elegí otro' });
+    }
+
     // Buscamos o creamos la franja horaria puntual (hora_inicio - hora_fin) para este club
     const [horarioExistente] = await conn.execute(
       'SELECT id_horario FROM horarios WHERE id_club = ? AND hora_inicio = ? AND hora_fin = ?',
@@ -4018,9 +4160,109 @@ app.get('/club/turnos-cancha', verificarToken, requireRol(1, 2), async (req, res
   }
 });
 
+// ------------------ Bloqueos manuales de horario (mantenimiento, etc.) ------------------
+// A diferencia de pasar la cancha entera a 'mantenimiento', esto bloquea
+// solo un rango puntual de fecha/hora sin sacar la cancha de circulación
+// para el resto del día.
+app.get('/canchas/:id/bloqueos', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!(await verificarDuenoDeCancha(req, id))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+    const [rows] = await pool.execute(
+      `SELECT id_bloqueo, fecha, hora_inicio, hora_fin, motivo
+       FROM bloqueos_cancha
+       WHERE id_cancha = ? AND fecha >= CURDATE()
+       ORDER BY fecha ASC, hora_inicio ASC`,
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener bloqueos:', error);
+    res.status(500).json({ message: 'Error al obtener los bloqueos' });
+  }
+});
+
+app.post('/canchas/:id/bloqueos', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id } = req.params;
+  const { fecha, hora_inicio, hora_fin, motivo } = req.body;
+
+  if (!fecha || !hora_inicio || !hora_fin) {
+    return res.status(400).json({ message: 'Faltan datos obligatorios' });
+  }
+  if (horaAMinutos(hora_fin) <= horaAMinutos(hora_inicio)) {
+    return res.status(400).json({ message: 'El horario de fin tiene que ser después del de inicio' });
+  }
+
+  try {
+    if (!(await verificarDuenoDeCancha(req, id))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    const inicioMin = horaAMinutos(hora_inicio);
+    const finMin = horaAMinutos(hora_fin);
+
+    // No se puede bloquear encima de un turno que ya está activo.
+    const [turnosActivos] = await pool.execute(
+      `SELECT h.hora_inicio, h.hora_fin
+       FROM turnos t
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE t.id_cancha = ? AND t.fecha = ? AND et.nombre NOT IN ('cancelado')`,
+      [id, fecha]
+    );
+    const chocaConTurno = turnosActivos.some((t) =>
+      rangosSeSuperponen(inicioMin, finMin, horaAMinutos(t.hora_inicio), horaAMinutos(t.hora_fin))
+    );
+    if (chocaConTurno) {
+      return res.status(409).json({ message: 'Ya hay un turno reservado en ese horario, no se puede bloquear' });
+    }
+
+    const [bloqueosExistentes] = await pool.execute(
+      'SELECT hora_inicio, hora_fin FROM bloqueos_cancha WHERE id_cancha = ? AND fecha = ?',
+      [id, fecha]
+    );
+    const chocaConBloqueo = bloqueosExistentes.some((b) =>
+      rangosSeSuperponen(inicioMin, finMin, horaAMinutos(b.hora_inicio), horaAMinutos(b.hora_fin))
+    );
+    if (chocaConBloqueo) {
+      return res.status(409).json({ message: 'Ese horario ya está bloqueado' });
+    }
+
+    await pool.execute(
+      'INSERT INTO bloqueos_cancha (id_cancha, fecha, hora_inicio, hora_fin, motivo) VALUES (?, ?, ?, ?, ?)',
+      [id, fecha, hora_inicio, hora_fin, motivo?.trim() || null]
+    );
+
+    res.status(201).json({ message: 'Horario bloqueado correctamente' });
+  } catch (error) {
+    console.error('Error al crear bloqueo:', error);
+    res.status(500).json({ message: 'Error al bloquear el horario' });
+  }
+});
+
+app.delete('/bloqueos/:id', verificarToken, requireRol(1, 2), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [bloqueoRows] = await pool.execute('SELECT id_cancha FROM bloqueos_cancha WHERE id_bloqueo = ?', [id]);
+    if (bloqueoRows.length === 0) {
+      return res.status(404).json({ message: 'Bloqueo no encontrado' });
+    }
+    if (!(await verificarDuenoDeCancha(req, bloqueoRows[0].id_cancha))) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+    await pool.execute('DELETE FROM bloqueos_cancha WHERE id_bloqueo = ?', [id]);
+    res.json({ message: 'Bloqueo eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar bloqueo:', error);
+    res.status(500).json({ message: 'Error al eliminar el bloqueo' });
+  }
+});
+
 app.get('/club/turnos-cliente', verificarToken, requireRol(1, 2), async (req, res) => {
   const { id_usuario } = req.query;
-  const idDueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+  const idDueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : await idDuenoEfectivo(req.usuario.id);
 
   if (!id_usuario || !idDueno) {
     return res.status(400).json({ message: 'Faltan datos' });
@@ -4057,7 +4299,7 @@ app.get('/club/turnos-cliente', verificarToken, requireRol(1, 2), async (req, re
 });
 
 app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
-  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : await idDuenoEfectivo(req.usuario.id);
 
   if (!id_dueno) {
     return res.status(400).json({ error: 'Falta id_dueno' });
@@ -4153,6 +4395,68 @@ app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
   }
 });
 
+// ------------------ Estadísticas de ocupación del club ------------------
+// Qué canchas se reservan más y qué días/horarios son los de mayor demanda.
+// Cuenta turnos 'reservado' y 'completado' (no cancelados ni pendiente_pago,
+// que todavía no se confirmaron).
+app.get('/club/estadisticas-ocupacion', verificarToken, requireRol(1, 2), async (req, res) => {
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : await idDuenoEfectivo(req.usuario.id);
+
+  if (!id_dueno) {
+    return res.status(400).json({ error: 'Falta id_dueno' });
+  }
+
+  try {
+    const [clubRows] = await pool.query('SELECT id_club FROM club WHERE id_dueno = ?', [id_dueno]);
+    if (clubRows.length === 0) {
+      return res.status(404).json({ error: 'No se encontró un club para este usuario' });
+    }
+    const idClub = clubRows[0].id_club;
+
+    const [porCancha] = await pool.query(
+      `SELECT c.id_cancha, c.nombre, COUNT(*) AS cantidad
+       FROM turnos t
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE c.id_club = ? AND et.nombre IN ('reservado', 'completado')
+       GROUP BY c.id_cancha, c.nombre
+       ORDER BY cantidad DESC`,
+      [idClub]
+    );
+
+    // 0=lunes .. 6=domingo, igual que WEEKDAY() y que club_dias_atencion.
+    const [porDia] = await pool.query(
+      `SELECT WEEKDAY(t.fecha) AS numero_dia, COUNT(*) AS cantidad
+       FROM turnos t
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE c.id_club = ? AND et.nombre IN ('reservado', 'completado')
+       GROUP BY numero_dia
+       ORDER BY numero_dia`,
+      [idClub]
+    );
+
+    const [porHorario] = await pool.query(
+      `SELECT h.hora_inicio, COUNT(*) AS cantidad
+       FROM turnos t
+       INNER JOIN canchas c ON t.id_cancha = c.id_cancha
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE c.id_club = ? AND et.nombre IN ('reservado', 'completado')
+       GROUP BY h.hora_inicio
+       ORDER BY cantidad DESC
+       LIMIT 10`,
+      [idClub]
+    );
+
+    res.json({ por_cancha: porCancha, por_dia: porDia, por_horario: porHorario });
+
+  } catch (error) {
+    console.error('Error en /club/estadisticas-ocupacion:', error);
+    res.status(500).json({ error: 'Error al obtener las estadísticas' });
+  }
+});
+
 // ------------------ Balance histórico del club, mes a mes: lo que ingresó por turnos vs. lo que pagó de plan ------------------
 async function obtenerBalanceMensualClub(idClub) {
   const [pagosTurnos] = await pool.query(
@@ -4211,7 +4515,7 @@ async function obtenerBalanceMensualClub(idClub) {
 }
 
 app.get('/club/balance-mensual', verificarToken, requireRol(1, 2), async (req, res) => {
-  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : await idDuenoEfectivo(req.usuario.id);
 
   if (!id_dueno) {
     return res.status(400).json({ error: 'Falta id_dueno' });
@@ -4239,7 +4543,7 @@ app.get('/club/balance-mensual', verificarToken, requireRol(1, 2), async (req, r
 
 // ------------------ Balance mensual del club, en Excel real (con formato y data bars) ------------------
 app.get('/club/balance-mensual/excel', verificarToken, requireRol(1, 2), async (req, res) => {
-  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : await idDuenoEfectivo(req.usuario.id);
 
   if (!id_dueno) {
     return res.status(400).json({ error: 'Falta id_dueno' });
@@ -4359,7 +4663,7 @@ app.get('/club/balance-mensual/excel', verificarToken, requireRol(1, 2), async (
 // La semana es lunes a domingo (YEARWEEK con modo 1), igual que turnos_semana
 // de /club/resumen.
 app.get('/club/turnos-periodo', verificarToken, requireRol(1, 2), async (req, res) => {
-  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : await idDuenoEfectivo(req.usuario.id);
 
   if (!id_dueno) {
     return res.status(400).json({ message: 'Falta id_dueno' });
@@ -4458,7 +4762,7 @@ app.get('/club/turnos-periodo', verificarToken, requireRol(1, 2), async (req, re
 
 // ------------------ Cantidad de turnos por día, para pintar el calendario ------------------
 app.get('/club/turnos-calendario', verificarToken, requireRol(1, 2), async (req, res) => {
-  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : req.usuario.id;
+  const id_dueno = Number(req.usuario.rol) === 1 ? req.query.id_dueno : await idDuenoEfectivo(req.usuario.id);
 
   if (!id_dueno) {
     return res.status(400).json({ message: 'Falta id_dueno' });
@@ -4669,7 +4973,7 @@ app.get('/club/resumen-descargable/excel', verificarToken, requireRol(2), async 
   const { periodo } = req.query; // 'mes' | 'anio' | 'todo'
 
   try {
-    const [clubRows] = await pool.query('SELECT id_club, nombre FROM club WHERE id_dueno = ?', [req.usuario.id]);
+    const [clubRows] = await pool.query('SELECT id_club, nombre FROM club WHERE id_dueno = ?', [await idDuenoEfectivo(req.usuario.id)]);
     if (clubRows.length === 0) {
       return res.status(404).json({ message: 'No se encontró un club para este usuario' });
     }
@@ -5053,7 +5357,7 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     const turno = turnoRows[0];
     const { id_usuario: idUsuarioTurno, id_dueno: idDuenoClub } = turno;
     const esElCliente = req.usuario.id === idUsuarioTurno;
-    const esDueno = Number(req.usuario.rol) === 1 || esElCliente || req.usuario.id === idDuenoClub;
+    const esDueno = Number(req.usuario.rol) === 1 || esElCliente || (await idDuenoEfectivo(req.usuario.id)) === idDuenoClub;
 
     if (!esDueno) {
       return res.status(403).json({ message: 'No autorizado' });
@@ -5248,6 +5552,19 @@ app.put('/turnos/:id/reprogramar', verificarToken, async (req, res) => {
       return res.status(409).json({ message: 'Ese horario ya está reservado, elegí otro' });
     }
 
+    const [bloqueos] = await conn.execute(
+      `SELECT hora_inicio, hora_fin FROM bloqueos_cancha WHERE id_cancha = ? AND fecha = ?`,
+      [turnoActual.id_cancha, fecha]
+    );
+    const chocaConBloqueo = bloqueos.some((b) =>
+      rangosSeSuperponen(inicioMin, finMin, horaAMinutos(b.hora_inicio), horaAMinutos(b.hora_fin))
+    );
+    if (chocaConBloqueo) {
+      await conn.rollback();
+      conn.release();
+      return res.status(409).json({ message: 'El club bloqueó ese horario, elegí otro' });
+    }
+
     const [horarioExistente] = await conn.execute(
       'SELECT id_horario FROM horarios WHERE id_club = ? AND hora_inicio = ? AND hora_fin = ?',
       [idClub, hora_inicio, horaFin]
@@ -5307,7 +5624,7 @@ app.put('/turnos/:id/marcar-resto-pagado', verificarToken, requireRol(1, 2), asy
     }
 
     const turno = turnoRows[0];
-    const esDueno = Number(req.usuario.rol) === 1 || req.usuario.id === turno.id_dueno;
+    const esDueno = Number(req.usuario.rol) === 1 || (await idDuenoEfectivo(req.usuario.id)) === turno.id_dueno;
 
     if (!esDueno) {
       return res.status(403).json({ message: 'No autorizado' });

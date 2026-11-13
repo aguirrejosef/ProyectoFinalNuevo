@@ -104,6 +104,13 @@
     color: #004AAD;
 }
 
+.precio-servicio-info {
+    margin-left: auto;
+    font-weight: 700;
+    color: #1b7a3d;
+    white-space: nowrap;
+}
+
 @media (max-width: 900px) {
     .tarjeta-donde-estamos-info {
         margin: 20px;

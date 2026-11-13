@@ -27,9 +27,165 @@
   color: #555;
   padding: 30px 0;
 }
- 
+
 .error-turnos-cancha {
   color: #c62828;
+}
+
+.seccion-bloqueos-cancha {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.seccion-bloqueos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.seccion-bloqueos-header h3 {
+  color: #0d3b66;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.btn-nuevo-bloqueo {
+  background-color: #004AAD;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.btn-nuevo-bloqueo:hover {
+  background-color: #003580;
+}
+
+.form-bloqueo-cancha {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.form-bloqueo-fila {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.form-bloqueo-fila label,
+.form-bloqueo-motivo {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  flex: 1;
+  min-width: 140px;
+}
+
+.form-bloqueo-motivo {
+  margin-top: 14px;
+}
+
+.form-bloqueo-fila input,
+.form-bloqueo-motivo input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid #d5dbe4;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.btn-guardar-bloqueo {
+  background-color: #004AAD;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  margin-top: 14px;
+}
+
+.btn-guardar-bloqueo:hover:not(:disabled) {
+  background-color: #003580;
+}
+
+.btn-guardar-bloqueo:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mensaje-sin-bloqueos {
+  text-align: left;
+  color: #888;
+  font-size: 14px;
+  padding: 14px 0 0;
+}
+
+.lista-bloqueos-cancha {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.item-bloqueo-cancha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff4e0;
+  border: 1px solid #f3cf8f;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #7a4a00;
+}
+
+.item-bloqueo-motivo {
+  color: #9a6a1a;
+  font-style: italic;
+  flex: 1;
+}
+
+.btn-quitar-bloqueo {
+  background: none;
+  border: 1px solid #c62828;
+  color: #c62828;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.btn-quitar-bloqueo:hover {
+  background: #fdecea;
+}
+
+@media (max-width: 700px) {
+  .form-bloqueo-fila {
+    flex-direction: column;
+  }
+
+  .item-bloqueo-cancha {
+    flex-wrap: wrap;
+  }
 }
  
 .tabla-turnos-cancha {
