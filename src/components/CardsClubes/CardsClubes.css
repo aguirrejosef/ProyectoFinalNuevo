@@ -1,10 +1,60 @@
+.club-list-contenedor {
+    margin: 70px 70px;
+  }
+
+  .club-list-buscador {
+    margin-bottom: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .club-list-buscador input[type="text"] {
+    width: 100%;
+    max-width: 420px;
+    padding: 12px 18px;
+    border: 1px solid #c3d3e8;
+    border-radius: 30px;
+    font-size: 15px;
+    box-sizing: border-box;
+    outline: none;
+  }
+
+  .club-list-check-favoritos {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14.5px;
+    color: #004AAD;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .club-list-check-favoritos input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  .club-list-buscador input:focus {
+    border-color: #004AAD;
+    box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.15);
+  }
+
+  .club-list-sin-resultados {
+    color: #666;
+    font-size: 16px;
+    padding: 30px 0;
+  }
+
 .club-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     row-gap: 40px;
     column-gap: 40px;
     justify-items: center; /* Centra los items horizontalmente dentro de cada celda */
-    margin: 70px 70px;
   }
 
   .club-list .card {
@@ -14,16 +64,22 @@
   }
 
   @media (max-width: 900px) {
+    .club-list-contenedor {
+      margin: 40px 24px;
+    }
+
     .club-list {
       column-gap: 24px;
       row-gap: 24px;
-      margin: 40px 24px;
     }
   }
 
   @media (max-width: 480px) {
+    .club-list-contenedor {
+      margin: 24px 16px;
+    }
+
     .club-list {
       grid-template-columns: 1fr;
-      margin: 24px 16px;
     }
   }

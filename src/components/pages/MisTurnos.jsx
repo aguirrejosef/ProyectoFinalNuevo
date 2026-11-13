@@ -57,6 +57,12 @@ function MisTurnos() {
     const [errorCancelar, setErrorCancelar] = useState('');
     const [toast, setToast] = useState(null);
 
+    const [mostrandoReprogramar, setMostrandoReprogramar] = useState(false);
+    const [nuevaFecha, setNuevaFecha] = useState('');
+    const [nuevaHora, setNuevaHora] = useState('');
+    const [reprogramando, setReprogramando] = useState(false);
+    const [errorReprogramar, setErrorReprogramar] = useState('');
+
     const [pagina, setPagina] = useState(1);
     const [totalPaginas, setTotalPaginas] = useState(1);
     const [total, setTotal] = useState(0);
@@ -211,7 +217,51 @@ function MisTurnos() {
             setCancelando(false);
         }
     };
- 
+
+    const handleAbrirReprogramar = () => {
+        setErrorReprogramar('');
+        setNuevaFecha(turnoSeleccionado?.fecha ? turnoSeleccionado.fecha.slice(0, 10) : '');
+        setNuevaHora(turnoSeleccionado?.hora_inicio ? turnoSeleccionado.hora_inicio.slice(0, 5) : '');
+        setMostrandoReprogramar(true);
+    };
+
+    const handleCerrarReprogramar = () => {
+        if (reprogramando) return;
+        setMostrandoReprogramar(false);
+    };
+
+    const handleReprogramarTurno = async () => {
+        if (!turnoSeleccionado || !nuevaFecha || !nuevaHora) return;
+
+        setReprogramando(true);
+        setErrorReprogramar('');
+
+        try {
+            const res = await apiFetch(`/turnos/${turnoSeleccionado.id_turno}/reprogramar`, {
+                method: 'PUT',
+                body: JSON.stringify({ fecha: nuevaFecha, hora_inicio: `${nuevaHora}:00` })
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setErrorReprogramar(data.message || 'No se pudo reprogramar el turno');
+                return;
+            }
+
+            setTurnoSeleccionado(null);
+            setMostrandoReprogramar(false);
+            setToast({ tipo: 'exito', mensaje: 'Turno reprogramado correctamente' });
+            window.dispatchEvent(new Event('turnos-actualizados'));
+            cargarTurnos();
+
+        } catch (err) {
+            console.error('Error al reprogramar turno:', err);
+            setErrorReprogramar('Error al conectar con el servidor');
+        } finally {
+            setReprogramando(false);
+        }
+    };
+
     return (
         <>
             <NavBar />
@@ -385,14 +435,30 @@ function MisTurnos() {
                                 </div>
                             )}
 
+                            {turnoSeleccionado.estado?.toLowerCase() === 'cancelado' && (
+                                <div className="detalle-fila">
+                                    <span className="detalle-etiqueta">Motivo</span>
+                                    <span>{turnoSeleccionado.motivo_cancelacion || 'Lo cancelaste vos'}</span>
+                                </div>
+                            )}
+
                             {turnoSeleccionado.estado?.toLowerCase() === 'reservado' && (
-                                <button
-                                    type="button"
-                                    className="btn-cancelar-turno-detalle"
-                                    onClick={handleAbrirConfirmacionCancelar}
-                                >
-                                    Cancelar turno
-                                </button>
+                                <div className="botones-detalle-turno">
+                                    <button
+                                        type="button"
+                                        className="btn-reprogramar-turno-detalle"
+                                        onClick={handleAbrirReprogramar}
+                                    >
+                                        Reprogramar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-cancelar-turno-detalle"
+                                        onClick={handleAbrirConfirmacionCancelar}
+                                    >
+                                        Cancelar turno
+                                    </button>
+                                </div>
                             )}
 
                         </div>
@@ -416,6 +482,50 @@ function MisTurnos() {
                             </button>
                             <button type="button" className="btn-modal-eliminar" onClick={handleCancelarTurno} disabled={cancelando}>
                                 {cancelando ? 'Cancelando...' : 'Sí, cancelar turno'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {mostrandoReprogramar && (
+                <div className="overlay-modal" onClick={handleCerrarReprogramar}>
+                    <div className="modal-cancha" onClick={(e) => e.stopPropagation()}>
+                        <h3>Reprogramar turno</h3>
+                        <p>Elegí la nueva fecha y horario. La seña ya pagada sigue valiendo, no hace falta pagar de nuevo.</p>
+
+                        <label className="label-reprogramar">
+                            Nueva fecha
+                            <input
+                                type="date"
+                                value={nuevaFecha}
+                                min={new Date().toISOString().slice(0, 10)}
+                                onChange={(e) => setNuevaFecha(e.target.value)}
+                            />
+                        </label>
+
+                        <label className="label-reprogramar">
+                            Nuevo horario de inicio
+                            <input
+                                type="time"
+                                value={nuevaHora}
+                                onChange={(e) => setNuevaHora(e.target.value)}
+                            />
+                        </label>
+
+                        {errorReprogramar && <p className="error-modal-cancha">{errorReprogramar}</p>}
+
+                        <div className="modal-cancha-botones">
+                            <button type="button" className="btn-modal-cancelar" onClick={handleCerrarReprogramar} disabled={reprogramando}>
+                                Volver
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-modal-guardar"
+                                onClick={handleReprogramarTurno}
+                                disabled={reprogramando || !nuevaFecha || !nuevaHora}
+                            >
+                                {reprogramando ? 'Guardando...' : 'Confirmar nuevo horario'}
                             </button>
                         </div>
                     </div>

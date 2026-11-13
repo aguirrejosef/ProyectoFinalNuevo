@@ -2,7 +2,7 @@ import React from 'react'
 import './Card.css'
 import { useNavigate } from 'react-router-dom'
 
-function Card({ imagen, titulo, id, direccion, localidad, cantidadCanchas, precioDesde, promedioResenas, cantidadResenas }) {
+function Card({ imagen, titulo, id, direccion, localidad, cantidadCanchas, precioDesde, promedioResenas, cantidadResenas, esFavorito, onToggleFavorito }) {
 
   const navigate = useNavigate();
 
@@ -15,15 +15,31 @@ function Card({ imagen, titulo, id, direccion, localidad, cantidadCanchas, preci
   return (
 
       <div className="card">
-        <img
-          src={imagen}
-          alt={titulo}
-          className="card-img"
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = '/imagenes/padel.jpg';
-          }}
-        />
+        <div className="card-img-wrapper">
+          <img
+            src={imagen}
+            alt={titulo}
+            className="card-img"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = '/imagenes/padel.jpg';
+            }}
+          />
+          {onToggleFavorito && (
+            <button
+              type="button"
+              className={`btn-favorito-card ${esFavorito ? 'btn-favorito-card-activo' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorito(id, !esFavorito);
+              }}
+              aria-label={esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              title={esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+            >
+              {esFavorito ? '♥' : '♡'}
+            </button>
+          )}
+        </div>
         <div className="card-contenido">
           <h2 className="card-titulo">{titulo}</h2>
           {cantidadResenas > 0 && (

@@ -1822,6 +1822,42 @@ app.get('/clubes', async (req, res) => {
 
 });
 
+// ------------------ Favoritos del cliente ------------------
+app.get('/mis-favoritos', verificarToken, requireRol(3), async (req, res) => {
+  try {
+    const [rows] = await pool.execute('SELECT id_club FROM favoritos WHERE id_usuario = ?', [req.usuario.id]);
+    res.json(rows.map((r) => r.id_club));
+  } catch (error) {
+    console.error('Error en /mis-favoritos:', error);
+    res.status(500).json({ message: 'Error al obtener los favoritos' });
+  }
+});
+
+app.post('/clubes/:id/favorito', verificarToken, requireRol(3), async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.execute(
+      'INSERT INTO favoritos (id_usuario, id_club) VALUES (?, ?) ON DUPLICATE KEY UPDATE id_usuario = id_usuario',
+      [req.usuario.id, id]
+    );
+    res.json({ message: 'Agregado a favoritos' });
+  } catch (error) {
+    console.error('Error al agregar favorito:', error);
+    res.status(500).json({ message: 'Error al agregar a favoritos' });
+  }
+});
+
+app.delete('/clubes/:id/favorito', verificarToken, requireRol(3), async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.execute('DELETE FROM favoritos WHERE id_usuario = ? AND id_club = ?', [req.usuario.id, id]);
+    res.json({ message: 'Quitado de favoritos' });
+  } catch (error) {
+    console.error('Error al quitar favorito:', error);
+    res.status(500).json({ message: 'Error al quitar de favoritos' });
+  }
+});
+
 // ------------------ Obtener un club puntual (vista pública) ------------------
 app.get('/clubes/:id', async (req, res) => {
   const { id } = req.params;
@@ -5044,12 +5080,16 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
     // filtro, la cancelación lo pisaría igual y un turno ya jugado quedaría
     // marcado como cancelado. Usar el estado leído (no hardcodear 'reservado')
     // evita romper la cancelación de un turno que todavía está pendiente_pago.
+    // El motivo solo lo carga el club (o un admin) cancelando en nombre del
+    // cliente; si cancela el propio cliente, queda NULL — mostrar "cancelado
+    // por vos" no necesita explicación.
     const [result] = await pool.query(
       `UPDATE turnos
-       SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado')
+       SET id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = 'cancelado'),
+           motivo_cancelacion = ?
        WHERE id_turno = ?
          AND id_estado = (SELECT id_estado FROM estados_turno WHERE nombre = ?)`,
-      [id, turno.estado_actual]
+      [esElCliente ? null : motivo.trim(), id, turno.estado_actual]
     );
 
     if (result.affectedRows === 0) {
@@ -5082,6 +5122,163 @@ app.put('/turnos/:id/cancelar', verificarToken, async (req, res) => {
   } catch (error) {
     console.error('Error al cancelar turno:', error);
     res.status(500).json({ message: 'Error al cancelar el turno' });
+  }
+});
+
+// ------------------ Reprogramar un turno (el cliente lo mueve a otro horario) ------------------
+// Solo cambia fecha/horario, siempre en la misma cancha y con la misma
+// duración que ya tenía: así la seña ya pagada sigue valiendo lo mismo, sin
+// tener que recalcular ni cobrar de nuevo. Pensado para evitar que mover un
+// turno le cueste la seña al cliente, que es lo que pasa hoy si cancela y
+// vuelve a reservar.
+app.put('/turnos/:id/reprogramar', verificarToken, async (req, res) => {
+  const { id } = req.params;
+  const { fecha, hora_inicio } = req.body;
+
+  if (!fecha || !hora_inicio) {
+    return res.status(400).json({ message: 'Faltan datos obligatorios' });
+  }
+
+  let conn;
+  try {
+    const [turnoRows] = await pool.execute(
+      `SELECT t.id_usuario, t.id_cancha, et.nombre AS estado_actual,
+              h.hora_inicio AS hora_inicio_actual, h.hora_fin AS hora_fin_actual
+       FROM turnos t
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE t.id_turno = ?`,
+      [id]
+    );
+
+    if (turnoRows.length === 0) {
+      return res.status(404).json({ message: 'Turno no encontrado' });
+    }
+
+    const turnoActual = turnoRows[0];
+
+    if (turnoActual.id_usuario !== req.usuario.id) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+    if (turnoActual.estado_actual !== 'reservado') {
+      return res.status(400).json({ message: 'Solo se puede reprogramar un turno reservado' });
+    }
+
+    const [fechaValida] = await pool.execute('SELECT ? >= CURDATE() AS valida', [fecha]);
+    if (!fechaValida[0].valida) {
+      return res.status(400).json({ message: 'No se puede reprogramar a una fecha pasada' });
+    }
+
+    // Misma duración que ya tenía, solo cambia el día/horario de inicio.
+    const duracionMin = horaAMinutos(turnoActual.hora_fin_actual) - horaAMinutos(turnoActual.hora_inicio_actual);
+
+    // Misma transacción con bloqueo de la cancha que usa POST /turnos: evita
+    // que dos pedidos (otra reserva nueva, u otra reprogramación) pisen el
+    // mismo horario si llegan casi al mismo tiempo.
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const [canchaRows] = await conn.execute(
+      `SELECT c.estado, c.activo, cl.id_club
+       FROM canchas c INNER JOIN club cl ON c.id_club = cl.id_club
+       WHERE c.id_cancha = ?
+       FOR UPDATE`,
+      [turnoActual.id_cancha]
+    );
+
+    if (canchaRows.length === 0 || !canchaRows[0].activo || canchaRows[0].estado !== 'disponible') {
+      await conn.rollback();
+      conn.release();
+      return res.status(400).json({ message: 'Esta cancha ya no está disponible' });
+    }
+
+    const idClub = canchaRows[0].id_club;
+
+    const [diaRows] = await conn.execute(
+      `SELECT hora_apertura, hora_cierre FROM club_dias_atencion WHERE id_club = ? AND numero_dia = WEEKDAY(?)`,
+      [idClub, fecha]
+    );
+    if (diaRows.length === 0) {
+      await conn.rollback();
+      conn.release();
+      return res.status(400).json({ message: 'El club no atiende ese día' });
+    }
+
+    const inicioMin = horaAMinutos(hora_inicio);
+    const finMin = inicioMin + duracionMin;
+    const aperturaMin = horaAMinutos(diaRows[0].hora_apertura);
+    const cierreMin = horaAMinutos(diaRows[0].hora_cierre);
+
+    if (inicioMin < aperturaMin || finMin > cierreMin) {
+      await conn.rollback();
+      conn.release();
+      return res.status(400).json({ message: 'Ese horario está fuera de la atención del club' });
+    }
+
+    const [validezHoy] = await conn.execute(
+      'SELECT (? = CURDATE() AND ? <= CURTIME()) AS yaPaso',
+      [fecha, hora_inicio]
+    );
+    if (validezHoy[0].yaPaso) {
+      await conn.rollback();
+      conn.release();
+      return res.status(400).json({ message: 'Ese horario ya pasó' });
+    }
+
+    const horaFin = minutosAHora(finMin);
+
+    const [turnosActivos] = await conn.execute(
+      `SELECT h.hora_inicio, h.hora_fin
+       FROM turnos t
+       INNER JOIN horarios h ON t.id_horario = h.id_horario
+       INNER JOIN estados_turno et ON t.id_estado = et.id_estado
+       WHERE t.id_cancha = ? AND t.fecha = ? AND t.id_turno <> ?
+         AND et.nombre <> 'cancelado'
+         AND NOT (et.nombre = 'pendiente_pago' AND t.fecha_creacion <= NOW() - INTERVAL ? MINUTE)`,
+      [turnoActual.id_cancha, fecha, id, MINUTOS_ESPERA_PAGO]
+    );
+
+    const hayChoque = turnosActivos.some((t) =>
+      rangosSeSuperponen(inicioMin, finMin, horaAMinutos(t.hora_inicio), horaAMinutos(t.hora_fin))
+    );
+
+    if (hayChoque) {
+      await conn.rollback();
+      conn.release();
+      return res.status(409).json({ message: 'Ese horario ya está reservado, elegí otro' });
+    }
+
+    const [horarioExistente] = await conn.execute(
+      'SELECT id_horario FROM horarios WHERE id_club = ? AND hora_inicio = ? AND hora_fin = ?',
+      [idClub, hora_inicio, horaFin]
+    );
+
+    let idHorario;
+    if (horarioExistente.length > 0) {
+      idHorario = horarioExistente[0].id_horario;
+    } else {
+      const [nuevoHorario] = await conn.execute(
+        'INSERT INTO horarios (id_club, hora_inicio, hora_fin) VALUES (?, ?, ?)',
+        [idClub, hora_inicio, horaFin]
+      );
+      idHorario = nuevoHorario.insertId;
+    }
+
+    await conn.execute('UPDATE turnos SET fecha = ?, id_horario = ? WHERE id_turno = ?', [fecha, idHorario, id]);
+
+    await conn.commit();
+    conn.release();
+    conn = undefined;
+
+    res.json({ message: 'Turno reprogramado correctamente' });
+
+  } catch (error) {
+    console.error('Error al reprogramar turno:', error);
+    if (conn) {
+      try { await conn.rollback(); } catch (_) { /* la conexión puede haberse caído */ }
+      conn.release();
+    }
+    res.status(500).json({ message: 'Error al reprogramar el turno' });
   }
 });
 
@@ -5226,6 +5423,7 @@ app.get('/turnos', verificarToken, async (req, res) => {
           cl.telefono AS telefono_club,
           cl.localidad AS localidad_club,
           e.nombre AS estado,
+          t.motivo_cancelacion,
           p.monto AS monto_sena,
           p.resto_pagado_en
        FROM turnos t
