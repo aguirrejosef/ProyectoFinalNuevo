@@ -426,8 +426,7 @@ function ReservaTurno({ club, cancha, onCambiarPaso }) {
                                 {formatearHora(combinacionElegida?.hora_inicio)} a {formatearHora(combinacionElegida?.hora_fin)}.
                             </p>
                             <p className="aviso-politica-sena">
-                                Si el turno se cancela por algún motivo, tenés 24 horas desde la cancelación para
-                                reclamar la devolución de la seña; pasado ese plazo, la seña queda sin efecto.
+                                La seña no es reembolsable: si cancelás el turno más adelante, no se devuelve.
                             </p>
 
                             {mensaje && <p className="error-modal-cancha">{mensaje}</p>}

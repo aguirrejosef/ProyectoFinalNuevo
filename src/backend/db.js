@@ -4088,6 +4088,15 @@ app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
     // resumen descargable, para mostrarlo de una sin tener que descargar nada.
     const { ingresos } = await calcularResumenClub(idClub, 'mes');
 
+    // Si el club nunca cargó sus días de atención, nadie le puede reservar
+    // un turno (POST /turnos rechaza todo con "El club no atiende ese día")
+    // y hoy no hay ningún aviso de esto en el panel — ya pasó en la práctica
+    // con varios clubes que no se dieron cuenta. Lo avisamos acá.
+    const [diasAtencionRows] = await pool.query(
+      `SELECT COUNT(*) AS cantidad FROM club_dias_atencion WHERE id_club = ?`,
+      [idClub]
+    );
+
     res.json({
       nombre_club: club.nombre,
       plan: club.plan,
@@ -4098,7 +4107,8 @@ app.get('/club/resumen', verificarToken, requireRol(1, 2), async (req, res) => {
       turnos_hoy: turnosHoyRows[0].turnos_hoy || 0,
       turnos_semana: turnosSemanaRows[0].turnos_semana || 0,
       total_clientes: clientesRows[0].total_clientes || 0,
-      ingresos_mes: ingresos.total
+      ingresos_mes: ingresos.total,
+      dias_atencion_configurados: diasAtencionRows[0].cantidad > 0
     });
  
   } catch (error) {

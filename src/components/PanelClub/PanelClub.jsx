@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './PanelClub.css';
 import '../Modal/ModalConfirmacion.css';
 import { apiFetch } from '../../api';
@@ -9,6 +10,7 @@ const LIMITE_TURNOS_PERIODO = 10;
 const DIAS_AVISO_VENCIMIENTO = 5;
 
 function PanelClub() {
+  const navigate = useNavigate();
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelandoId, setCancelandoId] = useState(null);
@@ -282,6 +284,13 @@ function PanelClub() {
           )}
         </div>
       </div>
+
+      {resumen.dias_atencion_configurados === false && (
+        <div className="panel-club-aviso-dias-atencion">
+          ⚠️ Todavía no configuraste los días de atención de tu club. Mientras no lo hagas, <strong>ningún cliente va a poder reservarte un turno</strong>.{' '}
+          <button type="button" onClick={() => navigate('/mi-perfil')}>Configurarlos ahora</button>
+        </div>
+      )}
 
       <div className="panel-club-kpis">
         <div className="kpi-card">

@@ -89,6 +89,39 @@
   font-weight: 800;
 }
 
+/* ------------------ Aviso: días de atención sin configurar ------------------ */
+
+.panel-club-aviso-dias-atencion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  background: #fff4e0;
+  color: #7a4a00;
+  border: 1px solid #f3cf8f;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.panel-club-aviso-dias-atencion button {
+  background: #7a4a00;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.panel-club-aviso-dias-atencion button:hover {
+  background: #5c3800;
+}
+
 /* ------------------ KPIs ------------------ */
 
 .panel-club-kpis {
